@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import warnings
 import itertools
 
+from pymdp import maths 
+
 EPS_VAL = 1e-16 # global constant for use in norm_dist()
 
 def sample(probabilities):
@@ -87,26 +89,21 @@ def onehot(value, num_values):
     arr[value] = 1.0
     return arr
 
-def random_A_matrix(num_obs, num_states, A_factor_list=None):
+def random_A_matrix(num_obs, num_states):
     if type(num_obs) is int:
         num_obs = [num_obs]
     if type(num_states) is int:
         num_states = [num_states]
     num_modalities = len(num_obs)
 
-    if A_factor_list is None:
-        num_factors = len(num_states)
-        A_factor_list = [list(range(num_factors))] * num_modalities
-
     A = obj_array(num_modalities)
     for modality, modality_obs in enumerate(num_obs):
-        lagging_dimensions = [ns for i, ns in enumerate(num_states) if i in A_factor_list[modality]]
-        modality_shape = [modality_obs] + lagging_dimensions
+        modality_shape = [modality_obs] + num_states
         modality_dist = np.random.rand(*modality_shape)
         A[modality] = norm_dist(modality_dist)
     return A
 
-def random_B_matrix(num_states, num_controls, B_factor_list=None):
+def random_B_matrix(num_states, num_controls):
     if type(num_states) is int:
         num_states = [num_states]
     if type(num_controls) is int:
@@ -114,14 +111,9 @@ def random_B_matrix(num_states, num_controls, B_factor_list=None):
     num_factors = len(num_states)
     assert len(num_controls) == len(num_states)
 
-    if B_factor_list is None:
-        B_factor_list = [[f] for f in range(num_factors)]
-
     B = obj_array(num_factors)
     for factor in range(num_factors):
-        lagging_shape = [ns for i, ns in enumerate(num_states) if i in B_factor_list[factor]]
-        factor_shape = [num_states[factor]] + lagging_shape + [num_controls[factor]]
-        # factor_shape = (num_states[factor], num_states[factor], num_controls[factor])
+        factor_shape = (num_states[factor], num_states[factor], num_controls[factor])
         factor_dist = np.random.rand(*factor_shape)
         B[factor] = norm_dist(factor_dist)
     return B
@@ -178,7 +170,7 @@ def dirichlet_like(template_categorical, scale = 1.0):
 
     return dirichlet_out
 
-def get_model_dimensions(A=None, B=None, factorized=False):
+def get_model_dimensions(A=None, B=None):
 
     if A is None and B is None:
         raise ValueError(
@@ -196,13 +188,8 @@ def get_model_dimensions(A=None, B=None, factorized=False):
         num_factors = len(num_states)
     else:
         if A is not None:
-            if not factorized:
-                num_states = list(A[0].shape[1:]) if is_obj_array(A) else list(A.shape[1:])
-                num_factors = len(num_states)
-            else:
-                raise ValueError(
-                    "`A` array is factorized and  cannot be used to infer `num_states`"
-                )
+            num_states = list(A[0].shape[1:]) if is_obj_array(A) else list(A.shape[1:])
+            num_factors = len(num_states)
         else:
             num_states, num_factors = None, None
     
@@ -671,7 +658,54 @@ def plot_likelihood(A, title=""):
     plt.title(title)
     plt.show()
 
+def scale_A_with_zeta(A, beta_zeta):
+    """
+    Utility function for scaling the A matrix (likelihood) with a precision parameter
+    zeta can be:
+    - a scalar 
+    - a vector of length num_modalities 
+    - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
+      m, n, k are the indices of the state factors that modality [m] depends on
+    """
 
+    #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
+    lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+    if np.isscalar(zeta):
+        zeta = 1/ beta_zeta
+        for m in range(len(A)):
+            A[m] = maths.softmax(zeta*lnA[m] )          
+    elif np.isscalar(zeta[0]): #one value per modality 
+        for m in range(len(A)):
+            zeta = 1/ beta_zeta[m]
+            A[m] = maths.softmax(zeta*lnA[m])
+    else: 
+        for m in range(len(A)): 
+            zeta = 1/ beta_zeta[m]  #a numpy array of shape (num_states[0], num_states[1])
+            A[m] = maths.softmax(zeta[None,...]*lnA[m]) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+    return A
+
+def scale_B_with_omega(B, beta_omega):
+    """
+    Utility function for scaling the B matrix (transition likelihood) with a precision parameter
+    omega can be:
+    - a scalar
+    - a vector of length num_factors
+    - a list/collection of np.ndarray of len num_factors, where the f-th elemnt will have shape (num_states[m], num_states[n], num_states[k], num_actions[f]) aka B.shape[1:], where
+      m, n, k are the indices of the state factors that factor [f] depends on
+    """
+
+    lnB = maths.spm_log_obj_array(B)
+    if np.isscalar(beta_omega):
+        omega = 1 / beta_omega
+        for f in range(len(B)):
+            B[f] = maths.softmax(omega*lnB[f])
     
-   
-
+    elif np.isscalar(beta_omega[0]): #one scalar per state factor
+        for f in range(len(B)):
+            omega = 1 / beta_omega[f]
+            B[f] = maths.softmax(omega*lnB[f])
+    else:
+        for f in range(len(B)):
+            omega = 1 / beta_omega[f]
+            B[f] = maths.softmax(omega[None, ...]*lnB[f])
+    return B

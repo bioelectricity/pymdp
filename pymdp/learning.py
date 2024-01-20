@@ -457,3 +457,126 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
             raise(NotImplementedError("Need to figure out how to re-distribute concentration parameters from pruned rows/columns, across remaining rows/columns"))
 
     return reduced_B
+
+
+
+def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False):
+
+    """
+    beta_zeta can be:
+    - a scalar 
+    - a vector of length num_modalities 
+    - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
+    m, n, k are the indices of the state factors that modality [m] depends on
+    """
+
+    expected_A = utils.scale_A_with_zeta(A, beta_zeta)
+
+    # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
+    if A_factor_list is not None:
+        get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+        qs_relevant = [get_factors(qs, factor_list) for factor_list in A_factor_list]
+        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
+    else:
+        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs) for m in range(len(A))])
+
+    observation_array = utils.obj_array_from_list([utils.onehot(observation[m], A[m].shape[0]) for m in range(len(A))])
+
+    prediction_errors = bold_o_per_modality - observation_array
+
+    lnA = maths.spm_log_obj_array(A)
+    beta_zeta_full = utils.obj_array(len(A))
+
+    # do checking here to make sure pzeta is broadcast-consistent
+    if np.isscalar(beta_zeta_prior):
+        beta_zeta_prior = np.array([beta_zeta_prior] * len(A))
+
+    for m in range(len(A)):
+        beta_zeta_full[m] = (prediction_errors[m][...,None] * lnA[m]).sum(axis=0) + beta_zeta_prior[m]
+
+    # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
+    if np.isscalar(beta_zeta):
+        beta_zeta_posterior = sum([beta_zeta_m.sum() for beta_zeta_m in beta_zeta_full])
+    elif np.isscalar(beta_zeta[0]):
+        beta_zeta_posterior = [beta_zeta_m.sum() for beta_zeta_m in beta_zeta_full]
+    else:
+        beta_zeta_posterior = beta_zeta_full
+        
+
+    #TODO: do we want to do empirical bayes where we update pzeta? 
+    if update_prior:
+        beta_zeta_prior = beta_zeta_posterior
+
+    return beta_zeta_posterior, beta_zeta_prior
+
+
+# E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions
+# ==> Q(s_{t,f})
+
+def update_omega(qs, q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, policies, B_factor_list):
+    """
+    q_pi: a probability distribution over the actions that i can take
+
+    qs: expected state given previous state, action
+    """
+    
+    q_beta_omega = beta_omega.copy()
+    if np.isscalar(beta_omega):
+        q_beta_omega = np.array([q_beta_omega] * len(B))
+
+    #if B factor list
+    # \tau-1 entry in the rollouts during EFE calculations
+    if B_factor_list is not None:
+        get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+    
+    # check whether B is ln[E_Q[]
+    expected_B = utils.scale_B_with_omega(B, beta_omega)
+    lnB = maths.spm_log_obj_array(B)
+    # do checking here to make sure pzeta is broadcast-consistent
+    if np.isscalar(beta_omega_prior):
+        beta_omega_prior = np.array([beta_omega_prior] * len(B))
+    
+    beta_omega_full = utils.obj_array(len(policies))
+
+    for idx, policy in enumerate(policies):
+        beta_omega_full_f = utils.obj_array(len(B))
+
+        for f in range(len(B)):
+
+            #get relevant factors out of qs_pi_previous - do marginalization like we do in control
+            if B_factor_list is not None:
+                qs_pi_previous_relevant_factors = [get_factors(qs_pi_previous, factor_list) for factor_list in B_factor_list]
+                s_omega_pi = utils.obj_array_from_list([maths.spm_dot(expected_B[...,int(policy[0,f])], qs_pi_previous_relevant_factors[f]) for f in range(len(B))])
+                lnB_s_omega_pi_previous = utils.obj_array_from_list([maths.spm_dot(lnB[f], qs_pi_previous_relevant_factors[f]) for f in range(len(B))])
+            else:
+                s_omega_pi = utils.obj_array_from_list([maths.spm_dot(expected_B[...,int(policy[0,f])], qs_pi_previous) for f in range(len(B))])
+                lnB_s_omega_pi_previous = utils.obj_array_from_list([maths.spm_dot(lnB[f], qs_pi_previous) for f in range(len(B))])
+
+            prediction_errors = s_omega_pi - qs_pi
+
+            new_beta_omega = q_pi[...,None] * prediction_errors[f][...,None] * lnB_s_omega_pi_previous[f]
+            beta_omega_full_f[f] = new_beta_omega + beta_omega_prior[f]
+        beta_omega_full[idx] = beta_omega_full_f
+
+    #sum over policies .. ?
+    beta_omega_full = beta_omega_full.sum(axis=0)
+
+    # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
+    if np.isscalar(beta_omega):
+        beta_omega_posterior = sum([beta_omege_f.sum() for beta_omege_f in beta_omega_full])
+    elif np.isscalar(beta_omega[0]):
+        beta_omega_posterior = [beta_omege_f.sum() for beta_omege_f in beta_omega_full]
+    else:
+        beta_omega_posterior = beta_omega_full
+
+    return beta_omega_posterior, beta_omega_prior
+
+
+
+def update_gamma(G, gamma, q_pi, policies):
+    pi_0 = maths.softmax(-gamma * G)
+
+    for idx  in range(len(policies)):
+        gamma += (q_pi[idx] - pi_0).dot(G)
+
+    return gamma

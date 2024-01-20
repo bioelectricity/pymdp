@@ -47,6 +47,10 @@ class Agent(object):
         control_fac_idx=None,
         policies=None,
         gamma=16.0,
+        beta_zeta = None, 
+        beta_omega = None, 
+        beta_zeta_prior = None, 
+        beta_omega_prior = None,
         alpha=16.0,
         use_utility=True,
         use_states_info_gain=True,
@@ -94,6 +98,14 @@ class Agent(object):
 
         self.A = utils.to_obj_array(A)
 
+        if beta_zeta is None:
+            beta_zeta = beta_zeta_prior 
+        self.beta_zeta = beta_zeta
+
+        if self.beta_zeta is not None:
+            self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.beta_zeta_prior = beta_zeta_prior
+
         assert utils.is_normalized(self.A), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
 
         # Determine number of observation modalities and their respective dimensions
@@ -110,6 +122,14 @@ class Agent(object):
             )
 
         self.B = utils.to_obj_array(B)
+
+        if beta_omega is None:
+            beta_omega = beta_omega_prior
+        self.beta_omega = beta_omega   
+
+        if self.beta_omega is not None:
+            self.B = utils.scale_B_with_omega(self.B, self.beta_omega)
+        self.beta_omega_prior = beta_omega_prior
 
         assert utils.is_normalized(self.B), "B matrix is not normalized (i.e. B[f].sum(axis = 0) must all equal 1.0 for all factors)"
 
