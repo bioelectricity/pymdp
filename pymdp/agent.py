@@ -313,6 +313,8 @@ class Agent(object):
         
         self.action = None
         self.prev_actions = None
+        self.qs_pi_policy_previous = None
+        self.qs_pi_policy = None
 
     def _construct_C_prior(self):
         
@@ -683,8 +685,11 @@ class Agent(object):
             Negative expected free energies of each policy, i.e. a vector containing one negative expected free energy per policy.
         """
 
+        if self.qs_pi_policy is not None:
+            self.qs_pi_policy_previous = self.qs_pi_policy
+
         if self.inference_algo == "VANILLA":
-            q_pi, G = control.update_posterior_policies_factorized(
+            q_pi, G, self.qs_pi_policy = control.update_posterior_policies_factorized(
                 self.qs,
                 self.A,
                 self.B,

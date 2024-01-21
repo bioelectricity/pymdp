@@ -443,8 +443,11 @@ def update_posterior_policies_factorized(
     else:
         lnE = spm_log_single(E) 
 
+    qs_pi_policy = utils.obj_array(len(policies))
+
     for idx, policy in enumerate(policies):
         qs_pi = get_expected_states_interactions(qs, B, B_factor_list, policy)
+        qs_pi_policy[idx] = qs_pi
         qo_pi = get_expected_obs_factorized(qs_pi, A, A_factor_list)
 
         if use_utility:
@@ -464,7 +467,7 @@ def update_posterior_policies_factorized(
 
     q_pi = softmax(G * gamma + lnE)    
 
-    return q_pi, G
+    return q_pi, G, qs_pi_policy
 
 def get_expected_states(qs, B, policy):
     """

@@ -670,11 +670,11 @@ def scale_A_with_zeta(A, beta_zeta):
 
     #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
     lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
-    if np.isscalar(zeta):
+    if np.isscalar(beta_zeta):
         zeta = 1/ beta_zeta
         for m in range(len(A)):
             A[m] = maths.softmax(zeta*lnA[m] )          
-    elif np.isscalar(zeta[0]): #one value per modality 
+    elif np.isscalar(beta_zeta[0]): #one value per modality 
         for m in range(len(A)):
             zeta = 1/ beta_zeta[m]
             A[m] = maths.softmax(zeta*lnA[m])
@@ -707,5 +707,5 @@ def scale_B_with_omega(B, beta_omega):
     else:
         for f in range(len(B)):
             omega = 1 / beta_omega[f]
-            B[f] = maths.softmax(omega[None, ...]*lnB[f])
+            B[f] = maths.softmax(omega[None,...]*lnB[f])
     return B

@@ -475,7 +475,7 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
     # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
     if A_factor_list is not None:
         get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
-        qs_relevant = [get_factors(qs, factor_list) for factor_list in A_factor_list]
+        qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
         bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
     else:
         bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs) for m in range(len(A))])
@@ -484,6 +484,7 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
 
     prediction_errors = bold_o_per_modality - observation_array
 
+
     lnA = maths.spm_log_obj_array(A)
     beta_zeta_full = utils.obj_array(len(A))
 
@@ -491,8 +492,13 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
     if np.isscalar(beta_zeta_prior):
         beta_zeta_prior = np.array([beta_zeta_prior] * len(A))
 
+
     for m in range(len(A)):
-        beta_zeta_full[m] = (prediction_errors[m][...,None] * lnA[m]).sum(axis=0) + beta_zeta_prior[m]
+        prediction_errors_expanded = prediction_errors[m]
+        for _ in range(A[m].ndim - 1):
+            prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
+            
+        beta_zeta_full[m] = (prediction_errors_expanded[m] * lnA[m]).sum(axis=0) + beta_zeta_prior[m]
 
     # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
     if np.isscalar(beta_zeta):
@@ -513,61 +519,59 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
 # E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions
 # ==> Q(s_{t,f})
 
-def update_omega(qs, q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, policies, B_factor_list):
+def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, policies, B_factor_list, update_prior=False):
     """
     q_pi: a probability distribution over the actions that i can take
 
-    qs: expected state given previous state, action
-    """
-    
-    q_beta_omega = beta_omega.copy()
-    if np.isscalar(beta_omega):
-        q_beta_omega = np.array([q_beta_omega] * len(B))
+    qs_pi: an object array of length num_policies, 
+        where each element in the object array is a list of length policy_horizon, 
+        where each element in the list is an object array of shape (num_states[f],) for each factor f
 
-    #if B factor list
-    # \tau-1 entry in the rollouts during EFE calculations
+    qs_pi_previous: an object array of length num_policies, 
+        where each element in the object array is a list of length policy_horizon, 
+        where each element in the list is an object array of shape (num_states[f],) for each factor f
+
+    """
+
+    
     if B_factor_list is not None:
         get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
     
     # check whether B is ln[E_Q[]
     expected_B = utils.scale_B_with_omega(B, beta_omega)
+    
     lnB = maths.spm_log_obj_array(B)
     # do checking here to make sure pzeta is broadcast-consistent
     if np.isscalar(beta_omega_prior):
         beta_omega_prior = np.array([beta_omega_prior] * len(B))
     
-    beta_omega_full = utils.obj_array(len(policies))
+
+    omega_per_policy = utils.obj_array(len(policies))
 
     for idx, policy in enumerate(policies):
-        beta_omega_full_f = utils.obj_array(len(B))
+        #right now i am indexing qs_pi_previous[idx][0] but for policy_len > 1 maybe we want to sum over all qs_pi_previous[idx]?
+        qs_pi_previous_relevant_factors = np.array([get_factors(qs_pi_previous[idx][0], factor_list) for factor_list in B_factor_list], dtype = 'object')
 
+        omega_per_policy[idx] = utils.obj_array(len(B))
         for f in range(len(B)):
+            s_omega_pi_f = maths.spm_dot(expected_B[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
+            lnB_s_omega_pi_f = maths.spm_dot(lnB[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
+            prediction_errors_f = s_omega_pi_f - qs_pi[idx][0][f][0]
+            omega_per_policy[idx][f] = q_pi[idx] * (prediction_errors_f[...,None] * lnB_s_omega_pi_f[...,None] + beta_omega_prior[f])
 
-            #get relevant factors out of qs_pi_previous - do marginalization like we do in control
-            if B_factor_list is not None:
-                qs_pi_previous_relevant_factors = [get_factors(qs_pi_previous, factor_list) for factor_list in B_factor_list]
-                s_omega_pi = utils.obj_array_from_list([maths.spm_dot(expected_B[...,int(policy[0,f])], qs_pi_previous_relevant_factors[f]) for f in range(len(B))])
-                lnB_s_omega_pi_previous = utils.obj_array_from_list([maths.spm_dot(lnB[f], qs_pi_previous_relevant_factors[f]) for f in range(len(B))])
-            else:
-                s_omega_pi = utils.obj_array_from_list([maths.spm_dot(expected_B[...,int(policy[0,f])], qs_pi_previous) for f in range(len(B))])
-                lnB_s_omega_pi_previous = utils.obj_array_from_list([maths.spm_dot(lnB[f], qs_pi_previous) for f in range(len(B))])
-
-            prediction_errors = s_omega_pi - qs_pi
-
-            new_beta_omega = q_pi[...,None] * prediction_errors[f][...,None] * lnB_s_omega_pi_previous[f]
-            beta_omega_full_f[f] = new_beta_omega + beta_omega_prior[f]
-        beta_omega_full[idx] = beta_omega_full_f
-
-    #sum over policies .. ?
-    beta_omega_full = beta_omega_full.sum(axis=0)
+    beta_omega_summed_over_policies = omega_per_policy.sum(axis=0)
 
     # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
     if np.isscalar(beta_omega):
-        beta_omega_posterior = sum([beta_omege_f.sum() for beta_omege_f in beta_omega_full])
+
+        beta_omega_posterior = sum([beta_omege_f.sum() for beta_omege_f in beta_omega_summed_over_policies])
     elif np.isscalar(beta_omega[0]):
-        beta_omega_posterior = [beta_omege_f.sum() for beta_omege_f in beta_omega_full]
+        beta_omega_posterior = [beta_omege_f.sum() for beta_omege_f in beta_omega_summed_over_policies]
     else:
-        beta_omega_posterior = beta_omega_full
+        beta_omega_posterior = beta_omega_summed_over_policies
+
+    if update_prior:
+        beta_omega_prior = beta_omega_posterior
 
     return beta_omega_posterior, beta_omega_prior
 
