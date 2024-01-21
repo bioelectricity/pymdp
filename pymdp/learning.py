@@ -473,12 +473,9 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
     expected_A = utils.scale_A_with_zeta(A, beta_zeta)
 
     # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
-    if A_factor_list is not None:
-        get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
-        qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
-        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
-    else:
-        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs) for m in range(len(A))])
+    get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+    qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
+    bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
 
     observation_array = utils.obj_array_from_list([utils.onehot(observation[m], A[m].shape[0]) for m in range(len(A))])
 
@@ -509,7 +506,7 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
         beta_zeta_posterior = beta_zeta_full
         
 
-    #TODO: do we want to do empirical bayes where we update pzeta? 
+    #Do we want to do empirical bayes where we update pzeta? 
     if update_prior:
         beta_zeta_prior = beta_zeta_posterior
 
@@ -534,8 +531,7 @@ def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, 
     """
 
     
-    if B_factor_list is not None:
-        get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+    get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
     
     # check whether B is ln[E_Q[]
     expected_B = utils.scale_B_with_omega(B, beta_omega)
@@ -549,6 +545,7 @@ def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, 
     omega_per_policy = utils.obj_array(len(policies))
 
     for idx, policy in enumerate(policies):
+        
         #right now i am indexing qs_pi_previous[idx][0] but for policy_len > 1 maybe we want to sum over all qs_pi_previous[idx]?
         qs_pi_previous_relevant_factors = np.array([get_factors(qs_pi_previous[idx][0], factor_list) for factor_list in B_factor_list], dtype = 'object')
 
