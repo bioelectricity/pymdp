@@ -68,7 +68,9 @@ class Agent(object):
         policy_sep_prior=False,
         save_belief_hist=False,
         A_factor_list=None,
-        B_factor_list=None
+        B_factor_list=None,
+        update_zeta_prior = False, 
+        update_omega_prior=False,
     ):
 
         ### Constant parameters ###
@@ -103,7 +105,8 @@ class Agent(object):
         self.beta_zeta = beta_zeta
 
         if self.beta_zeta is not None:
-            self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+            self.base_A = A
+            self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
         self.beta_zeta_prior = beta_zeta_prior
 
         assert utils.is_normalized(self.A), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
@@ -128,7 +131,8 @@ class Agent(object):
         self.beta_omega = beta_omega   
 
         if self.beta_omega is not None:
-            self.B = utils.scale_B_with_omega(self.B, self.beta_omega)
+            self.base_B = B
+            self.B = utils.scale_B_with_omega(self.base_B, self.beta_omega)
         self.beta_omega_prior = beta_omega_prior
 
         assert utils.is_normalized(self.B), "B matrix is not normalized (i.e. B[f].sum(axis = 0) must all equal 1.0 for all factors)"
@@ -315,6 +319,9 @@ class Agent(object):
         self.prev_actions = None
         self.qs_pi_policy_previous = None
         self.qs_pi_policy = None
+
+        self.update_zeta_prior = update_zeta_prior
+        self.update_omega_prior = update_omega_prior
 
     def _construct_C_prior(self):
         
@@ -884,6 +891,20 @@ class Agent(object):
         self.B = utils.norm_dist_obj_arr(qB)  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
 
         return qB
+    
+    def update_zeta(self, observation):
+        self.beta_zeta, self.beta_zeta_prior = learning.update_beta_zeta(observation, self.A, self.beta_zeta, self.qs, self.beta_zeta_prior, self.A_factor_list, update_prior = self.update_zeta_prior)
+        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
+        return self.beta_zeta, self.beta_zeta_prior
+    
+    def update_omega(self):
+        self.beta_omega, self.beta_omega_prior = learning.update_beta_omega(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.beta_omega, self.beta_omega_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
+        self.B = utils.scale_B_with_omega(self.base_B, self.beta_omega)
+        return self.beta_omega, self.beta_omega_prior
+
+    def update_gamma(self):
+        self.gamma = learning.update_beta_gamma(self.G, self.gamma, self.q_pi, self.policies)
+        return self.gamma
     
     def _update_B_old(self, qs_prev):
         """

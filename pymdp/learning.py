@@ -460,7 +460,7 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
 
 
 
-def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False):
+def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False):
 
     """
     beta_zeta can be:
@@ -516,7 +516,7 @@ def update_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, u
 # E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions
 # ==> Q(s_{t,f})
 
-def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, policies, B_factor_list, update_prior=False):
+def update_beta_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, policies, B_factor_list, update_prior=False):
     """
     q_pi: a probability distribution over the actions that i can take
 
@@ -545,16 +545,22 @@ def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, 
     omega_per_policy = utils.obj_array(len(policies))
 
     for idx, policy in enumerate(policies):
-        
-        #right now i am indexing qs_pi_previous[idx][0] but for policy_len > 1 maybe we want to sum over all qs_pi_previous[idx]?
-        qs_pi_previous_relevant_factors = np.array([get_factors(qs_pi_previous[idx][0], factor_list) for factor_list in B_factor_list], dtype = 'object')
 
-        omega_per_policy[idx] = utils.obj_array(len(B))
-        for f in range(len(B)):
-            s_omega_pi_f = maths.spm_dot(expected_B[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
-            lnB_s_omega_pi_f = maths.spm_dot(lnB[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
-            prediction_errors_f = s_omega_pi_f - qs_pi[idx][0][f][0]
-            omega_per_policy[idx][f] = q_pi[idx] * (prediction_errors_f[...,None] * lnB_s_omega_pi_f[...,None] + beta_omega_prior[f])
+        omega_per_policy_and_time_horizon = utils.obj_array(len(policy))
+
+        for t in range(len(policy)): #iterate over the time horizon of the policy
+        
+            #right now i am indexing qs_pi_previous[idx][0] but for policy_len > 1 maybe we want to sum over all qs_pi_previous[idx]?
+            qs_pi_previous_relevant_factors = np.array([get_factors(qs_pi_previous[idx][t], factor_list) for factor_list in B_factor_list], dtype = 'object')
+
+            omega_per_policy_and_time_horizon[t] = utils.obj_array(len(B))
+            for f in range(len(B)):
+                s_omega_pi_f = maths.spm_dot(expected_B[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
+                lnB_s_omega_pi_f = maths.spm_dot(lnB[f][...,int(policy[0,f])], qs_pi_previous_relevant_factors[f][0][...,None])
+                prediction_errors_f = s_omega_pi_f - qs_pi[idx][0][f][0]
+                omega_per_policy_and_time_horizon[t][f] = q_pi[idx] * (prediction_errors_f[...,None] * lnB_s_omega_pi_f[...,None] + beta_omega_prior[f])
+
+        omega_per_policy[idx] = omega_per_policy_and_time_horizon.sum(axis=0) #sum over the time horizon
 
     beta_omega_summed_over_policies = omega_per_policy.sum(axis=0)
 
@@ -574,7 +580,7 @@ def update_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_prior, 
 
 
 
-def update_gamma(G, gamma, q_pi, policies):
+def update_beta_gamma(G, gamma, q_pi, policies):
     pi_0 = maths.softmax(-gamma * G)
 
     for idx  in range(len(policies)):
