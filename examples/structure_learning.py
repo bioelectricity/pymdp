@@ -1,3 +1,5 @@
+#this is not tested!!!!
+
 """This routine returns a generative model (mdp) in the form of an MDP,
 given a sequence of outcomes. If the outcomes are not available, then
 they can be generated automatically from a generative process, specified
