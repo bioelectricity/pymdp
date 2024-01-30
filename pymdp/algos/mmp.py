@@ -132,7 +132,7 @@ def run_mmp(
     return qs_seq, F
 
 def run_mmp_factorized(
-    lh_seq, mb_dict, B, B_factor_list, policy, prev_actions=None, prior=None, num_iter=10, grad_descent=True, tau=0.25, last_timestep = False):
+    lh_seq, mb_dict, B, B_factor_list, policy, prev_actions=None, prior=None, num_iter=10, grad_descent=True, tau=0.25, last_timestep = False, beta_zeta = None, lnZ_zeta = None, beta_omega = None, lnZ_omega = None):
     """
     Marginal message passing scheme for updating marginal posterior beliefs about hidden states over time, 
     conditioned on a particular policy.
@@ -215,13 +215,27 @@ def run_mmp_factorized(
 
     joint_lh_seq = obj_array(len(lh_seq))
     num_modalities = len(A_factor_list)
+
+    if beta_zeta is not None:
+        if np.isscalar(beta_zeta):
+            beta_zeta = [beta_zeta] * num_modalities
+    if beta_omega is not None:
+        if np.isscalar(beta_omega):
+            beta_omega = [beta_omega] * num_modalities
+
     for t in range(len(lh_seq)):
         joint_loglikelihood = np.zeros(tuple(num_states))
+
         for m in range(num_modalities):
             reshape_dims = num_factors*[1]
             for _f_id in A_factor_list[m]:
                 reshape_dims[_f_id] = num_states[_f_id]
             joint_loglikelihood += lh_seq[t][m].reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
+            if beta_zeta is not None:
+                if np.isscalar(beta_zeta[m]):
+                    joint_loglikelihood *= 1 / beta_zeta[m]
+                else:
+                    joint_loglikelihood *= 1 / beta_zeta[m][None,...]
         joint_lh_seq[t] = joint_loglikelihood
 
     for itr in range(num_iter):
@@ -241,6 +255,13 @@ def run_mmp_factorized(
                 else:
                     past_msg = spm_dot(B[f][...,int(policy[t - 1, f])], qs_seq[t-1][B_factor_list[f]])
                     lnB_past = spm_log_single(past_msg)
+
+                    if beta_omega is not None:
+                        if np.isscalar(beta_omega[f]):
+                            lnB_past *= 1 / beta_omega[f]
+                        else:
+                            lnB_past *= 1 / beta_omega[f][...,None]
+                        lnB_past -= spm_dot(lnZ_omega, qs_seq[t-1][B_factor_list[f]])
 
                 # future message
                 if t >= future_cutoff:

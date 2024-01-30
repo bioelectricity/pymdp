@@ -658,6 +658,26 @@ def plot_likelihood(A, title=""):
     plt.title(title)
     plt.show()
 
+def calc_lnZ_zeta(A, beta_zeta):
+    """
+    Utility function for calculating the precision parameter Z for the observation likelihood
+    A, given a precision parameter beta_zeta
+    """
+    lnZ = obj_array(len(A))
+
+    if np.isscalar(beta_zeta):
+        beta_zeta = [beta_zeta]*len(A)
+    if np.isscalar(beta_zeta[0]):
+
+        zeta = 1/ beta_zeta[m]
+        for m in range(len(A)):
+            lnZ[m] = zeta[m] * maths.spm_log(np.sum(A[m], axis = 0))
+    else:
+        for m in range(len(A)):
+            zeta = 1/ beta_zeta[m]
+            lnZ[m] = zeta[None,...]*maths.spm_log(np.sum(A[m], axis = 0))
+    return lnZ
+
 def scale_A_with_zeta(A, beta_zeta):
     """
     Utility function for scaling the A matrix (likelihood) with a precision parameter
@@ -683,6 +703,22 @@ def scale_A_with_zeta(A, beta_zeta):
             zeta = 1/ beta_zeta[m]  #a numpy array of shape (num_states[0], num_states[1])
             A[m] = maths.softmax(zeta[None,...]*lnA[m]) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
     return A
+
+def calc_lnZ_omega(B, beta_omega):
+    
+    lnZ = obj_array(len(B))
+
+    if np.isscalar(beta_omega):
+        beta_omega = [beta_omega] * len(B)
+    if np.isscalar(beta_omega[0]):
+        for f in range(len(B)):
+            omega = 1/beta_omega[f]
+            lnZ[f] = omega[f] * maths.spm_log(np.sum(B[f], axis = 0))
+    else:
+        for f in range(len(B)):
+            omega = 1/ beta_omega[f]
+            lnZ[f] = omega[f][None,...] * maths.spm_log(np.sum(B[f], axis = 0))
+    return lnZ
 
 def scale_B_with_omega(B, beta_omega):
     """

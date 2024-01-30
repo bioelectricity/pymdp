@@ -250,7 +250,7 @@ def get_joint_likelihood_seq(A, obs, num_states):
         ll_seq[t] = get_joint_likelihood(A, obs_t, num_states)
     return ll_seq
 
-def get_joint_likelihood_seq_by_modality(A, obs, num_states):
+def get_joint_likelihood_seq_by_modality(A, obs, num_states, lnZ_omega = None):
     """
     Returns joint likelihoods for each modality separately
     """
@@ -264,6 +264,9 @@ def get_joint_likelihood_seq_by_modality(A, obs, num_states):
         for (m, A_m) in enumerate(A):
             likelihood[m] = dot_likelihood(A_m, obs_t_obj[m])
         ll_seq[t] = likelihood
+
+        if lnZ_omega is not None:
+            ll_seq[t] -= spm_dot(lnZ_omega, obs_t_obj[m])
     
     return ll_seq
 
@@ -372,6 +375,19 @@ def compute_accuracy(log_likelihood, qs):
 
     return np.einsum(*arg_list)
 
+def compute_accuracy_with_precisions(log_likelihood, qs):
+    """
+    Function that computes the accuracy term of the variational free energy. This is essentially a stripped down version of `spm_dot` above,
+    with fewer conditions / dimension handling in the beginning.
+    This version also includes precision terms for the likelihoods
+    """ 
+
+    ndims_ll, n_factors = log_likelihood.ndim, len(qs)
+
+    dims = list(range(ndims_ll - n_factors,n_factors+ndims_ll - n_factors))
+    arg_list = [log_likelihood, list(range(ndims_ll))] + list(chain(*([qs[xdim_i],[dims[xdim_i]]] for xdim_i in range(n_factors))))
+
+    return np.einsum(*arg_list)
 
 def calc_free_energy(qs, prior, n_factors, likelihood=None):
     """ Calculate variational free energy
@@ -386,6 +402,8 @@ def calc_free_energy(qs, prior, n_factors, likelihood=None):
         free_energy += negH_qs + xH_qp
 
     if likelihood is not None:
+
+
         free_energy -= compute_accuracy(likelihood, qs)
     return free_energy
 

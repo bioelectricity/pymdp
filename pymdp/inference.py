@@ -96,6 +96,8 @@ def update_posterior_states_full_factorized(
     prev_actions=None,
     prior=None,
     policy_sep_prior = True,
+    beta_zeta = None, 
+    beta_omega = None,
     **kwargs,
 ):
     """
@@ -137,12 +139,20 @@ def update_posterior_states_full_factorized(
     F: 1D ``numpy.ndarray``
         Vector of variational free energies for each policy
     """
-
+    if beta_zeta is not None:
+        lnZ_zeta = utils.calc_lnZ_zeta(A,beta_zeta)
+    else:
+         lnZ_zeta = None
+    if beta_omega is not None:
+        lnZ_omega = utils.calc_lnZ_zeta(A,beta_omega)
+    else:
+        lnZ_omega = None
     num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
     
     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
    
-    lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
+    
+    lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states, lnZ_omega)
 
     if prev_actions is not None:
         prev_actions = np.stack(prev_actions,0)
@@ -161,6 +171,9 @@ def update_posterior_states_full_factorized(
                 policy,
                 prev_actions=prev_actions,
                 prior= prior[p_idx] if policy_sep_prior else prior, 
+                beta_zeta = beta_zeta, 
+                beta_omega = beta_omega, 
+                lnZ_omega = lnZ_omega,
                 **kwargs
             )
 
