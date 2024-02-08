@@ -17,28 +17,27 @@ class FixedCell(Cell):
 
         self.build_generative_model()
 
-    def build_A(self, num_obs):
-        return self.build_identity_A(num_obs)
+    def build_A(self):
+        return self.build_identity_A(self.num_obs)
     
-    def build_B(self, num_states, action_zero_states, action_one_states):
+    def build_B(self):
         B = utils.obj_array(self.num_factors)
 
         for i in range(self.num_factors): #generate a randomized (deterministic) B
 
-            B_i = np.zeros((num_states[i], num_states[i], self.num_actions[i]))
+            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
             for action in range(self.num_actions[i]):
-                for state in range(num_states[i]):
-                    possible_states_for_this_action = [action_zero_states, action_one_states][action]
-                    random_state = np.random.choice(np.array(list(range(num_states[i])))[possible_states_for_this_action])
+                for state in range(self.num_states[i]):
+                    random_state = np.random.choice(list(range(self.num_states[i])))
                     B_i[random_state, state, action] = 1
             B[i] = B_i
 
         return B
     
-    def build_C(self, num_obs):
-        return self.build_uniform_C(num_obs)
+    def build_C(self):
+        return self.build_uniform_C(self.num_obs)
     
-    def build_D(self, num_states):
-        return self.build_uniform_D(num_states)
+    def build_D(self):
+        return self.build_uniform_D(self.num_states)
     
 

@@ -17,7 +17,6 @@ class Cell(Agent):
         self.num_neighbors = num_neighbors
         self.global_neighbor_indices = neighbor_indices
         self.global_states = global_states
-        self.self_idx = -2
         self.other_idx = -1
 
         self._action = None
@@ -25,41 +24,31 @@ class Cell(Agent):
 
         self.num_modalities = 1
         self.num_factors = 1
-        self.num_actions = [2]
+
+        self.actions_received = {n:0 for n in neighbor_indices} #keep track of what you received and from who
 
     def setup(self):
-        action_zero_states_global = [idx for idx, state in enumerate(self.global_states) if state[self.node_idx] == "0"]
-        action_one_states_global = [idx for idx, state in enumerate(self.global_states) if state[self.node_idx] == "1"]
 
-        action_zero_states = []
-        action_one_states = []
-        num_states = [2**(self.num_neighbors + 2)] #neighbors, self, and other agent 
-        num_obs = [2**(self.num_neighbors + 2)] 
+        self.num_states = [2**(self.num_neighbors + 1)] #neighbors, and other agent 
+        self.num_obs = [2**(self.num_neighbors + 1)] 
+        self.num_actions = [2**(self.num_neighbors + 1)]
+
+        print(f"Agent num states / actions: {self.num_states}")
 
         state_names = []
 
-        local_idx = 0
 
-        for global_idx, state in enumerate(self.global_states):
+        for state in self.global_states:
             other_agent = int(state[-1])
-            self_state = int(state[self.node_idx])
-            values = [int(state[index]) for index in self.global_neighbor_indices] + [self_state, other_agent] 
+            values = [int(state[index]) for index in self.global_neighbor_indices] + [other_agent] 
             state_name = "".join(map(str, values))
             if state_name not in state_names:
                 state_names.append(state_name)
-                if global_idx in action_zero_states_global:
-                    action_zero_states.append(local_idx)
-                elif global_idx in action_one_states_global:
-                    action_one_states.append(local_idx)
-                else:
-                    raise Exception("Every state should either be globally 0 or 1 for this agent")
-                local_idx += 1
 
-        assert len(state_names) == 2**(self.num_neighbors + 2)
+        assert len(state_names) == 2**(self.num_neighbors + 1)
 
         self.state_names = state_names
 
-        return num_states, num_obs, action_zero_states, action_one_states
     
     def build_identity_A(self, num_obs):
         A = utils.obj_array(self.num_modalities)
@@ -101,16 +90,16 @@ class Cell(Agent):
 
     def build_generative_model(self):
 
-        num_states, num_obs, action_zero_states, action_one_states = self.setup()
+        self.setup()
 
-        print(f"Num states: {num_states}")
-        A = self.build_A(num_obs)
+        print(f"Num states: {self.num_states}")
+        A = self.build_A()
         
-        B = self.build_B(num_states, action_zero_states, action_one_states)
+        B = self.build_B()
 
-        C = self.build_C(num_obs)
+        C = self.build_C()
 
-        D = self.build_D(num_states)
+        D = self.build_D()
 
         super().__init__(A=A, B=B, C=C, D=D)
 
@@ -122,5 +111,6 @@ class Cell(Agent):
         state = "".join(map(str, signals))
 
         return self.state_names.index(state)
+
 
 
