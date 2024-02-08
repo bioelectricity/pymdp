@@ -1,4 +1,14 @@
 
+def generate_binary_numbers(N, num_states):
+    binary_numbers = []
+    for i in range(num_states):
+        # Convert to binary, remove the '0b' prefix, and pad with leading zeros
+        binary_str = bin(i)[2:].zfill(N)
+        binary_numbers.append(binary_str)
+    return binary_numbers
+
+
+
 def signals_to_index(signals):
     """
     Convert a list of signals (0s and 1s) from neighbors into an index.
@@ -25,8 +35,10 @@ def extract_agent_action(action, N):
     Returns:
     - int. The action (0 or 1) of the given agent.
     """
+
     # Convert to binary and pad with zeros to ensure it has length N
     binary_action = bin(action)[2:].zfill(N + 2)
+
+    print(f"Binary action {binary_action}")
     # Extract the -2nd bit (second from the right)
-    agent_action = int(binary_action[-2])
-    return agent_action
+    return binary_action
