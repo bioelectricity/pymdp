@@ -27,32 +27,39 @@ class Network:
     
     def generate_observations(self, obs, agent, neighbors):
 
-        signals = list(self.actions[neighbors]) + [agent._action, obs]# a list of zero or 1 for each neighbor
+        actions_received = [agent.actions_received[i] for i in neighbors]
+
+        signals = actions_received + [obs]# a list of zero or 1 for each neighbor
         print(f"All signals: {signals}")
         index = agent.signal_to_index(signals)
+        print(f"index: {index}")
         return index
 
     
-    def act(self, agent_observation):
-
-        abb_action = []
+    def act(self, env_observation):
+        
+        action_to_env = []
 
         for node in self.network.nodes:
             agent = self.network.nodes[node]["agent"]
             neighbors = list(networkx.neighbors(self.network, node))
 
-            obs = self.generate_observations(agent_observation,agent,neighbors)
+            obs = self.generate_observations(env_observation,agent,neighbors)
             agent.infer_states([obs])
             agent.infer_policies()
-            agent._action = int(agent.sample_action()[0])
+            agent.action_signal = int(agent.sample_action()[0])
 
-            #print(f"Agent action: {agent._action}")
-            assert agent._action in [0,1]
-            abb_action.append(agent._action)
-        #print(f"ABB action: {abb_action}")
-        self.action = np.array(abb_action)
+            agent.full_actions = agent.state_names[agent.action_signal]
+            #this is the action sent to each neighbor + action sent to env
 
-        return abb_action
+            print(f"Full actions: {agent.full_actions}")
+
+            for idx, neighbor in enumerate(neighbors):
+                neighbor = self.network.nodes[neighbor]
+                neighbor["agent"].actions_received[node] = agent.full_actions[idx]
+
+            action_to_env.append(agent.full_actions[-1])
+        return action_to_env
 
     def create_agents(self):
         """This function creates agents and will differ depending on 

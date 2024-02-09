@@ -22,18 +22,17 @@ class StemCell(Cell):
 
         self.build_generative_model()
 
-    def build_A(self, num_obs):
-        return self.build_identity_A(num_obs)
+    def build_A(self):
+        return self.build_identity_A(self.num_obs)
     
-    def build_B(self, num_states, action_zero_states, action_one_states):
+    def build_B(self):
         B = utils.obj_array(self.num_factors)
         
         for i in range(self.num_factors): #generate a randomized (deterministic) B
 
-            B_i = np.zeros((num_states[i], num_states[i], self.num_actions[i]))
+            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
             for action in range(self.num_actions[i]):
-                possible_states_for_this_action = [action_zero_states, action_one_states][action]
-                B_i[possible_states_for_this_action, :, action] = np.full((len(possible_states_for_this_action), num_states[i]), 1 / len(possible_states_for_this_action))
+                B_i[:, :, action] = np.full((self.num_states[i], self.num_states[i]), 1 / self.num_states[i])
             B[i] = B_i
 
         return B
