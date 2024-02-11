@@ -8,6 +8,7 @@ import numpy as np
 from cells.cell import Cell
 from pymdp import utils
 import numpy as np
+from division_and_death import remove_neighbor_from_B, remove_neighbor_from_C, remove_neighbor_from_D
 
 class StemCell(Cell):
 
@@ -43,3 +44,46 @@ class StemCell(Cell):
     def build_D(self, num_states):
         return self.build_uniform_D(num_states)
     
+
+    
+    def disconnect_from(self, neighbor):
+
+        assert neighbor in self.global_neighbor_indices, f"Neighbor {neighbor} not in {self.global_neighbor_indices}"
+        self.global_neighbor_indices.remove(neighbor)
+        self.num_neighbors -= 1
+
+        old_state_names = self.state_names.copy()
+
+        self.setup() 
+
+        num_states, _, _ = self.B[0].shape
+        new_num_states = num_states // 2
+
+
+        #use the neighbor index to find the state, actions, (and obs) we need to marginalize over
+        states_and_actions_to_marginalize = {}
+        for state_idx in range(new_num_states):
+            new_state = self.state_names[state_idx]
+            states_and_actions_to_marginalize[state_idx] = [s_idx for s_idx, state in enumerate(old_state_names) if state[:neighbor] + state[neighbor+1:]== new_state]
+
+
+        self.B = remove_neighbor_from_B(self.B, states_and_actions_to_marginalize)
+        self.pB = remove_neighbor_from_B(self.pB,  states_and_actions_to_marginalize)
+
+        self.A = self.build_A() #if we are learning A, we have to change this
+        self.pA = self.build_A()
+
+        self.C = remove_neighbor_from_C(self.C, states_and_actions_to_marginalize)
+        self.pC = remove_neighbor_from_C(self.pC, states_and_actions_to_marginalize)
+
+        self.D = remove_neighbor_from_D(self.D, states_and_actions_to_marginalize)
+        self.pD = remove_neighbor_from_D(self.pD, states_and_actions_to_marginalize)
+
+        
+
+
+        
+
+
+
+

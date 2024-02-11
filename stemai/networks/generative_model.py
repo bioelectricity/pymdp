@@ -39,3 +39,13 @@ class GenerativeModel(Network):
 
         return self.network
     
+    def disconnect_agents(self, node1, node2):
+        """Removes a connection in the network. 
+        
+        This also needs to be done for the internal generative model of each cell"""
+        self.network.remove_edge(node1, node2)
+        
+
+
+        return self.network
+    
