@@ -32,6 +32,7 @@ class Cell(Agent):
         self.num_states = [2**(self.num_neighbors + 1)] #neighbors, and other agent 
         self.num_obs = [2**(self.num_neighbors + 1)] 
         self.num_actions = [2**(self.num_neighbors + 1)]
+        
 
         print(f"Agent num states / actions: {self.num_states}")
 
