@@ -49,8 +49,10 @@ class StemCell(Cell):
     def disconnect_from(self, neighbor):
 
         assert neighbor in self.neighbors, f"Neighbor {neighbor} not in {self.neighbors}"
-        self.neighbor_indices.remove(self.neighbors.index(neighbor))
+
         self.neighbors.remove(neighbor)
+        self.neighbor_indices = [idx for idx, _ in enumerate(self.neighbors)]
+
         self.num_neighbors -= 1
 
         old_state_names = self.state_names.copy()

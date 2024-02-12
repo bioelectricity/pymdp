@@ -8,6 +8,7 @@ sys.path.append(module_path)
 import networkx 
 from networks.network import Network
 from cells.stem_cell import StemCell
+import numpy as np
 
 class GenerativeModel(Network):
 
@@ -23,19 +24,18 @@ class GenerativeModel(Network):
         
         self.create_agents()
 
+    def create_agent(self, node):
+        neighbors = list(networkx.neighbors(self.network, node))
+
+        num_neighbors = len(neighbors)
+        agent = StemCell(node, num_neighbors, neighbors, self.global_states)
+        agent._action = self.actions[node]
+        networkx.set_node_attributes(self.network, {node:agent}, "agent")
 
     def create_agents(self):
 
-        agent_dict = {}
-
         for node in self.network.nodes:
-            neighbors = list(networkx.neighbors(self.network, node))
-
-            num_neighbors = len(neighbors)
-            agent = StemCell(node, num_neighbors, neighbors, self.global_states)
-            agent._action = self.actions[node]
-            agent_dict[node] = agent
-        networkx.set_node_attributes(self.network, agent_dict, "agent")
+            self.create_agent(node)
 
         return self.network
     
@@ -44,7 +44,11 @@ class GenerativeModel(Network):
 
         node1, node2 = self.network.nodes[node1_index], self.network.nodes[node2_index]
         self.network.remove_edge(node1_index, node2_index)
+        print(f"Disconnecting {node1_index} from {node2_index}")
+
         node1["agent"].disconnect_from(node2_index) 
+        print(f"Disconnecting {node2_index} from {node1_index}")
+
         node2["agent"].disconnect_from(node1_index)
         
         return self.network
@@ -61,7 +65,11 @@ class GenerativeModel(Network):
 
     def kill_cell(self, node):
         """Removes a cell from the network"""
-        for neighbor in self.network.neighbors(node):
+
+        neighbors = list(self.network.neighbors(node)).copy()
+        neighbors.sort(reverse=True) #so that we don't have index errors after removal
+        for neighbor in neighbors:
+            print(f"Disconnecting {node} from {neighbor}")
             self.disconnect_cells(node, neighbor)
 
         self.network.remove_node(node)
@@ -86,11 +94,17 @@ class GenerativeModel(Network):
         #make a new node and connect it to the parent
         child_node = self.num_cells
         self.network.add_node(child_node)
+        self.num_cells +=1 
+        self.actions = np.append(self.actions, np.random.choice([0,1]))
+        self.set_global_states()
+        self.create_agent(child_node)
         self.network.add_edge(parent_node, child_node)
         self.connect_cells(parent_node, child_node)
 
         if connect_to_neighbors == "all":
             for neighbor in self.network.neighbors(parent_node):
+                if neighbor == child_node:
+                    continue
                 self.connect_cells(neighbor, child_node)
                 self.network.add_edge(neighbor, child_node)
         elif connect_to_neighbors == "half":

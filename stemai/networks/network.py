@@ -20,9 +20,13 @@ class Network:
         if initial_action is None:
             initial_action = np.random.choice([0,1], size = num_cells)
         self.actions = initial_action
-        self.global_states = [x[::-1] for x in generate_binary_numbers(num_cells+1, 2**(num_cells+1))]
+        self.set_global_states()
 
         print(f"Global_states : {self.global_states}")
+
+    def set_global_states(self):
+        self.global_states = [x[::-1] for x in generate_binary_numbers(self.num_cells+1, 2**(self.num_cells+1))]
+
 
     
     def generate_observations(self, obs, agent, neighbors):

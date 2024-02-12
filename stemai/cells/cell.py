@@ -35,8 +35,6 @@ class Cell(Agent):
         self.num_actions = [2**(self.num_neighbors + 1)]
         
 
-        print(f"Agent num states / actions: {self.num_states}")
-
         state_names = []
 
 
@@ -94,7 +92,6 @@ class Cell(Agent):
 
         self.setup()
 
-        print(f"Num states: {self.num_states}")
         A = self.build_A()
         
         pB = self.build_B()
