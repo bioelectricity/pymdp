@@ -11,11 +11,12 @@ class Cell(Agent):
     We include the node index, the number of neighbors, the indices of the neighbors, and the global states
     in order to create a list of local states for this particular cell given its neighbors and the global states"""
     
-    def __init__(self, node_idx, num_neighbors, neighbor_indices, global_states):
+    def __init__(self, node_idx, num_neighbors, neighbors, global_states):
 
         self.node_idx = node_idx 
         self.num_neighbors = num_neighbors
-        self.global_neighbor_indices = neighbor_indices
+        self.neighbors = neighbors #list of neighboring nodes
+        self.neighbor_indices = [idx for idx, _ in enumerate(neighbors)]
         self.global_states = global_states
         self.other_idx = -1
 
@@ -25,7 +26,7 @@ class Cell(Agent):
         self.num_modalities = 1
         self.num_factors = 1
 
-        self.actions_received = {n:0 for n in neighbor_indices} #keep track of what you received and from who
+        self.actions_received = {n:0 for n in neighbors} #keep track of what you received and from who
 
     def setup(self):
 
@@ -41,7 +42,7 @@ class Cell(Agent):
 
         for state in self.global_states:
             other_agent = int(state[-1])
-            values = [int(state[index]) for index in self.global_neighbor_indices] + [other_agent] 
+            values = [int(state[index]) for index in self.neighbor_indices] + [other_agent] 
             state_name = "".join(map(str, values))
             if state_name not in state_names:
                 state_names.append(state_name)
@@ -96,13 +97,14 @@ class Cell(Agent):
         print(f"Num states: {self.num_states}")
         A = self.build_A()
         
-        B = self.build_B()
+        pB = self.build_B()
+        B = utils.norm_dist_obj_arr(pB)
 
         C = self.build_C()
 
         D = self.build_D()
 
-        super().__init__(A=A, B=B, C=C, D=D)
+        super().__init__(A=A, pB=pB, B = B, C=C, D=D)
 
     def signal_to_index(self, signals):
         """
