@@ -11,9 +11,9 @@ class FixedCell(Cell):
     We include the node index, the number of neighbors, the indices of the neighbors, and the global states
     in order to create a list of local states for this particular cell given its neighbors and the global states"""
     
-    def __init__(self, node_idx, num_neighbors, neighbor_indices, global_states):
+    def __init__(self, node_idx, num_neighbors, neighbors, global_states):
 
-        super().__init__(node_idx, num_neighbors, neighbor_indices, global_states)
+        super().__init__(node_idx, num_neighbors, neighbors, global_states)
 
         self.build_generative_model()
 
