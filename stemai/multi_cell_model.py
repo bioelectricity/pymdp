@@ -5,26 +5,13 @@ import numpy as np
 
 
 
-#TODO 
-"""
-Only a single bit of information in each direction crossing the blanket
-
-pick one cell behind the blanket; that cell is connected to the seed cell, the other cells are not connected across the blanket 
-
-* maybe that cell is connected to everyone 
-* if seed cell divides then it’s child will also be connected which is not ideal for experimenting 
-* then we have to give the ABB the ability to grow 
-
-so a potential way to implement that is symmetric division 
-
-"""
 
 print(f"Building generative process")
-generative_process = GenerativeProcess(1, 1, 1)
+generative_process = GenerativeProcess(5, 0.6, 1)
 print()
 
 print(f"Building generative model")
-generative_model = GenerativeModel(1, 1, 1)
+generative_model = GenerativeModel(5, 0.6, 1)
 print()
 
 #%%

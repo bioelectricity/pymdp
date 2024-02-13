@@ -11,31 +11,24 @@ from cells.fixed_cell import FixedCell
 
 class GenerativeProcess(Network):
 
-    def __init__(self, num_cells, connectivity, initial_action = None):
+    def __init__(self, num_cells, connectivity, num_env_nodes = 1):
         """ We start assuming our ABB can be modeled as an Erdos Renyi graph 
         with num_cells nodes and connectivity probability connectivity. 
         
         See https://networkx.org/documentation/stable/reference/generators.html
         for other kinds of random graphs"""
 
-        super().__init__(num_cells, connectivity,initial_action)
+        super().__init__(num_cells, connectivity, num_env_nodes)
 
         
         self.create_agents()
 
+    def create_agent(self, node):
+        """Creates an active inference agent for a given node in the network"""
+        neighbors = list(networkx.neighbors(self.network, node))
 
-    def create_agents(self):
+        num_neighbors = len(neighbors)
+        agent = FixedCell(node, num_neighbors, neighbors, self.global_states, is_blanket_node = node == self.blanket_node, env_node_indices = self.env_node_indices)
+        agent._action = self.actions[node]
+        networkx.set_node_attributes(self.network, {node:agent}, "agent")
 
-        agent_dict = {}
-
-        for node in self.network.nodes:
-            neighbor_indices = list(networkx.neighbors(self.network, node))
-
-            num_neighbors = len(neighbor_indices)
-            agent = FixedCell(node, num_neighbors, neighbor_indices, self.global_states)
-            agent._action = self.actions[node]
-            agent_dict[node] = agent
-        networkx.set_node_attributes(self.network, agent_dict, "agent")
-
-        return self.network
-    

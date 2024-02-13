@@ -11,41 +11,49 @@ class Cell(Agent):
     We include the node index, the number of neighbors, the indices of the neighbors, and the global states
     in order to create a list of local states for this particular cell given its neighbors and the global states"""
     
-    def __init__(self, node_idx, num_neighbors, neighbors, global_states):
+    def __init__(self, node_idx, num_neighbors, neighbors, global_states, is_blanket_node = False, env_node_indices = [-1]):
+        """
+        node_idx: the index of the node in the network
+        num_neighbors: the number of neighbors of the node
+        neighbors: the indices of the neighbors of the node
+        global_states: the global states of the network
+        is_blanket_node: whether the node is the blanket node, i.e. connected to the environment node 
+        env_node_indices: the indices of the environment nodes in the network
+        """
 
         self.node_idx = node_idx 
         self.num_neighbors = num_neighbors
         self.neighbors = neighbors #list of neighboring nodes
         self.neighbor_indices = [idx for idx, _ in enumerate(neighbors)]
         self.global_states = global_states
-        self.other_idx = -1
 
         self._action = None
         self.binary_action = None
 
         self.num_modalities = 1
         self.num_factors = 1
+        self.is_blanket_node = is_blanket_node 
 
-        self.actions_received = {n:0 for n in neighbors} #keep track of what you received and from who
+        self.actions_received = {n:0 for n in neighbors if n not in env_node_indices} #keep track of what you received and from who
 
     def setup(self):
 
-        self.num_states = [2**(self.num_neighbors + 1)] #neighbors, and other agent 
-        self.num_obs = [2**(self.num_neighbors + 1)] 
-        self.num_actions = [2**(self.num_neighbors + 1)]
-        
+        self.num_states = [2**(self.num_neighbors)] #neighbors
+        self.num_obs = [2**(self.num_neighbors)] 
+        self.num_actions = [2**(self.num_neighbors)]
+
 
         state_names = []
 
-
         for state in self.global_states:
-            other_agent = int(state[-1])
-            values = [int(state[index]) for index in self.neighbor_indices] + [other_agent] 
+            values = [int(state[index]) for index in self.neighbor_indices]
             state_name = "".join(map(str, values))
             if state_name not in state_names:
                 state_names.append(state_name)
 
-        assert len(state_names) == 2**(self.num_neighbors + 1)
+        assert len(state_names) == 2**(self.num_neighbors)
+
+        print(f"State names for cell {self.node_idx}: {state_names}")
 
         self.state_names = state_names
 

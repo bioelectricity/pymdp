@@ -14,14 +14,14 @@ import numpy as np
 
 class GenerativeModel(Network):
 
-    def __init__(self, num_cells, connectivity, initial_action = None):
+    def __init__(self, num_cells, connectivity, num_env_nodes = 1):
         """ We start assuming our Generative Model can be modeled as an Erdos Renyi graph 
         with num_cells nodes and connectivity probability connectivity. 
         
         See https://networkx.org/documentation/stable/reference/generators.html
         for other kinds of random graphs"""
 
-        super().__init__(num_cells, connectivity,initial_action)
+        super().__init__(num_cells, connectivity,num_env_nodes)
 
         
         self.create_agents()
@@ -31,18 +31,10 @@ class GenerativeModel(Network):
         neighbors = list(networkx.neighbors(self.network, node))
 
         num_neighbors = len(neighbors)
-        agent = StemCell(node, num_neighbors, neighbors, self.global_states)
+        agent = StemCell(node, num_neighbors, neighbors, self.global_states, is_blanket_node = node == self.blanket_node, env_node_indices = self.env_node_indices)
         agent._action = self.actions[node]
         networkx.set_node_attributes(self.network, {node:agent}, "agent")
 
-    def create_agents(self):
-        """Creates active inference agents 
-        for each node in the network"""
-
-        for node in self.network.nodes:
-            self.create_agent(node)
-
-        return self.network
     
     def disconnect_cells(self, node1_index, node2_index):
         """Removes a connection in the network"""
@@ -117,3 +109,41 @@ class GenerativeModel(Network):
                 self.network.add_edge(neighbor, child_node)
 
         return self.network
+    
+    def act(self, env_observations):
+        
+        for node in self.network.nodes:
+            if node in self.env_node_indices:
+                #environment nodes don't act
+                continue
+            agent = self.network.nodes[node]["agent"]
+            neighbors = list(networkx.neighbors(self.network, node))
+            if node == self.blanket_node:
+                env_obs = env_observations
+            else:
+                env_obs = None
+            obs = self.generate_observations(agent,neighbors, env_obs)
+            if agent.qs is not None:
+                agent.qs_prev = agent.qs.copy()
+            agent.infer_states([obs])
+            agent.infer_policies()
+            agent.action_signal = int(agent.sample_action()[0])
+
+            agent.action_string = agent.state_names[agent.action_signal]
+            #this is the action sent to each neighbor + action sent to env
+
+            for idx, neighbor_idx in enumerate(neighbors):
+
+                neighbor = self.network.nodes[neighbor_idx]
+                if neighbor_idx not in self.env_node_indices:
+                    #print(f"Node {node} sending action {agent.action_string[idx]} to {neighbor_idx}")
+                    neighbor["agent"].actions_received[node] = int(agent.action_string[idx])
+
+            if node == self.blanket_node:
+                env_neighbors = [i for i, n in enumerate(list(networkx.neighbors(self.network, node))) if n in self.env_node_indices]
+                blanket_node_signals_to_env = [int(agent.action_string[i]) for i in env_neighbors]
+            if agent.qs_prev is not None:
+                agent.update_B(agent.qs_prev)
+
+
+        return blanket_node_signals_to_env
