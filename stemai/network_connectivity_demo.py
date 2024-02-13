@@ -1,6 +1,6 @@
-#%%
+# %%
 
-from networks.generative_model import GenerativeModel
+from stemai.networks.agent_network import GenerativeModel
 from utils import draw_network
 from tests.disconnecting import *
 from tests.connecting import *
@@ -12,10 +12,10 @@ generative_model = GenerativeModel(num_agents, connectivity)
 
 original_network = generative_model.network.copy()
 draw_network(generative_model.network, "Original network")
-#test disconnecting 
+# test disconnecting
 nodes = generative_model.network.nodes
 node1 = nodes[0]
-original_B = node1['agent'].B
+original_B = node1["agent"].B
 
 
 node1_neighbors = node1["agent"].neighbors.copy()
@@ -24,7 +24,7 @@ generative_model.disconnect_cells(0, node1_neighbors[0])
 
 new_node = generative_model.network.nodes[0]
 draw_network(generative_model.network, f"Disconnected node 0 from node {node1_neighbors[0]}")
-disconnected_B = new_node['agent'].B
+disconnected_B = new_node["agent"].B
 
 test_disconnecting_B(original_B, disconnected_B)
 
@@ -32,7 +32,7 @@ print(f"Reconnecting node 0 to node {node1_neighbors[0]}")
 
 generative_model.connect_cells(0, node1_neighbors[0])
 draw_network(generative_model.network, f"Reconnected node 0 to node {node1_neighbors[0]}")
-reconnected_B = new_node['agent'].B
+reconnected_B = new_node["agent"].B
 test_connecting_B(disconnected_B, reconnected_B)
 
 
@@ -47,9 +47,9 @@ draw_network(generative_model.network, "Divided cell 1 - only connected to paren
 
 
 print(f"Dividing Cell 1 with all neighbor connection")
-generative_model.divide_cell(2, connect_to_neighbors = "all")
+generative_model.divide_cell(2, connect_to_neighbors="all")
 draw_network(generative_model.network, "Divided cell 2 - all parent neighbors")
 
 print(f"Dividing Cell 3 with all half connection")
-generative_model.divide_cell(3, connect_to_neighbors = "half")
+generative_model.divide_cell(3, connect_to_neighbors="half")
 draw_network(generative_model.network, "Divided cell 3 - half of parent neighbors")

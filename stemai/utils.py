@@ -1,6 +1,5 @@
-
-import numpy as np 
-import networkx 
+import numpy as np
+import networkx
 
 
 def generate_binary_numbers(N, num_states):
@@ -12,14 +11,13 @@ def generate_binary_numbers(N, num_states):
     return binary_numbers
 
 
-
 def signals_to_index(signals):
     """
     Convert a list of signals (0s and 1s) from neighbors into an index.
-    
+
     Parameters:
     - signals: List[int]. A list of signals (0 or 1) from each neighbor.
-    
+
     Returns:
     - int. The index corresponding to the state.
     """
@@ -28,14 +26,15 @@ def signals_to_index(signals):
         index = (index << 1) | signal
     return index
 
+
 def extract_agent_action(action, N):
     """
     Determine the given agent's action (0 or 1) from a number.
-    
+
     Parameters:
     - action: int. The action number, in the range from 0 to 2^N - 1.
     - N: int. The total number of options or states, including the agent's action.
-    
+
     Returns:
     - int. The action (0 or 1) of the given agent.
     """
@@ -47,19 +46,22 @@ def extract_agent_action(action, N):
     # Extract the -2nd bit (second from the right)
     return binary_action
 
+
 # Example usage:
 # Assuming B is your original B matrix and you want to remove the neighbor at index 1
 # new_B = remove_neighbor(B, 1)
 
-def draw_network(network, title = None):
+
+def draw_network(network, title=None):
     """
     Draw a network using networkx and matplotlib.
-    
+
     Parameters:
     - network: networkx.Graph. The network to draw.
     """
     import matplotlib.pyplot as plt
-    networkx.draw(network, with_labels=True, font_weight='bold')
+
+    networkx.draw(network, with_labels=True, font_weight="bold")
     if title is not None:
         plt.title(title)
     plt.show()

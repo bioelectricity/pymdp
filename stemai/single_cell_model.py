@@ -1,11 +1,10 @@
-#%%
+# %%
 from networks.generative_process import GenerativeProcess
 from networks.generative_model import GenerativeModel
 import numpy as np
 
 
-
-#TODO 
+# TODO
 """
 Only a single bit of information in each direction crossing the blanket
 
@@ -27,25 +26,23 @@ print(f"Building generative model")
 generative_model = GenerativeModel(1, 1, 1)
 print()
 
-#%%
+# %%
 T = 50
 
-#now we need to model them interacting 
+# now we need to model them interacting
 
 # Generate and save the network images for each timestep
 
-genmodel_signal = [np.random.choice([0,1])]
+genmodel_signal = [np.random.choice([0, 1])]
 for t in range(T):
     # Add an extra node for displaying the agent_observation
     # Plot an additional circle for displaying the agent_observation
     genprocess_signal = generative_process.act(genmodel_signal)
-   
 
     print(f"Generative process signal : {genprocess_signal}")
 
-    #now we need to convert this list of actions into one action for the generative model
+    # now we need to convert this list of actions into one action for the generative model
 
     genmodel_signal = generative_model.act(genprocess_signal)
 
     print(f"Generative model signal : {genmodel_signal}")
-
