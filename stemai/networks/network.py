@@ -10,6 +10,7 @@ import numpy as np
 from utils import generate_binary_numbers
 
 class Network:
+    """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
 
     def __init__(self, num_cells, connectivity, initial_action = None):
 
@@ -25,18 +26,15 @@ class Network:
         print(f"Global_states : {self.global_states}")
 
     def set_global_states(self):
+        """The global state names for all the cell signals in the network"""
         self.global_states = [x[::-1] for x in generate_binary_numbers(self.num_cells+1, 2**(self.num_cells+1))]
-
-
     
-    def generate_observations(self, obs, agent, neighbors):
-
+    def generate_observations(self, env_obs, agent, neighbors):
+        """Generates the observation for a given agent given its neighbors"""
         actions_received = [agent.actions_received[i] for i in neighbors]
 
-        signals = actions_received + [obs]# a list of zero or 1 for each neighbor
-        print(f"All signals: {signals}")
+        signals = actions_received + [env_obs]# a list of zero or 1 for each neighbor
         index = agent.signal_to_index(signals)
-        print(f"index: {index}")
         return index
 
     

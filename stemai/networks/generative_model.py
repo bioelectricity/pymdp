@@ -1,4 +1,6 @@
-#%%
+"""Class for the generative model 
+
+Which is a network that can grow / shrink and in which cells can learn B"""
 import pathlib
 import sys
 import os 
@@ -13,7 +15,7 @@ import numpy as np
 class GenerativeModel(Network):
 
     def __init__(self, num_cells, connectivity, initial_action = None):
-        """ We start assuming our ABB can be modeled as an Erdos Renyi graph 
+        """ We start assuming our Generative Model can be modeled as an Erdos Renyi graph 
         with num_cells nodes and connectivity probability connectivity. 
         
         See https://networkx.org/documentation/stable/reference/generators.html
@@ -25,6 +27,7 @@ class GenerativeModel(Network):
         self.create_agents()
 
     def create_agent(self, node):
+        """Creates an active inference agent for a given node in the network"""
         neighbors = list(networkx.neighbors(self.network, node))
 
         num_neighbors = len(neighbors)
@@ -33,6 +36,8 @@ class GenerativeModel(Network):
         networkx.set_node_attributes(self.network, {node:agent}, "agent")
 
     def create_agents(self):
+        """Creates active inference agents 
+        for each node in the network"""
 
         for node in self.network.nodes:
             self.create_agent(node)
@@ -44,10 +49,8 @@ class GenerativeModel(Network):
 
         node1, node2 = self.network.nodes[node1_index], self.network.nodes[node2_index]
         self.network.remove_edge(node1_index, node2_index)
-        print(f"Disconnecting {node1_index} from {node2_index}")
 
         node1["agent"].disconnect_from(node2_index) 
-        print(f"Disconnecting {node2_index} from {node1_index}")
 
         node2["agent"].disconnect_from(node1_index)
         

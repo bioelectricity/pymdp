@@ -1,6 +1,5 @@
 
 
-from pymdp.agent import Agent 
 from pymdp import utils
 import numpy as np
 
@@ -83,7 +82,11 @@ class StemCell(Cell):
     def connect_to(self, neighbor):
         """Add a new connection to the given neighbor
         
-        Currently the new neighbor becomes the first neighbor in the list of neighbors"""
+        Currently the new neighbor becomes the first neighbor in the list of neighbors
+        in order to preserve indexing. 
+        The probabilities in the B, C, D matrices with respect to states 
+        of the new neighbor will be distributed equally from the old state probabilities"""
+        
         assert neighbor not in self.neighbors, "Neighbor already in neighbors"
 
         self.neighbors.insert(0, neighbor)
@@ -94,6 +97,9 @@ class StemCell(Cell):
 
         self.setup() 
 
+
+        #get a mapping between the old states and the new states that we need to distribute
+        #the values of the old states over 
         states_and_actions_to_distribute = {}
         for idx, state in enumerate(old_state_names):
             states_to_distribute = [s_idx for s_idx, s in enumerate(self.state_names) if s[1:] == state] #there will be two states to distribute over 

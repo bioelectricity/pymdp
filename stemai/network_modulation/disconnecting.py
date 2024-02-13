@@ -26,7 +26,6 @@ def remove_neighbor_from_pB(pB, states_and_actions_to_marginalize):
     pB_marginalized = marginalize(pB[0], new_num_states, states_and_actions_to_marginalize, 1)
     #marginalize over next state
     pB_marginalized = marginalize(pB_marginalized, new_num_states, states_and_actions_to_marginalize, 0)
-
     #marginalize over actions 
     pB_marginalized = marginalize(pB_marginalized, new_num_actions, states_and_actions_to_marginalize, -1)
 
