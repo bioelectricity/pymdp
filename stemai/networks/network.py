@@ -18,7 +18,7 @@ class Network:
         self,
         num_cells,
         connectivity,
-    ):
+        node_labels):
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
@@ -28,8 +28,13 @@ class Network:
 
         self.num_cells = num_cells
         self.connectivity = connectivity
+        
         self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+
+        self.network = networkx.relabel_nodes(self.network, dict(zip(self.network.nodes, node_labels)))
         self.nodes = self.network.nodes
+
+        self.actions = {n : np.random.choice([0, 1]) for n in node_labels}
 
         self.set_states()
 

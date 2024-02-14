@@ -1,5 +1,5 @@
 # %%
-from stemai.networks.environment_network import GenerativeProcess
+from stemai.networks.external_network import GenerativeProcess
 from stemai.networks.agent_network import GenerativeModel
 import numpy as np
 

@@ -52,7 +52,7 @@ def extract_agent_action(action, N):
 # new_B = remove_neighbor(B, 1)
 
 
-def draw_network(network, title=None):
+def draw_network(network, colors, title=None):
     """
     Draw a network using networkx and matplotlib.
 
@@ -61,7 +61,9 @@ def draw_network(network, title=None):
     """
     import matplotlib.pyplot as plt
 
-    networkx.draw(network, with_labels=True, font_weight="bold")
+    node_colors = [colors[node] for node in network.nodes]
+
+    networkx.draw(network, with_labels=True,node_color=node_colors, font_weight="bold")
     if title is not None:
         plt.title(title)
     plt.show()

@@ -2,6 +2,7 @@
 import pathlib
 import sys
 import os
+from networks.network import Network
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -10,7 +11,7 @@ import networkx
 import numpy as np
 
 
-class System:
+class System(Network):
 
     def __init__(
         self,
@@ -38,7 +39,16 @@ class System:
         self.active_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells, self.num_internal_cells + self.num_sensory_cells + self.num_active_cells))
         self.external_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells + self.num_active_cells, self.num_cells))
 
-        self.system = networkx.compose(internal_network.network, external_network.network, sensory_network.network, active_network.network)
+        self.set_states()
+
+        self.internal_network.create_agents(self.sensory_cell_indices, self.active_cell_indices, self.states)
+        self.external_network.create_agents(self.sensory_cell_indices, self.active_cell_indices, self.states)
+        self.sensory_network.create_agents(self.internal_cell_indices, self.external_cell_indices, self.states)
+        self.active_network.create_agents(self.internal_cell_indices, self.external_cell_indices, self.states)
+
+        system = networkx.compose(internal_network.network, sensory_network.network)
+        system = networkx.compose(system, active_network.network)
+        self.system = networkx.compose(system, external_network.network)
 
         self.external_obs = np.random.choice([0, 1], size=self.num_external_cells)
 
@@ -62,83 +72,102 @@ class System:
             neighbor["agent"].actions_received[node] = int(action_string[idx])
 
 
-    def sensory_act(self, node):
+    def sensory_act(self, node, logging = False):
 
         env_signals = self.external_obs # a list of signals from each external node
-
-        internal_nodes = self.internal_network.nodes
+        if logging:
+            print(f"Environment signal to sensory agent: {env_signals}")
+        internal_nodes = self.internal_network.network.nodes
 
         sensory_agent = self.sensory_network.nodes[node]["agent"]
 
         sensory_obs = sensory_agent.state_signal_to_index(env_signals)
+        if logging:
+            print(f"Sensory observation: {sensory_obs}")
 
         action_string = sensory_agent.act(sensory_obs)
 
+        if logging:
+            print(f"Sensory action: {action_string}")
+
+        internal_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes]
+
         self.update_observations(node, action_string, internal_nodes)
 
-    def internal_act(self, node):
+    def internal_act(self, node, logging = False):
 
-        internal_neighbors = list(networkx.neighbors(self.internal_network, node)) 
-        sensory_neighbors = list(self.sensory_network.nodes)
-        active_neighbors = list(self.active_network.nodes)
+        internal_neighbors = list(networkx.neighbors(self.internal_network.network, node)) 
+        internal_nodes = [self.internal_network.network.nodes[node] for node in internal_neighbors]
+        sensory_neighbors = list(self.sensory_network.network.nodes)
+        active_nodes = [self.active_network.nodes[node] for node in self.active_network.nodes]
 
-        internal_agent = self.network.nodes[node]["agent"]
+        internal_agent = self.internal_network.network.nodes[node]["agent"]
 
         signals = [internal_agent.actions_received[i] for i in internal_neighbors + sensory_neighbors]
-
+        if logging:
+            print(f"Signal to internal agent {node}: {signals}")
         internal_obs = internal_agent.state_signal_to_index(signals)
-
+        if logging:
+            print(f"Internal agent {node} observation: {internal_obs}")
         action_string = internal_agent.act(internal_obs)
+        if logging:
+            print(f"Internal agent {node} action: {action_string}")
+        self.update_observations(node, action_string, internal_nodes + active_nodes)
 
-        self.update_observations(node, action_string, internal_neighbors + active_neighbors)
-
-    def active_act(self, node):
+    def active_act(self, node, logging = False):
         internal_nodes = self.internal_network.nodes
-        external_nodes = self.external_network.nodes
+        external_nodes = [self.external_network.nodes[node] for node in self.external_network.nodes]
 
         active_agent = self.active_network.nodes[node]["agent"]
 
         internal_signals = [active_agent.actions_received[i] for i in internal_nodes]
-
+        if logging:
+            print(f"Signal to active agent from internal agent: {internal_signals}")
         active_obs = active_agent.state_signal_to_index(internal_signals)
-
+        if logging:
+            print(f"Active observation: {active_obs}")
         action_string = active_agent.act(active_obs)
-
+        if logging:
+            print(f"Active action: {action_string}")
         self.update_observations(node, action_string, external_nodes)
 
-    def external_act(self, node):
+    def external_act(self, node, logging =False):
 
-        external_neighbors = list(networkx.neighbors(self.external_network, node))
+        external_neighbors = list(networkx.neighbors(self.external_network.network, node))
+        external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
         active_neighbors = list(self.active_network.nodes)
-        sensory_neighbors = list(self.sensory_network.nodes)
+        sensory_nodes = [self.sensory_network.network.nodes[node] for node in self.sensory_network.nodes]
 
         external_agent = self.external_network.nodes[node]["agent"]
 
         signals = [external_agent.actions_received[i] for i in external_neighbors + active_neighbors]
-
+        if logging:
+            print(f"Signal to external agent: {signals}")
         external_obs = external_agent.state_signal_to_index(signals)
-
+        if logging:
+            print(f"External observation: {external_obs}")
         action_string = external_agent.act(external_obs)
+        if logging:
+            print(f"External action: {action_string}")
+        self.update_observations(node, action_string, external_nodes + sensory_nodes)
 
-        self.update_observations(node, action_string, external_neighbors + sensory_neighbors)
-
-    def step(self):
+    def step(self, logging = False):
 
         #first : we take the external observation, and we pass it to the sensory network
 
         # first the sensory cells act in response to the previous external observation
         for sensory_node in self.sensory_network.nodes:
-            self.sensory_act(sensory_node)
+            self.sensory_act(sensory_node, logging = logging)
 
         #then, the internal cells act
         for internal_node in self.internal_network.nodes:
-            self.internal_act(internal_node)
+            self.internal_act(internal_node, logging = logging)
 
         #then, the active cells act 
         for active_node in self.active_network.nodes:
-            self.active_act(active_node)
+            self.active_act(active_node, logging = logging)
 
         #finally, the external nodes act
         for external_node in self.external_network.nodes:
-            self.external_act(external_node)
+            self.external_act(external_node, logging = logging)
 

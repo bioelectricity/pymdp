@@ -17,18 +17,17 @@ import numpy as np
 
 class InternalNetwork(Network):
 
-    def __init__(self, num_internal_cells, connectivity):
+    def __init__(self, num_internal_cells, connectivity, cells):
         """We start assuming our Generative Model can be modeled as an Erdos Renyi graph
         with num_cells nodes and connectivity probability connectivity.
 
         See https://networkx.org/documentation/stable/reference/generators.html
         for other kinds of random graphs"""
 
-        super().__init__(num_internal_cells, connectivity)
+        self.color = "green"
+        super().__init__(num_internal_cells, connectivity, cells)
 
-        self.create_agents()
-
-    def create_agent(self, node, sensory_cell_indices, active_cell_indices, internal_and_blanket_states) -> InternalCell:
+    def create_agent(self, node, sensory_cell_indices, active_cell_indices, states) -> InternalCell:
         """Creates an active inference agent for a given node in the network"""
 
         internal_neighbors = list(
@@ -40,18 +39,18 @@ class InternalNetwork(Network):
             internal_neighbors,
             sensory_cell_indices,
             active_cell_indices,
-            internal_and_blanket_states,
+            states,
         )
         networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
         return agent
     
-    def create_agents(self, sensory_cell_indices, active_cell_indices, internal_and_blanket_states):
+    def create_agents(self, sensory_cell_indices, active_cell_indices, states):
         """Creates active inference agents
         for each node in the network"""
 
         for node in self.network.nodes:
-            self.create_agent(node, sensory_cell_indices, active_cell_indices, internal_and_blanket_states)
+            self.create_agent(node, sensory_cell_indices, active_cell_indices, states)
 
         return self.network
     

@@ -13,13 +13,13 @@ from stemai.cells.external_cell import ExternalCell
 
 class ExternalNetwork(Network):
 
-    def __init__(self, num_external_cells, connectivity):
+    def __init__(self, num_external_cells, connectivity, cells):
 
-        super().__init__(num_external_cells, connectivity)
+        self.color = "blue"
 
-        self.create_agents()
+        super().__init__(num_external_cells, connectivity, cells)
 
-    def create_agent(self, node, sensory_cell_indices, active_cell_indices, external_and_blanket_states) -> ExternalCell:
+    def create_agent(self, node, sensory_cell_indices, active_cell_indices, states) -> ExternalCell:
         """Creates an active inference agent for a given node in the network"""
         neighbors = list(networkx.neighbors(self.network, node))
 
@@ -28,7 +28,7 @@ class ExternalNetwork(Network):
             neighbors,
             sensory_cell_indices,
             active_cell_indices,
-            external_and_blanket_states,
+            states,
         )
         agent._action = self.actions[node]
         networkx.set_node_attributes(self.network, {node: agent}, "agent")

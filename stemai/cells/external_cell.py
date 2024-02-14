@@ -6,7 +6,7 @@ import numpy as np
 class ExternalCell(Cell):
 
 
-    def __init__(self, node_idx, neighbors, sensory_cell_indices, active_cell_indices, external_and_blanket_states):
+    def __init__(self, node_idx, neighbors, sensory_cell_indices, active_cell_indices, states):
 
         super().__init__(node_idx)
 
@@ -20,7 +20,7 @@ class ExternalCell(Cell):
         self.state_neighbors = neighbors + active_cell_indices
         self.action_neighbors = neighbors + sensory_cell_indices
 
-        self.external_and_blanket_states = external_and_blanket_states
+        self.states = states
 
         self.cell_type = "external"
 
@@ -31,7 +31,7 @@ class ExternalCell(Cell):
         self.actions_sent = {n: 0 for n in self.neighbors + sensory_cell_indices}
 
 
-        self.setup(self.external_and_blanket_states, hidden_state_indices=self.neighbor_indices + self.active_cell_indices, control_state_indices=self.neighbor_indices + self.sensory_cell_indices)
+        self.setup(self.states, hidden_state_indices=self.neighbor_indices + self.active_cell_indices, control_state_indices=self.neighbor_indices + self.sensory_cell_indices)
         
         self.build_generative_model()
 

@@ -21,11 +21,11 @@ class InternalCell(Cell):
         internal_neighbors,
         sensory_cell_indices,
         active_cell_indices,
-        internal_and_blanket_states,
+        states,
     ):
 
 
-        super.__init__(node_idx)
+        super().__init__(node_idx)
 
         self.num_internal_neighbors = len(internal_neighbors)
 
@@ -37,7 +37,7 @@ class InternalCell(Cell):
         self.state_neighbors = internal_neighbors + sensory_cell_indices
         self.action_neighbors = internal_neighbors + active_cell_indices
 
-        self.internal_and_blanket_states = internal_and_blanket_states
+        self.states = states
 
         self.cell_type = "internal"
 
@@ -48,7 +48,7 @@ class InternalCell(Cell):
         self.actions_sent = {n: 0 for n in self.internal_neighbors + active_cell_indices}
 
         self.setup(
-            self.internal_and_blanket_states,
+            self.states,
             hidden_state_indices=self.internal_neighbor_indices + self.sensory_cell_indices,
             control_state_indices=self.internal_neighbor_indices + self.active_cell_indices,
         )

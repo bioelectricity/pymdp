@@ -13,20 +13,20 @@ from stemai.cells.active_cell import ActiveCell
 
 class ActiveNetwork(Network):
 
-    def __init__(self, num_active_cells, connectivity):
+    def __init__(self, num_active_cells, connectivity, cells):
 
-        super().__init__(num_active_cells, connectivity)
+        self.color = "red"
 
-        self.create_agents()
+        super().__init__(num_active_cells, connectivity, cells)
 
-    def create_agent(self, node, internal_cells, external_cells, internal_and_external_states) -> ActiveCell:
+    def create_agent(self, node, internal_cells, external_cells, states) -> ActiveCell:
         """Creates an active inference agent for a given node in the network"""
 
         agent = ActiveCell(
             node,
             internal_cells,
             external_cells,
-            internal_and_external_states,
+            states,
         )
         agent._action = self.actions[node]
         networkx.set_node_attributes(self.network, {node: agent}, "agent")

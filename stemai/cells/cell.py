@@ -54,7 +54,7 @@ class Cell(Agent):
         for (
             action
         ) in (
-            self.internal_and_external_states
+            states_and_actions
         ):  # hidden state space is the internal states of the network
             values = [int(action[index]) for index in control_state_indices]
             action_name = "".join(map(str, values))
@@ -62,6 +62,9 @@ class Cell(Agent):
                 action_names.append(action_name)
 
         self.action_names = action_names
+
+        #print(f"State names: {self.state_names}")
+        #print(f"Action names: {self.action_names}")
 
     def build_identity_A(self, num_obs):
         A = utils.obj_array(self.num_modalities)
@@ -101,8 +104,6 @@ class Cell(Agent):
         pass
 
     def build_generative_model(self):
-
-        self.setup()
 
         A = self.build_A()
 

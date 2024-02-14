@@ -13,20 +13,18 @@ from stemai.cells.sensory_cell import SensoryCell
 
 class SensoryNetwork(Network):
 
-    def __init__(self, num_active_cells, connectivity):
+    def __init__(self, num_active_cells, connectivity, cells):
+        self.color = "grey"
+        super().__init__(num_active_cells, connectivity, cells)
 
-        super().__init__(num_active_cells, connectivity)
-
-        self.create_agents()
-
-    def create_agent(self, node, internal_cells, external_cells, internal_and_external_states) -> SensoryCell:
+    def create_agent(self, node, internal_cells, external_cells, states) -> SensoryCell:
         """Creates an active inference agent for a given node in the network"""
 
         agent = SensoryCell(
             node,
             internal_cells,
             external_cells,
-            internal_and_external_states,
+            states,
         )
         agent._action = self.actions[node]
         networkx.set_node_attributes(self.network, {node: agent}, "agent")

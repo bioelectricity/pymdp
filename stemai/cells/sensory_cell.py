@@ -10,14 +10,13 @@ class SensoryCell(BlanketCell):
         node_idx,
         internal_cells,
         external_cells,
-        internal_and_external_states,
+        states,
     ):
         super().__init__(
-            self,
             node_idx,
             internal_cells,
             external_cells,
-            internal_and_external_states,
+            states,
         )
         self.cell_type = "sensory"
 
@@ -28,7 +27,10 @@ class SensoryCell(BlanketCell):
         self.actions_sent = {n: 0 for n in internal_cells}
 
         self.setup(
-            self.internal_and_external_states,
+            self.states,
             hidden_state_indices=self.external_neighbor_indices,
             control_state_indices=self.internal_neighbor_indices,
         )
+        self.build_generative_model()
+
+    # def act(self, external_obs):

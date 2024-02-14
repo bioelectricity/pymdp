@@ -2,6 +2,8 @@ from cells.cell import Cell
 from pymdp import utils
 import numpy as np
 
+#should blanket cells be learning B?
+
 
 class BlanketCell(Cell):
     """A class that inherits from pymdp agent that represents a cell in our networks
@@ -15,7 +17,7 @@ class BlanketCell(Cell):
         node_idx,
         internal_neighbors,
         external_neighbors,
-        internal_and_external_states,
+        states,
     ):
         """
         node_idx: the index of the node in the network
@@ -36,12 +38,7 @@ class BlanketCell(Cell):
         self.internal_neighbor_indices = [idx for idx, _ in enumerate(internal_neighbors)]
         self.external_neighbor_indices = [idx for idx, _ in enumerate(external_neighbors)]
 
-        self.internal_and_external_states = internal_and_external_states
-
-    def setup(self):
-        """This will depend on whether its active or sensory"""
-
-        pass
+        self.states = states
 
     def build_B(self):
         """What kind of B matrix should the active cell have?"""
