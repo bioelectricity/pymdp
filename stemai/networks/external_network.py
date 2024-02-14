@@ -15,7 +15,7 @@ class ExternalNetwork(Network):
 
     def __init__(self, num_external_cells, connectivity, cells):
 
-        self.color = "blue"
+        self.color = "lightblue"
 
         super().__init__(num_external_cells, connectivity, cells)
 

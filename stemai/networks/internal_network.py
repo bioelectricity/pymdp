@@ -24,7 +24,7 @@ class InternalNetwork(Network):
         See https://networkx.org/documentation/stable/reference/generators.html
         for other kinds of random graphs"""
 
-        self.color = "green"
+        self.color = "mediumseagreen"
         super().__init__(num_internal_cells, connectivity, cells)
 
     def create_agent(self, node, sensory_cell_indices, active_cell_indices, states) -> InternalCell:

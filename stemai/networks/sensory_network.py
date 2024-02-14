@@ -14,7 +14,7 @@ from stemai.cells.sensory_cell import SensoryCell
 class SensoryNetwork(Network):
 
     def __init__(self, num_active_cells, connectivity, cells):
-        self.color = "grey"
+        self.color = "lightgrey"
         super().__init__(num_active_cells, connectivity, cells)
 
     def create_agent(self, node, internal_cells, external_cells, states) -> SensoryCell:

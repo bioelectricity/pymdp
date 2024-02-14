@@ -15,7 +15,7 @@ class ActiveNetwork(Network):
 
     def __init__(self, num_active_cells, connectivity, cells):
 
-        self.color = "red"
+        self.color = "indianred"
 
         super().__init__(num_active_cells, connectivity, cells)
 

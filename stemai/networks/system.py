@@ -52,6 +52,8 @@ class System(Network):
 
         self.external_obs = np.random.choice([0, 1], size=self.num_external_cells)
 
+        self.t = 0
+
         #need to be sure the indices here are correct 
         for internal_node in self.internal_network.network.nodes:
             for active_node in self.active_network.network.nodes:
@@ -74,14 +76,18 @@ class System(Network):
 
     def sensory_act(self, node, logging = False):
 
-        env_signals = self.external_obs # a list of signals from each external node
-        if logging:
-            print(f"Environment signal to sensory agent: {env_signals}")
+        external_nodes = self.external_network.network.nodes
         internal_nodes = self.internal_network.network.nodes
 
         sensory_agent = self.sensory_network.nodes[node]["agent"]
 
-        sensory_obs = sensory_agent.state_signal_to_index(env_signals)
+        if self.t == 0:
+            signals = self.external_obs # a list of signals from each external node
+        else:
+            signals = [sensory_agent.actions_received[i] for i in external_nodes]
+        if logging:
+            print(f"Environment signal to sensory agent: {signals}")
+        sensory_obs = sensory_agent.state_signal_to_index(signals)
         if logging:
             print(f"Sensory observation: {sensory_obs}")
 
@@ -140,7 +146,7 @@ class System(Network):
 
         external_agent = self.external_network.nodes[node]["agent"]
 
-        signals = [external_agent.actions_received[i] for i in external_neighbors + active_neighbors]
+        signals = [external_agent.actions_received[i] for i in active_neighbors + external_neighbors]
         if logging:
             print(f"Signal to external agent: {signals}")
         external_obs = external_agent.state_signal_to_index(signals)
@@ -149,7 +155,7 @@ class System(Network):
         action_string = external_agent.act(external_obs)
         if logging:
             print(f"External action: {action_string}")
-        self.update_observations(node, action_string, external_nodes + sensory_nodes)
+        self.update_observations(node, action_string, sensory_nodes + external_nodes)
 
     def step(self, logging = False):
 
@@ -170,4 +176,6 @@ class System(Network):
         #finally, the external nodes act
         for external_node in self.external_network.nodes:
             self.external_act(external_node, logging = logging)
+
+        self.t += 1
 
