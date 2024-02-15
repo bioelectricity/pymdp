@@ -24,14 +24,16 @@ class ExternalNetwork(Network):
         """Creates an active inference agent for a given node in the network"""
         neighbors = list(networkx.neighbors(self.network, node))
 
-        external_cell_indices = [int(node.replace('e', '')) for node in neighbors if node.startswith('e')]
-        print(f'external_cell_indices: {external_cell_indices}')
+        external_cell_indices = [
+            int(node.replace("e", "")) for node in neighbors if node.startswith("e")
+        ]
+        print(f"external_cell_indices: {external_cell_indices}")
 
         agent = ExternalCell(
             node,
             neighbors,
             external_cell_indices,
-            active_cell_indices, 
+            active_cell_indices,
             sensory_cell_indices,
             states,
         )

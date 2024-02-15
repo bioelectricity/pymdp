@@ -2,12 +2,12 @@ from cells.cell import Cell
 from pymdp import utils
 import numpy as np
 
-#should blanket cells be learning B?
+# should blanket cells be learning B?
 
 
 class BlanketCell(Cell):
-    """A class that represents a Blanket cell, from which 
-    sensory and active cells will inherit 
+    """A class that represents a Blanket cell, from which
+    sensory and active cells will inherit
 
     Blanket cells will have uniform B matrices which are learned over time
     so we will overwrite the build_B method to create a uniform B matrix
@@ -52,10 +52,10 @@ class BlanketCell(Cell):
         return self.build_uniform_D()
 
     def act(self, obs: int) -> str:
-        """Here we overwrite the abstract act() class 
+        """Here we overwrite the abstract act() class
         for blanket cells, because blanket cells
         will update their transition likelihoods after every state inference"""
-        
+
         if self.qs is not None:
             self.qs_prev = self.qs
         self.infer_states([obs])
@@ -64,7 +64,7 @@ class BlanketCell(Cell):
         self.action_signal = int(self.sample_action()[0])
         self.action_string = self.action_names[self.action_signal]
 
-        #update B
+        # update B
         if self.qs_prev is not None:
             self.update_B(self.qs_prev)
 

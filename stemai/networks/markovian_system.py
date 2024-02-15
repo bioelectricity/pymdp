@@ -16,13 +16,13 @@ class MarkovianSystem(Network):
 
     def __init__(
         self,
-        internal_network : Network, 
-        external_network : Network, 
-        sensory_network : Network, 
-        active_network : Network
+        internal_network: Network,
+        external_network: Network,
+        sensory_network: Network,
+        active_network: Network,
     ):
         """
-        internal_network: a Network of internal cells 
+        internal_network: a Network of internal cells
         external_network: a Network of external cells
         sensory_network: a Network of sensory cells
         active_network: a Network of active cells
@@ -30,26 +30,42 @@ class MarkovianSystem(Network):
         This class will compose the networks into one big system-level network
         and is responsible for forming connections between internal, sensory, active and external cells
         within each network
-        
-        """
 
+        """
 
         self.internal_network = internal_network
         self.external_network = external_network
         self.sensory_network = sensory_network
         self.active_network = active_network
-        
+
         self.num_internal_cells = internal_network.num_cells
         self.num_external_cells = external_network.num_cells
         self.num_sensory_cells = sensory_network.num_cells
         self.num_active_cells = active_network.num_cells
 
-        self.num_cells = self.num_internal_cells + self.num_external_cells + self.num_sensory_cells + self.num_active_cells
+        self.num_cells = (
+            self.num_internal_cells
+            + self.num_external_cells
+            + self.num_sensory_cells
+            + self.num_active_cells
+        )
 
         self.internal_cell_indices = list(range(self.num_internal_cells))
-        self.sensory_cell_indices = list(range(self.num_internal_cells, self.num_internal_cells + self.num_sensory_cells))
-        self.active_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells, self.num_internal_cells + self.num_sensory_cells + self.num_active_cells))
-        self.external_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells + self.num_active_cells, self.num_cells))
+        self.sensory_cell_indices = list(
+            range(self.num_internal_cells, self.num_internal_cells + self.num_sensory_cells)
+        )
+        self.active_cell_indices = list(
+            range(
+                self.num_internal_cells + self.num_sensory_cells,
+                self.num_internal_cells + self.num_sensory_cells + self.num_active_cells,
+            )
+        )
+        self.external_cell_indices = list(
+            range(
+                self.num_internal_cells + self.num_sensory_cells + self.num_active_cells,
+                self.num_cells,
+            )
+        )
 
         print(f"Internal cell indices: {self.internal_cell_indices}")
         print(f"Sensory cell indices: {self.sensory_cell_indices}")
@@ -58,40 +74,58 @@ class MarkovianSystem(Network):
 
         self.set_states()
 
-        self.internal_network.create_agents(incoming_cells = self.sensory_cell_indices, outgoing_cells = self.active_cell_indices, global_states = self.states)
-        self.external_network.create_agents(incoming_cells = self.active_cell_indices, outgoing_cells = self.sensory_cell_indices, global_states = self.states)
-        self.sensory_network.create_agents(incoming_cells = self.external_cell_indices + self.active_cell_indices, outgoing_cells = self.internal_cell_indices + self.active_cell_indices, global_states = self.states)
-        self.active_network.create_agents(incoming_cells = self.internal_cell_indices + self.sensory_cell_indices, outgoing_cells = self.external_cell_indices + self.sensory_cell_indices, global_states = self.states)
+        self.internal_network.create_agents(
+            incoming_cells=self.sensory_cell_indices,
+            outgoing_cells=self.active_cell_indices,
+            global_states=self.states,
+        )
+        self.external_network.create_agents(
+            incoming_cells=self.active_cell_indices,
+            outgoing_cells=self.sensory_cell_indices,
+            global_states=self.states,
+        )
+        self.sensory_network.create_agents(
+            incoming_cells=self.external_cell_indices + self.active_cell_indices,
+            outgoing_cells=self.internal_cell_indices + self.active_cell_indices,
+            global_states=self.states,
+        )
+        self.active_network.create_agents(
+            incoming_cells=self.internal_cell_indices + self.sensory_cell_indices,
+            outgoing_cells=self.external_cell_indices + self.sensory_cell_indices,
+            global_states=self.states,
+        )
 
-        #compose all the networks into one system network
+        # compose all the networks into one system network
         system = networkx.compose(internal_network.network, sensory_network.network)
         system = networkx.compose(system, active_network.network)
         self.system = networkx.compose(system, external_network.network)
 
-        self.external_obs = np.random.choice([0, 1], size=self.num_external_cells + self.num_active_cells)
+        self.external_obs = np.random.choice(
+            [0, 1], size=self.num_external_cells + self.num_active_cells
+        )
 
         self.t = 0
 
         for internal_node in self.internal_network.network.nodes:
-            #add edges between all internal nodes and active nodes
+            # add edges between all internal nodes and active nodes
 
             for active_node in self.active_network.network.nodes:
                 self.system.add_edge(internal_node, active_node)
-            #add edges between all internal nodes and sensory nodes
+            # add edges between all internal nodes and sensory nodes
 
             for sensory_node in self.sensory_network.network.nodes:
                 self.system.add_edge(internal_node, sensory_node)
 
         for external_node in self.external_network.network.nodes:
-            #add edges between all external nodes and active nodes
+            # add edges between all external nodes and active nodes
             for active_node in self.active_network.network.nodes:
                 self.system.add_edge(external_node, active_node)
 
-            #add edges between all external nodes and sensory nodes
+            # add edges between all external nodes and sensory nodes
             for sensory_node in self.sensory_network.network.nodes:
                 self.system.add_edge(external_node, sensory_node)
 
-        #also need to add edges between sensory and active nodes
+        # also need to add edges between sensory and active nodes
         for sensory_node in self.sensory_network.network.nodes:
             for active_node in self.active_network.network.nodes:
                 self.system.add_edge(sensory_node, active_node)
@@ -100,15 +134,20 @@ class MarkovianSystem(Network):
         for idx, neighbor in enumerate(neighbors):
             neighbor["agent"].actions_received[node] = int(action_string[idx])
 
+    def sensory_act(self, node, logging=False):
 
-    def sensory_act(self, node, logging = False):
+        # nodes that send signals to the sensory cells
+        incoming_nodes_names = list(self.external_network.network.nodes) + list(
+            self.active_network.network.nodes
+        )
+        # nodes that receive signals from the sensory cells
+        outgoing_node_names = list(self.internal_network.network.nodes) + list(
+            self.active_network.network.nodes
+        )
 
-        #nodes that send signals to the sensory cells
-        incoming_nodes_names = list(self.external_network.network.nodes) + list(self.active_network.network.nodes)
-        #nodes that receive signals from the sensory cells
-        outgoing_node_names = list(self.internal_network.network.nodes) + list(self.active_network.network.nodes)
-        
-        outgoing_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes] + [self.active_network.nodes[node] for node in self.active_network.nodes]
+        outgoing_nodes = [
+            self.internal_network.nodes[node] for node in self.internal_network.nodes
+        ] + [self.active_network.nodes[node] for node in self.active_network.nodes]
 
         print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
         print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
@@ -117,7 +156,7 @@ class MarkovianSystem(Network):
         if self.t == 0:
             sensory_agent.actions_received = {n: 0 for n in incoming_nodes_names}
             sensory_agent.actions_sent = {n: 0 for n in outgoing_node_names}
-            signals = self.external_obs # a list of signals from each external node
+            signals = self.external_obs  # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
         if logging:
@@ -135,14 +174,16 @@ class MarkovianSystem(Network):
 
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def internal_act(self, node, logging = False):
+    def internal_act(self, node, logging=False):
 
-        internal_neighbors = list(networkx.neighbors(self.internal_network.network, node)) 
+        internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
-        #nodes that send signals to the internal cells
+        # nodes that send signals to the internal cells
         incoming_nodes = internal_neighbors + list(self.sensory_network.network.nodes)
-        #nodes that receive signals from the internal cells
-        outgoing_nodes = [self.internal_network.network.nodes[node] for node in internal_neighbors] + [self.active_network.network.nodes[node] for node in self.active_network.network.nodes]
+        # nodes that receive signals from the internal cells
+        outgoing_nodes = [
+            self.internal_network.network.nodes[node] for node in internal_neighbors
+        ] + [self.active_network.network.nodes[node] for node in self.active_network.network.nodes]
 
         internal_agent = self.internal_network.network.nodes[node]["agent"]
 
@@ -157,12 +198,14 @@ class MarkovianSystem(Network):
             print(f"Internal agent {node} action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def active_act(self, node, logging = False):
-        #nodes that send signals to the active cells
+    def active_act(self, node, logging=False):
+        # nodes that send signals to the active cells
         incoming_nodes = list(self.internal_network.nodes) + list(self.sensory_network.nodes)
 
-        #nodes that receive signals from the active cells
-        outgoing_nodes = [self.external_network.nodes[node] for node in self.external_network.nodes] + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
+        # nodes that receive signals from the active cells
+        outgoing_nodes = [
+            self.external_network.nodes[node] for node in self.external_network.nodes
+        ] + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
 
         active_agent = self.active_network.nodes[node]["agent"]
 
@@ -181,13 +224,15 @@ class MarkovianSystem(Network):
             print(f"Active action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def external_act(self, node, logging =False):
+    def external_act(self, node, logging=False):
 
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
-        
+
         incoming_nodes = external_neighbors + list(self.active_network.nodes)
-        outgoing_nodes = external_nodes + [self.sensory_network.network.nodes[node] for node in self.sensory_network.nodes]
+        outgoing_nodes = external_nodes + [
+            self.sensory_network.network.nodes[node] for node in self.sensory_network.nodes
+        ]
 
         external_agent = self.external_network.nodes[node]["agent"]
 
@@ -202,25 +247,24 @@ class MarkovianSystem(Network):
             print(f"External action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def step(self, logging = False):
+    def step(self, logging=False):
 
-        #first : we take the external observation, and we pass it to the sensory network
+        # first : we take the external observation, and we pass it to the sensory network
 
         # first the sensory cells act in response to the previous external observation
         for sensory_node in self.sensory_network.nodes:
-            self.sensory_act(sensory_node, logging = logging)
+            self.sensory_act(sensory_node, logging=logging)
 
-        #then, the internal cells act
+        # then, the internal cells act
         for internal_node in self.internal_network.nodes:
-            self.internal_act(internal_node, logging = logging)
+            self.internal_act(internal_node, logging=logging)
 
-        #then, the active cells act 
+        # then, the active cells act
         for active_node in self.active_network.nodes:
-            self.active_act(active_node, logging = logging)
+            self.active_act(active_node, logging=logging)
 
-        #finally, the external nodes act
+        # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            self.external_act(external_node, logging = logging)
+            self.external_act(external_node, logging=logging)
 
         self.t += 1
-

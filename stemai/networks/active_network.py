@@ -16,14 +16,14 @@ class ActiveNetwork(Network):
 
     def __init__(self, num_active_cells, connectivity, cells):
 
-        self.color = "indianred" #for plotting
+        self.color = "indianred"  # for plotting
 
         super().__init__(num_active_cells, connectivity, cells)
 
-    def create_agent(self, node, internal_and_sensory_cells, external_and_sensory_cells, states) -> ActiveCell:
+    def create_agent(
+        self, node, internal_and_sensory_cells, external_and_sensory_cells, states
+    ) -> ActiveCell:
         """Creates an active inference agent for a given node in the network"""
-
-        
 
         agent = ActiveCell(
             node,

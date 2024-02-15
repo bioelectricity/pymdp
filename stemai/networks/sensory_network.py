@@ -17,7 +17,9 @@ class SensoryNetwork(Network):
         self.color = "lightgrey"
         super().__init__(num_active_cells, connectivity, cells)
 
-    def create_agent(self, node, external_and_active_cells, internal_and_active_cells, states) -> SensoryCell:
+    def create_agent(
+        self, node, external_and_active_cells, internal_and_active_cells, states
+    ) -> SensoryCell:
         """Creates an active inference agent for a given node in the network"""
 
         agent = SensoryCell(

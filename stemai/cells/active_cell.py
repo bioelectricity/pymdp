@@ -4,13 +4,14 @@ import numpy as np
 
 
 class ActiveCell(BlanketCell):
-    """Class representing an active cell 
+    """Class representing an active cell
     which inherits from blanket cell
-    
+
     The active cell's hidden state space will be the internal neighbors
-    and it's control state space will be external neighbor indices 
-    
-    #TODO: also need to connect active cells to sensory cells """
+    and it's control state space will be external neighbor indices
+
+    #TODO: also need to connect active cells to sensory cells"""
+
     def __init__(
         self,
         node_idx,
@@ -20,10 +21,10 @@ class ActiveCell(BlanketCell):
     ):
 
         super().__init__(
-            node_idx = node_idx,
-            incoming_neighbors = internal_and_sensory_cells,
-            outgoing_neighbors = external_and_sensory_cells,
-            states = states,
+            node_idx=node_idx,
+            incoming_neighbors=internal_and_sensory_cells,
+            outgoing_neighbors=external_and_sensory_cells,
+            states=states,
         )
 
         self.cell_type = "active"

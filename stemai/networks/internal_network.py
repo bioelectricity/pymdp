@@ -28,12 +28,12 @@ class InternalNetwork(Network):
         self.color = "mediumseagreen"
         super().__init__(num_internal_cells, connectivity, cells)
 
-    def create_agent(self, node, sensory_cell_indices, active_cell_indices, global_states) -> InternalCell:
+    def create_agent(
+        self, node, sensory_cell_indices, active_cell_indices, global_states
+    ) -> InternalCell:
         """Creates an active inference agent for a given node in the network"""
 
-        internal_neighbors = list(
-            networkx.neighbors(self.network, node)
-        ) 
+        internal_neighbors = list(networkx.neighbors(self.network, node))
 
         agent = InternalCell(
             node,
@@ -45,7 +45,7 @@ class InternalNetwork(Network):
         networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
         return agent
-    
+
     def disconnect_cells(self, node1_index, node2_index):
         """Removes a connection in the network"""
 
@@ -103,7 +103,7 @@ class InternalNetwork(Network):
         child_node = self.num_cells
         self.network.add_node(child_node)
         self.num_cells += 1
-        #self.actions = np.append(self.actions, np.random.choice([0, 1]))
+        # self.actions = np.append(self.actions, np.random.choice([0, 1]))
         self.set_states()
         self.create_agent(child_node)
         self.network.add_edge(parent_node, child_node)

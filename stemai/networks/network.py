@@ -14,11 +14,7 @@ from utils import generate_binary_numbers
 class Network:
     """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
 
-    def __init__(
-        self,
-        num_cells,
-        connectivity,
-        node_labels):
+    def __init__(self, num_cells, connectivity, node_labels):
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
@@ -27,33 +23,30 @@ class Network:
 
         self.num_cells = num_cells
         self.connectivity = connectivity
-        
+
         self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
 
-        self.network = networkx.relabel_nodes(self.network, dict(zip(self.network.nodes, node_labels)))
+        self.network = networkx.relabel_nodes(
+            self.network, dict(zip(self.network.nodes, node_labels))
+        )
         self.nodes = self.network.nodes
 
-        self.actions = {n : np.random.choice([0, 1]) for n in node_labels}
+        self.actions = {n: np.random.choice([0, 1]) for n in node_labels}
 
         self.set_states()
-
 
     def set_states(self):
         """The global state names for all the cell signals in the network"""
 
-        self.states = [
-            x[::-1]
-            for x in generate_binary_numbers(self.num_cells, 2**self.num_cells)
-        ]
+        self.states = [x[::-1] for x in generate_binary_numbers(self.num_cells, 2**self.num_cells)]
 
-
-    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node = None):
+    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node=None):
         """Creates active inference agents for each node in the network
 
         incoming_cells: list of indices of cells that send signals to the current cell
         outgoing_cells: list of indices of cells that receive signals from the current cell
-        
-        This function will be called from within the global system that has multiple composed networks, 
+
+        This function will be called from within the global system that has multiple composed networks,
         and here, global states represents the entire state space of the global system"""
 
         self.global_states = global_states

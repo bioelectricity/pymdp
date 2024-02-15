@@ -56,36 +56,50 @@ def stemness(B):
     min_actual_entry = np.min(B[0])
     return min_actual_entry / max_possible_entry
 
-def draw_network(network, colors, title=None, pos = None, t = None, _draw_neighboring_pairs=False, save = False):
+
+def draw_network(
+    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False
+):
     """
     Draw a network using networkx and matplotlib.
 
     Parameters:
     - network: networkx.Graph. The network to draw.
     """
-    fig = plt.figure(figsize = (12, 6))
+    fig = plt.figure(figsize=(12, 6))
     temp_file_name = None
 
     node_colors = [colors[node] for node in network.nodes]
     # shift position a little bit
-    shift = [-0.05, -0.05] 
-    shifted_pos ={node: node_pos + shift  for node, node_pos in pos.items()}
+    shift = [-0.05, -0.05]
+    shifted_pos = {node: node_pos + shift for node, node_pos in pos.items()}
 
     GS_labels = {}
     print(f"Nodes: {network.nodes}")
     for node in network.nodes:
         G = network.nodes[node]["agent"].G.sum().round(2) * -1
         S = stemness(network.nodes[node]["agent"].B).round(2)
-        GS_labels[node] = f'G: {G}, S: {S}'
+        GS_labels[node] = f"G: {G}, S: {S}"
     if _draw_neighboring_pairs:
-        
-        networkx.draw(network, with_labels=True,node_color=node_colors, pos = pos, font_weight="bold", edge_color = "white")
-        networkx.draw_networkx_labels(network, shifted_pos, labels=GS_labels, horizontalalignment="left")
+
+        networkx.draw(
+            network,
+            with_labels=True,
+            node_color=node_colors,
+            pos=pos,
+            font_weight="bold",
+            edge_color="white",
+        )
+        networkx.draw_networkx_labels(
+            network, shifted_pos, labels=GS_labels, horizontalalignment="left"
+        )
 
         draw_neighboring_pairs(network, pos)
     else:
 
-        networkx.draw(network, with_labels=True,node_color=node_colors, pos = pos, font_weight="bold")
+        networkx.draw(
+            network, with_labels=True, node_color=node_colors, pos=pos, font_weight="bold"
+        )
 
     if title is not None:
         plt.title(title)
@@ -94,21 +108,20 @@ def draw_network(network, colors, title=None, pos = None, t = None, _draw_neighb
         # Save the current figure to a temporary file and add it to the images list
         temp_file_name = f"temp_image_{t}.png"
         plt.savefig(temp_file_name)
-    
+
     plt.show()
     return temp_file_name
 
 
 def draw_neighboring_pairs(network, pos):
-    
+
     neighboring_pairs = []
     for node in network.nodes:
         neighbors = list(network.neighbors(node))
         for neighbor in neighbors:
             if (node, neighbor) not in neighboring_pairs:  # Ensure each pair is added only once
                 neighboring_pairs.append((node, neighbor))
-    
-    
+
     actions_received = {}
 
     for node in network.nodes:
@@ -116,17 +129,17 @@ def draw_neighboring_pairs(network, pos):
         actions_received[node] = agent.actions_received
 
     done_already = []
-    
 
     for receiver, sender in neighboring_pairs:
         # Define edge color based on the action received
 
-
         if (sender, receiver) in neighboring_pairs and (sender, receiver) not in done_already:
-                        # Define edge color based on the action sent, which requires accessing the sender's actions_received
+            # Define edge color based on the action sent, which requires accessing the sender's actions_received
             if receiver in actions_received[sender]:
                 edge_color_received = (
-                    "lightcoral" if int(actions_received[sender][receiver]) == 0 else "darkslategray"
+                    "lightcoral"
+                    if int(actions_received[sender][receiver]) == 0
+                    else "darkslategray"
                 )
                 # Draw the edge for the action received
                 networkx.draw_networkx_edges(
@@ -144,7 +157,9 @@ def draw_neighboring_pairs(network, pos):
 
             if sender in actions_received[receiver]:
                 edge_color_sent = (
-                "lightcoral" if int(actions_received[receiver][sender]) == 0 else "darkslategray"
+                    "lightcoral"
+                    if int(actions_received[receiver][sender]) == 0
+                    else "darkslategray"
                 )
 
                 networkx.draw_networkx_edges(
