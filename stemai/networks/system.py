@@ -12,14 +12,26 @@ import numpy as np
 
 
 class System(Network):
+    """A class representing a system of interacting networks"""
 
     def __init__(
         self,
-        internal_network, 
-        external_network, 
-        sensory_network, 
-        active_network
+        internal_network : Network, 
+        external_network : Network, 
+        sensory_network : Network, 
+        active_network : Network
     ):
+        """
+        internal_network: a Network of internal cells 
+        external_network: a Network of external cells
+        sensory_network: a Network of sensory cells
+        active_network: a Network of active cells
+
+        This class will compose the networks into one big system-level network
+        and is responsible for forming connections between internal, sensory, active and external cells
+        within each network
+        
+        """
 
 
         self.internal_network = internal_network
@@ -41,33 +53,43 @@ class System(Network):
 
         self.set_states()
 
-        self.internal_network.create_agents(self.sensory_cell_indices, self.active_cell_indices, self.states)
-        self.external_network.create_agents(self.sensory_cell_indices, self.active_cell_indices, self.states)
-        self.sensory_network.create_agents(self.internal_cell_indices, self.external_cell_indices, self.states)
-        self.active_network.create_agents(self.internal_cell_indices, self.external_cell_indices, self.states)
+        self.internal_network.create_agents(incoming_cells = self.sensory_cell_indices, outgoing_cells = self.active_cell_indices, global_states = self.states)
+        self.external_network.create_agents(incoming_cells = self.active_cell_indices, outgoing_cells = self.sensory_cell_indices, global_states = self.states)
+        self.sensory_network.create_agents(incoming_cells = self.external_cell_indices + self.active_cell_indices, outgoing_cells = self.internal_cell_indices + self.active_cell_indices, global_states = self.states)
+        self.active_network.create_agents(incoming_cells = self.internal_cell_indices + self.sensory_cell_indices, outgoing_cells = self.external_cell_indices + self.sensory_cell_indices, global_states = self.states)
 
+        #compose all the networks into one system network
         system = networkx.compose(internal_network.network, sensory_network.network)
         system = networkx.compose(system, active_network.network)
         self.system = networkx.compose(system, external_network.network)
 
-        self.external_obs = np.random.choice([0, 1], size=self.num_external_cells)
+        self.external_obs = np.random.choice([0, 1], size=self.num_external_cells + self.num_active_cells)
 
         self.t = 0
 
-        #need to be sure the indices here are correct 
         for internal_node in self.internal_network.network.nodes:
+            #add edges between all internal nodes and active nodes
+
             for active_node in self.active_network.network.nodes:
                 self.system.add_edge(internal_node, active_node)
+            #add edges between all internal nodes and sensory nodes
 
             for sensory_node in self.sensory_network.network.nodes:
                 self.system.add_edge(internal_node, sensory_node)
 
         for external_node in self.external_network.network.nodes:
+            #add edges between all external nodes and active nodes
             for active_node in self.active_network.network.nodes:
                 self.system.add_edge(external_node, active_node)
 
+            #add edges between all external nodes and sensory nodes
             for sensory_node in self.sensory_network.network.nodes:
                 self.system.add_edge(external_node, sensory_node)
+
+        #also need to add edges between sensory and active nodes
+        for sensory_node in self.sensory_network.network.nodes:
+            for active_node in self.active_network.network.nodes:
+                self.system.add_edge(sensory_node, active_node)
 
     def update_observations(self, node, action_string, neighbors):
         for idx, neighbor in enumerate(neighbors):
@@ -76,15 +98,25 @@ class System(Network):
 
     def sensory_act(self, node, logging = False):
 
-        external_nodes = self.external_network.network.nodes
-        internal_nodes = self.internal_network.network.nodes
+        #nodes that send signals to the sensory cells
+        incoming_nodes_names = list(self.external_network.network.nodes) + list(self.active_network.network.nodes)
+        #nodes that receive signals from the sensory cells
+        outgoing_node_names = list(self.internal_network.network.nodes) + list(self.active_network.network.nodes)
+        
+        outgoing_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes] + [self.active_network.nodes[node] for node in self.active_network.nodes]
+
+        print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
+        print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
 
         sensory_agent = self.sensory_network.nodes[node]["agent"]
+        if self.t == 0:
+            sensory_agent.actions_received = {n: 0 for n in incoming_nodes_names}
+            sensory_agent.actions_sent = {n: 0 for n in outgoing_node_names}
 
         if self.t == 0:
             signals = self.external_obs # a list of signals from each external node
         else:
-            signals = [sensory_agent.actions_received[i] for i in external_nodes]
+            signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
         if logging:
             print(f"Environment signal to sensory agent: {signals}")
         sensory_obs = sensory_agent.state_signal_to_index(signals)
@@ -96,20 +128,22 @@ class System(Network):
         if logging:
             print(f"Sensory action: {action_string}")
 
-        internal_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes]
+        outgoing_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes]
 
-        self.update_observations(node, action_string, internal_nodes)
+        self.update_observations(node, action_string, outgoing_nodes)
 
     def internal_act(self, node, logging = False):
 
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node)) 
-        internal_nodes = [self.internal_network.network.nodes[node] for node in internal_neighbors]
-        sensory_neighbors = list(self.sensory_network.network.nodes)
-        active_nodes = [self.active_network.nodes[node] for node in self.active_network.nodes]
+
+        #nodes that send signals to the internal cells
+        incoming_nodes = internal_neighbors + list(self.sensory_network.network.nodes)
+        #nodes that receive signals from the internal cells
+        outgoing_nodes = [self.internal_network.network.nodes[node] for node in internal_neighbors] + [self.active_network.network.nodes[node] for node in self.active_network.network.nodes]
 
         internal_agent = self.internal_network.network.nodes[node]["agent"]
 
-        signals = [internal_agent.actions_received[i] for i in internal_neighbors + sensory_neighbors]
+        signals = [internal_agent.actions_received[i] for i in incoming_nodes]
         if logging:
             print(f"Signal to internal agent {node}: {signals}")
         internal_obs = internal_agent.state_signal_to_index(signals)
@@ -118,35 +152,43 @@ class System(Network):
         action_string = internal_agent.act(internal_obs)
         if logging:
             print(f"Internal agent {node} action: {action_string}")
-        self.update_observations(node, action_string, internal_nodes + active_nodes)
+        self.update_observations(node, action_string, outgoing_nodes)
 
     def active_act(self, node, logging = False):
-        internal_nodes = self.internal_network.nodes
-        external_nodes = [self.external_network.nodes[node] for node in self.external_network.nodes]
+        #nodes that send signals to the active cells
+        incoming_nodes = list(self.internal_network.nodes) + list(self.sensory_network.nodes)
+
+        #nodes that receive signals from the active cells
+        outgoing_nodes = [self.external_network.nodes[node] for node in self.external_network.nodes] + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
 
         active_agent = self.active_network.nodes[node]["agent"]
 
-        internal_signals = [active_agent.actions_received[i] for i in internal_nodes]
+        if self.t == 0:
+            active_agent.actions_received = {n: 0 for n in incoming_nodes}
+        #     active_agent.actions_sent = {n: 0 for n in list(self.external_network.nodes) + list(self.sensory_network.nodes)}
+
+        incoming_signals = [active_agent.actions_received[i] for i in incoming_nodes]
         if logging:
-            print(f"Signal to active agent from internal agent: {internal_signals}")
-        active_obs = active_agent.state_signal_to_index(internal_signals)
+            print(f"Signal to active agent from internal agent: {incoming_signals}")
+        active_obs = active_agent.state_signal_to_index(incoming_signals)
         if logging:
             print(f"Active observation: {active_obs}")
         action_string = active_agent.act(active_obs)
         if logging:
             print(f"Active action: {action_string}")
-        self.update_observations(node, action_string, external_nodes)
+        self.update_observations(node, action_string, outgoing_nodes)
 
     def external_act(self, node, logging =False):
 
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
-        active_neighbors = list(self.active_network.nodes)
-        sensory_nodes = [self.sensory_network.network.nodes[node] for node in self.sensory_network.nodes]
+        
+        incoming_nodes = external_neighbors + list(self.active_network.nodes)
+        outgoing_nodes = external_nodes + [self.sensory_network.network.nodes[node] for node in self.sensory_network.nodes]
 
         external_agent = self.external_network.nodes[node]["agent"]
 
-        signals = [external_agent.actions_received[i] for i in active_neighbors + external_neighbors]
+        signals = [external_agent.actions_received[i] for i in incoming_nodes]
         if logging:
             print(f"Signal to external agent: {signals}")
         external_obs = external_agent.state_signal_to_index(signals)
@@ -155,7 +197,7 @@ class System(Network):
         action_string = external_agent.act(external_obs)
         if logging:
             print(f"External action: {action_string}")
-        self.update_observations(node, action_string, sensory_nodes + external_nodes)
+        self.update_observations(node, action_string, outgoing_nodes)
 
     def step(self, logging = False):
 

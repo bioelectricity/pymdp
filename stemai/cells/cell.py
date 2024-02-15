@@ -1,41 +1,31 @@
 from pymdp.agent import Agent
 from pymdp import utils
 import numpy as np
-from stemai.network_modulation.disconnecting import (
-    remove_neighbor_from_pB,
-    remove_neighbor_from_C,
-    remove_neighbor_from_D,
-)
-from stemai.network_modulation.connecting import (
-    add_neighbor_to_C,
-    add_neighbor_to_D,
-    add_neighbor_to_pB,
-)
 
 
 class Cell(Agent):
-    """A class that inherits from pymdp agent that represents a cell in our networks
-
-    We include the node index, the number of neighbors, the indices of the neighbors, and the global states
-    in order to create a list of local states for this particular cell given its neighbors and the global states
+    """A class that inherits from pymdp agent that represents an abstract cell in a network
     """
 
     def __init__(self, node_idx):
+        """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
 
-        self.num_modalities = 1
-        self.num_factors = 1
+        self.num_modalities = 1 #currently we only have one observation modality 
+        self.num_factors = 1 #currently we only have one state factor
 
     def setup(self, states_and_actions, hidden_state_indices, control_state_indices):
         """
         Sets up the state and action names given
-        the entire state and action space of teh cell
-        as well as which of the indices in each state corresponds to
-        a hidden state or a control state
+        the entire state and action space of the cell. 
+
+        states_and_actions: a list of all possible states and actions in the entire network 
+        hidden_state_indices: the indices of the states in the states_and_actions list that correspond to hidden states of this cell 
+        control_state_indices: the indices of the states in the states_and_actions list that correspond to control states of this cell 
         """
 
-        self.num_states = [2 ** len(hidden_state_indices)]  # neighbors
+        self.num_states = [2 ** len(hidden_state_indices)] 
         self.num_obs = [2 ** len(hidden_state_indices)]
         self.num_actions = [2 ** len(control_state_indices)]
 
@@ -48,6 +38,8 @@ class Cell(Agent):
                 state_names.append(state_name)
 
         self.state_names = state_names
+
+        assert len(self.state_names) == self.num_states[0], "Number of states does not match the number of state names"
 
         action_names = []
 
@@ -63,47 +55,84 @@ class Cell(Agent):
 
         self.action_names = action_names
 
-        #print(f"State names: {self.state_names}")
-        #print(f"Action names: {self.action_names}")
+        assert len(self.action_names) == self.num_actions[0], "Number of actions does not match the number of action names"
 
-    def build_identity_A(self, num_obs):
+
+    def build_identity_A(self):
+        """Builds an observation likelihood for each observation modality
+        that is a direct identity mapping between states and observations"""
         A = utils.obj_array(self.num_modalities)
 
         for m in range(self.num_modalities):
-            A[m] = np.eye(num_obs[m])
+            A[m] = np.eye(self.num_obs[m])
 
         return A
+    
+    def build_uniform_B(self):
+        B = utils.obj_array(self.num_factors)
 
-    def build_uniform_C(self, num_obs):
+        for i in range(self.num_factors):  # generate a randomized (deterministic) B
 
+            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
+            for action in range(self.num_actions[i]):
+                B_i[:, :, action] = np.full(
+                    (self.num_states[i], self.num_states[i]), 1 / self.num_states[i]
+                )
+            B[i] = B_i
+
+        return B
+    
+    def build_fixed_random_B(self):
+        B = utils.obj_array(self.num_factors)
+
+        for i in range(self.num_factors):  # generate a randomized (deterministic) B
+
+            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
+            for action in range(self.num_actions[i]):
+                for state in range(self.num_states[i]):
+                    random_state = np.random.choice(list(range(self.num_states[i])))
+                    B_i[random_state, state, action] = 1
+            B[i] = B_i
+        return B
+
+    def build_uniform_C(self):
+        """Construts a uniform C vector, meaning the cell has
+        no preference for any particular observation."""
         C = utils.obj_array(self.num_modalities)
         for m in range(self.num_modalities):
-            C[m] = np.zeros(num_obs[m])
+            C[m] = np.zeros(self.num_obs[m])
         return C
 
-    def build_uniform_D(self, num_states):
+    def build_uniform_D(self):
+        """Constructs a uniform state prior"""
         D = utils.obj_array(self.num_factors)
         for f in range(self.num_factors):
 
-            D[f] = np.random.uniform(0, 1, size=num_states[f])
+            D[f] = np.random.uniform(0, 1, size=self.num_states[f])
             D[f] /= D[0].sum()
         return D
 
     def build_A(self):
         """All cells currently have identity A matrices"""
-        return self.build_identity_A(self.num_obs)
+        return self.build_identity_A()
 
     def build_B(self, num_states, action_zero_states, action_one_states):
         """This will depend on what kind of cell this is"""
         pass
 
     def build_C(self):
+        """Abstract method to be called in build_generative_model for constructing
+        the observation preferences"""
         pass
 
     def build_D(self):
+        """Abstract method to be called in build_generative_model for constructing
+        the prior over states"""
         pass
 
     def build_generative_model(self):
+        """Build the generative model of this cell
+        and then initalize the pymdp Agent"""
 
         A = self.build_A()
 
@@ -116,103 +145,42 @@ class Cell(Agent):
 
         super().__init__(A=A, pB=pB, B=B, C=C, D=D)
 
-    def state_signal_to_index(self, signals):
+    def state_signal_to_index(self, signals: list) -> int:
         """
-        Convert a list of signals from each neighbor + self signal + other signal
-        into an index into the local state space of this cell"""
+        Convert a list of signals from each observable neighbor
+        into an index into the state space of the network
+        
+        signals: a list of signals from each observable neighbor
+        
+        returns: an index into the state space of the network"""
 
         state = "".join(map(str, signals))
 
         return self.state_names.index(state)
 
-    def action_signal_to_index(self, signals):
+    def action_signal_to_index(self, signals: list) -> int:
         """
-        Convert a list of signals from each neighbor + self signal + other signal
-        into an index into the local state space of this cell"""
+        Convert a list of signals to each outgoing actionable neighbor
+        into an index into the local action space of this cell
+        
+        signals: a list of signals to each actionable neighbor
+        
+        returns: an index into the action space of the network"""
 
         action = "".join(map(str, signals))
 
         return self.action_names.index(action)
     
-    def act(self, obs):
+    def act(self, obs: int) -> str:
+        """Perform state and action inference, return the action string
+        which includes the action signal for each actionable neighbor
+        of this cell
+        
+        obs: the observation signal index from the observable neighbors
+        """
         self.infer_states([obs])
         self.infer_policies()
         self.action_signal = int(self.sample_action()[0])
         self.action_string = self.action_names[self.action_signal]
 
         return self.action_string
-
-    def disconnect_from(self, neighbor):
-
-        assert neighbor in self.neighbors, f"Neighbor {neighbor} not in {self.neighbors}"
-
-        self.neighbors.remove(neighbor)
-        self.neighbor_indices = [idx for idx, _ in enumerate(self.neighbors)]
-
-        self.num_neighbors -= 1
-
-        old_state_names = self.state_names.copy()
-
-        self.setup()
-
-        old_num_states, _, _ = self.B[0].shape
-        new_num_states = old_num_states // 2
-
-        # use the neighbor index to find the state, actions, (and obs) we need to marginalize over
-        states_and_actions_to_marginalize = {}
-        for state_idx in range(new_num_states):
-            new_state = self.state_names[state_idx]
-            states_and_actions_to_marginalize[state_idx] = [
-                s_idx
-                for s_idx, state in enumerate(old_state_names)
-                if state[:neighbor] + state[neighbor + 1 :] == new_state
-            ]
-
-        self.pB = remove_neighbor_from_pB(self.pB, states_and_actions_to_marginalize)
-        self.B = utils.norm_dist_obj_arr(self.pB)
-
-        self.A = self.build_A()  # if we are learning A, we have to change this
-
-        self.C = remove_neighbor_from_C(self.C, states_and_actions_to_marginalize)
-        # self.pC = remove_neighbor_from_C(self.pC, states_and_actions_to_marginalize)
-
-        self.D = remove_neighbor_from_D(self.D, states_and_actions_to_marginalize)
-        # self.pD = remove_neighbor_from_D(self.pD, states_and_actions_to_marginalize)
-
-    def connect_to(self, neighbor):
-        """Add a new connection to the given neighbor
-
-        Currently the new neighbor becomes the first neighbor in the list of neighbors
-        in order to preserve indexing.
-        The probabilities in the B, C, D matrices with respect to states
-        of the new neighbor will be distributed equally from the old state probabilities"""
-
-        assert neighbor not in self.neighbors, "Neighbor already in neighbors"
-
-        self.neighbors.insert(0, neighbor)
-        self.num_neighbors += 1
-        self.neighbor_indices = [idx for idx, _ in enumerate(self.neighbors)]
-
-        old_state_names = self.state_names.copy()
-
-        self.setup()
-
-        # get a mapping between the old states and the new states that we need to distribute
-        # the values of the old states over
-        states_and_actions_to_distribute = {}
-        for idx, state in enumerate(old_state_names):
-            states_to_distribute = [
-                s_idx for s_idx, s in enumerate(self.state_names) if s[1:] == state
-            ]  # there will be two states to distribute over
-            states_and_actions_to_distribute[idx] = states_to_distribute
-
-        self.pB = add_neighbor_to_pB(self.pB, states_and_actions_to_distribute)
-        self.B = utils.norm_dist_obj_arr(self.pB)
-
-        self.A = self.build_A()  # if we are learning A, we have to change this
-
-        self.C = add_neighbor_to_C(self.C, states_and_actions_to_distribute)
-        # self.pC = remove_neighbor_from_C(self.pC, states_and_actions_to_marginalize)
-
-        self.D = add_neighbor_to_D(self.D, states_and_actions_to_distribute)
-        # self.pD = remove_neighbor_from_D(self.pD, states_and_actions_to_marginalize)

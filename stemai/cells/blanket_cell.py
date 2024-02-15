@@ -6,57 +6,66 @@ import numpy as np
 
 
 class BlanketCell(Cell):
-    """A class that inherits from pymdp agent that represents a cell in our networks
+    """A class that represents a Blanket cell, from which 
+    sensory and active cells will inherit 
 
-    We include the node index, the number of neighbors, the indices of the neighbors, and the global states
-    in order to create a list of local states for this particular cell given its neighbors and the global states
+    Blanket cells will have uniform B matrices which are learned over time
+    so we will overwrite the build_B method to create a uniform B matrix
+    and we will overwrite the act method to update the B matrix after every state inference
     """
 
     def __init__(
         self,
         node_idx,
-        internal_neighbors,
-        external_neighbors,
+        incoming_neighbors,
+        outgoing_neighbors,
         states,
     ):
         """
         node_idx: the index of the node in the network
-        internal_neighbors: the indices of the internal cell neighbors of the blanket cell
-        external_neighbors: the indices of the external cell neighbors of the blanket cell
-        internal_network_states: the global states of the internal network (internal + blanket)
-        all_states: the global states of the entire network (internal + blanket + external)
+        incoming_neighbors: the indices of the cells that send incoming signals to the blanket cell
+        outgoing_neighbors: the indices of the cells that receive outgoing signals from the blanket cell
+        states: the global states of the entire network (internal + blanket + external)
 
         """
 
         super().__init__(node_idx)
 
-        self.num_internal_neighbors = len(internal_neighbors)
-        self.num_external_neighbors = len(external_neighbors)
-        self.internal_neighbors = internal_neighbors  # list of neighboring nodes
-        self.external_neighbors = external_neighbors
+        self.num_incoming_neighbors = len(incoming_neighbors)
+        self.num_outgoing_neighbors = len(outgoing_neighbors)
+        self.incoming_neighbors = incoming_neighbors  # list of neighboring nodes
+        self.outgoing_neighbors = outgoing_neighbors
 
-        self.internal_neighbor_indices = [idx for idx, _ in enumerate(internal_neighbors)]
-        self.external_neighbor_indices = [idx for idx, _ in enumerate(external_neighbors)]
+        self.incoming_neighbor_indices = [idx for idx, _ in enumerate(incoming_neighbors)]
+        self.outgoing_neighbor_indices = [idx for idx, _ in enumerate(outgoing_neighbors)]
 
         self.states = states
 
     def build_B(self):
-        """What kind of B matrix should the active cell have?"""
-        B = utils.obj_array(self.num_factors)
-
-        for i in range(self.num_factors):  # generate a randomized (deterministic) B
-
-            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
-            for action in range(self.num_actions[i]):
-                B_i[:, :, action] = np.full(
-                    (self.num_states[i], self.num_states[i]), 1 / self.num_states[i]
-                )
-            B[i] = B_i
-
-        return B
+        """Blanket cells will have uniform B matrices which will be learned over time"""
+        return self.build_uniform_B()
 
     def build_C(self):
-        return self.build_uniform_C(self.num_obs)
+        return self.build_uniform_C()
 
     def build_D(self):
-        return self.build_uniform_D(self.num_states)
+        return self.build_uniform_D()
+
+    def act(self, obs: int) -> str:
+        """Here we overwrite the abstract act() class 
+        for blanket cells, because blanket cells
+        will update their transition likelihoods after every state inference"""
+        
+        if self.qs is not None:
+            self.qs_prev = self.qs
+        self.infer_states([obs])
+
+        self.infer_policies()
+        self.action_signal = int(self.sample_action()[0])
+        self.action_string = self.action_names[self.action_signal]
+
+        #update B
+        if self.qs_prev is not None:
+            self.update_B(self.qs_prev)
+
+        return self.action_string

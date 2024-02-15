@@ -22,8 +22,7 @@ class Network:
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
-        num_env_nodes: the number of environment nodes that the blanket node will interact with
-        blanket_node: the index of the blanket node in the network
+        node_labels: list of strings, the names of the nodes in the network
         """
 
         self.num_cells = num_cells
@@ -40,7 +39,7 @@ class Network:
 
 
     def set_states(self):
-        """The global state names for all the cell signals in the network, plus the environment nodes"""
+        """The global state names for all the cell signals in the network"""
 
         self.states = [
             x[::-1]
@@ -48,3 +47,18 @@ class Network:
         ]
 
 
+    def create_agents(self, incoming_cells, outgoing_cells, global_states):
+        """Creates active inference agents for each node in the network
+
+        incoming_cells: list of indices of cells that send signals to the current cell
+        outgoing_cells: list of indices of cells that receive signals from the current cell
+        
+        This function will be called from within the global system that has multiple composed networks, 
+        and here, global states represents the entire state space of the global system"""
+
+        self.global_states = global_states
+
+        for node in self.network.nodes:
+            self.create_agent(node, incoming_cells, outgoing_cells, global_states)
+
+        return self.network
