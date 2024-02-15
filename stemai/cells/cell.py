@@ -25,6 +25,10 @@ class Cell(Agent):
         control_state_indices: the indices of the states in the states_and_actions list that correspond to control states of this cell 
         """
 
+
+        print(f"Hidden state indices: {hidden_state_indices}")
+        print(f"Control state indices: {control_state_indices}")
+
         self.num_states = [2 ** len(hidden_state_indices)] 
         self.num_obs = [2 ** len(hidden_state_indices)]
         self.num_actions = [2 ** len(control_state_indices)]
@@ -38,6 +42,8 @@ class Cell(Agent):
                 state_names.append(state_name)
 
         self.state_names = state_names
+
+        print(f"State names: {self.state_names}")
 
         assert len(self.state_names) == self.num_states[0], "Number of states does not match the number of state names"
 
@@ -55,7 +61,7 @@ class Cell(Agent):
 
         self.action_names = action_names
 
-        assert len(self.action_names) == self.num_actions[0], "Number of actions does not match the number of action names"
+        assert len(self.action_names) == self.num_actions[0], f"Number of actions {len(self.action_names)} does not match the number of action names {self.num_actions[0]}"
 
 
     def build_identity_A(self):

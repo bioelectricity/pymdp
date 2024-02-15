@@ -11,7 +11,7 @@ import networkx
 import numpy as np
 
 
-class System(Network):
+class MarkovianSystem(Network):
     """A class representing a system of interacting networks"""
 
     def __init__(
@@ -50,6 +50,11 @@ class System(Network):
         self.sensory_cell_indices = list(range(self.num_internal_cells, self.num_internal_cells + self.num_sensory_cells))
         self.active_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells, self.num_internal_cells + self.num_sensory_cells + self.num_active_cells))
         self.external_cell_indices = list(range(self.num_internal_cells + self.num_sensory_cells + self.num_active_cells, self.num_cells))
+
+        print(f"Internal cell indices: {self.internal_cell_indices}")
+        print(f"Sensory cell indices: {self.sensory_cell_indices}")
+        print(f"Active cell indices: {self.active_cell_indices}")
+        print(f"External cell indices: {self.external_cell_indices}")
 
         self.set_states()
 
@@ -112,8 +117,6 @@ class System(Network):
         if self.t == 0:
             sensory_agent.actions_received = {n: 0 for n in incoming_nodes_names}
             sensory_agent.actions_sent = {n: 0 for n in outgoing_node_names}
-
-        if self.t == 0:
             signals = self.external_obs # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]

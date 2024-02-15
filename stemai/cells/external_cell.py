@@ -12,14 +12,14 @@ class ExternalCell(Cell):
     and the control state space will be the external cell neighbors and the sensory cells"""
 
 
-    def __init__(self, node_idx, neighbors, active_cell_indices, sensory_cell_indices, states):
+    def __init__(self, node_idx, neighbors, external_cell_indices, active_cell_indices, sensory_cell_indices, states):
 
         super().__init__(node_idx)
 
         self.num_neighbors = len(neighbors)
 
         self.neighbors = neighbors  # list of neighboring nodes
-        self.neighbor_indices = [idx for idx, _ in enumerate(neighbors)]
+        self.neighbor_indices = external_cell_indices
         self.sensory_cell_indices = sensory_cell_indices
         self.active_cell_indices = active_cell_indices
 
@@ -36,6 +36,7 @@ class ExternalCell(Cell):
 
         self.actions_sent = {n: 0 for n in self.neighbors + sensory_cell_indices}
 
+        print(f"Setting up external cell {node_idx}")
         self.setup(self.states, hidden_state_indices=self.neighbor_indices + self.active_cell_indices, control_state_indices=self.neighbor_indices + self.sensory_cell_indices)
         
         self.build_generative_model()

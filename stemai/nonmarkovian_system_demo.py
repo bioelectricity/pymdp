@@ -1,42 +1,28 @@
 #%%
-from networks.system import System 
+from stemai.networks.nonmarkovian_system import NonMarkovianSystem 
 from networks.internal_network import InternalNetwork
 from networks.external_network import ExternalNetwork
-from networks.sensory_network import SensoryNetwork
-from networks.active_network import ActiveNetwork
 from utils import draw_network
 import networkx
 num_internal_cells = 2
 num_external_cells = 3
 
-num_active_cells = 1
-num_sensory_cells = 1
-
-
 internal_cells = [f"i{i}" for i in range(num_internal_cells)]
 
-
-sensory_cells = [f"s{i}" for i in range(num_sensory_cells)]
-
-active_cells = [f"a{i}" for i in range(num_active_cells)]
-
-external_cells = [f"e{i}" for i in range(num_external_cells)]
+external_cells = [f"e{i}" for i in range(num_internal_cells, num_internal_cells + num_external_cells)]
 
 internal_network = InternalNetwork(num_internal_cells, 1, internal_cells)
 
-sensory_network = SensoryNetwork(num_sensory_cells, 1, sensory_cells,)
-
-active_network = ActiveNetwork(num_active_cells, 1, active_cells)
-
+external_cell_indices = list(range(num_internal_cells, num_internal_cells + num_external_cells))
 external_network = ExternalNetwork(num_external_cells, 1, external_cells)
 
 colors = {}
-for network in [internal_network, sensory_network, active_network, external_network]:
+for network in [internal_network, external_network]:
     for node in network.network.nodes:
         colors[node] = network.color
 
 
-system = System(internal_network, external_network, sensory_network, active_network)
+system = NonMarkovianSystem(internal_network, external_network)
 pos = networkx.spring_layout(system.system)
 images = []
 import matplotlib.pyplot as plt
@@ -54,7 +40,7 @@ for t in range(50):
 
 
 # Create a GIF from the images
-gif_path = f"simulation:{num_internal_cells}-{num_external_cells}.gif"
+gif_path = f"inactive-simulation:{num_internal_cells}-{num_external_cells}.gif"
 imageio.mimsave(gif_path, images, fps=1)
 
 

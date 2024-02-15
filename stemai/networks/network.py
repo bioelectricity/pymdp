@@ -47,7 +47,7 @@ class Network:
         ]
 
 
-    def create_agents(self, incoming_cells, outgoing_cells, global_states):
+    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node = None):
         """Creates active inference agents for each node in the network
 
         incoming_cells: list of indices of cells that send signals to the current cell
@@ -58,7 +58,10 @@ class Network:
 
         self.global_states = global_states
 
-        for node in self.network.nodes:
-            self.create_agent(node, incoming_cells, outgoing_cells, global_states)
+        for idx, node in enumerate(self.network.nodes):
+            if seed_node is not None and idx != seed_node:
+                self.create_agent(node, [], [], global_states)
+            else:
+                self.create_agent(node, incoming_cells, outgoing_cells, global_states)
 
         return self.network

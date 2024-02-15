@@ -69,6 +69,7 @@ class InternalCell(Cell):
         #set up the state space of this cell, where hidden states correspond to 
         #internal cell neighbors and sensory cells, and control states correspond to 
         #internal cells and active cells
+
         self.setup(
             self.states,
             hidden_state_indices=self.internal_neighbor_indices + self.sensory_cell_indices,

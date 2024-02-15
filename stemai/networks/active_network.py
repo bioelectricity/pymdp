@@ -23,6 +23,8 @@ class ActiveNetwork(Network):
     def create_agent(self, node, internal_and_sensory_cells, external_and_sensory_cells, states) -> ActiveCell:
         """Creates an active inference agent for a given node in the network"""
 
+        
+
         agent = ActiveCell(
             node,
             internal_and_sensory_cells,
