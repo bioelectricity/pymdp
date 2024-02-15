@@ -34,11 +34,6 @@ colors = {}
 for network in [internal_network, sensory_network, active_network, external_network]:
     for node in network.network.nodes:
         colors[node] = network.color
-draw_network(internal_network.network, colors, title = "Internal Network")
-draw_network(sensory_network.network, colors,title = "Sensory Network")
-draw_network(active_network.network, colors,title = "Active Network")
-draw_network(external_network.network, colors,title = "External Network")
-
 
 
 system = System(internal_network, external_network, sensory_network, active_network)
@@ -48,7 +43,7 @@ import matplotlib.pyplot as plt
 filenames = []
 import imageio
 import os 
-for t in range(10):
+for t in range(50):
     system.step(logging = True)
 
     temp_file_name = draw_network(system.system, colors, t = t, title = "System Network", pos = pos, _draw_neighboring_pairs=True, save = True)

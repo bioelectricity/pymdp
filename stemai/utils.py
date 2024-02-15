@@ -51,7 +51,10 @@ def extract_agent_action(action, N):
 # Example usage:
 # Assuming B is your original B matrix and you want to remove the neighbor at index 1
 # new_B = remove_neighbor(B, 1)
-
+def stemness(B):
+    max_possible_entry = 1.0 / len(B[0])
+    min_actual_entry = np.min(B[0])
+    return min_actual_entry / max_possible_entry
 
 def draw_network(network, colors, title=None, pos = None, t = None, _draw_neighboring_pairs=False, save = False):
     """
@@ -60,15 +63,28 @@ def draw_network(network, colors, title=None, pos = None, t = None, _draw_neighb
     Parameters:
     - network: networkx.Graph. The network to draw.
     """
+    fig = plt.figure(figsize = (12, 6))
     temp_file_name = None
 
     node_colors = [colors[node] for node in network.nodes]
+    # shift position a little bit
+    shift = [-0.05, -0.05] 
+    shifted_pos ={node: node_pos + shift  for node, node_pos in pos.items()}
 
+    GS_labels = {}
+    print(f"Nodes: {network.nodes}")
+    for node in network.nodes:
+        G = network.nodes[node]["agent"].G.sum().round(2) * -1
+        S = stemness(network.nodes[node]["agent"].B).round(2)
+        GS_labels[node] = f'G: {G}, S: {S}'
     if _draw_neighboring_pairs:
+        
         networkx.draw(network, with_labels=True,node_color=node_colors, pos = pos, font_weight="bold", edge_color = "white")
+        networkx.draw_networkx_labels(network, shifted_pos, labels=GS_labels, horizontalalignment="left")
 
         draw_neighboring_pairs(network, pos)
     else:
+
         networkx.draw(network, with_labels=True,node_color=node_colors, pos = pos, font_weight="bold")
 
     if title is not None:
@@ -116,7 +132,7 @@ def draw_neighboring_pairs(network, pos):
                 networkx.draw_networkx_edges(
                     network,
                     pos,
-                    edgelist=[(sender, receiver)],
+                    edgelist=[(receiver, sender)],
                     edge_color=edge_color_received,
                     arrows=True,
                     arrowstyle="-|>",
@@ -134,7 +150,7 @@ def draw_neighboring_pairs(network, pos):
                 networkx.draw_networkx_edges(
                     network,
                     pos,
-                    edgelist=[(receiver, sender)],
+                    edgelist=[(sender, receiver)],
                     edge_color=edge_color_sent,
                     arrows=True,
                     arrowstyle="-|>",
