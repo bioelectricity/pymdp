@@ -581,7 +581,7 @@ def update_beta_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_pr
 
 
 def update_beta_gamma(G, gamma, q_pi, policies):
-    pi_0 = maths.softmax(-gamma * G)
+    pi_0 = maths.softmax(-gamma * G) #should we index into policies? 
 
     for idx  in range(len(policies)):
         gamma += (q_pi[idx] - pi_0).dot(G)
