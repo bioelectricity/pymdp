@@ -67,6 +67,8 @@ class MarkovianSystem(Network):
                 self.num_cells,
             )
         )
+        self.reward_interval = 0
+        self.reward_signal = False
 
         print(f"Internal cell indices: {self.internal_cell_indices}")
         print(f"Sensory cell indices: {self.sensory_cell_indices}")
@@ -225,7 +227,7 @@ class MarkovianSystem(Network):
             print(f"Active action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def external_act(self, node, logging=False):
+    def external_act(self, node, reward_signal, logging=False):
 
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
@@ -245,10 +247,21 @@ class MarkovianSystem(Network):
         if logging:
             print(f"External observation: {external_obs}")
 
-        action_string = external_agent.act(external_obs)
+        action_string, reward_signal = external_agent.act(external_obs, reward_signal)
+        print(f"Reward signal from act function: {reward_signal}")
+        if reward_signal and self.reward_interval < 10: #if we got rewarded and we are still in the reward interval
+            print("IN REWARD INTERVAL")
+            self.reward_interval += 1
+            print(f"Reward interval: {self.reward_interval}")
+        if self.reward_interval == 10: #if we hit the end of the reward interval
+            print(f"Received reward: {reward_signal}, leaving reward interval")
+            reward_signal = False
+            self.reward_interval = 0
         if logging:
             print(f"External action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
+
+        return reward_signal
 
     def step(self, logging=False):
 
@@ -268,6 +281,19 @@ class MarkovianSystem(Network):
 
         # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            self.external_act(external_node, logging=logging)
+            self.reward_signal = self.external_act(external_node, reward_signal = self.reward_signal, logging=logging)
+            print(f"Reward signal: {self.reward_signal}")
 
         self.t += 1
+
+    def update_after_trial(self):
+        for node in self.internal_network.nodes:
+            self.internal_network.nodes[node]["agent"].update_B()
+            self.internal_network.nodes[node]["agent"]._reset()
+        for node in self.sensory_network.nodes:
+            self.sensory_network.nodes[node]["agent"].update_B()
+            self.sensory_network.nodes[node]["agent"]._reset()
+
+        for node in self.active_network.nodes:
+            self.active_network.nodes[node]["agent"].update_B()
+            self.active_network.nodes[node]["agent"]._reset()

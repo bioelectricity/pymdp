@@ -38,19 +38,23 @@ class TMazeCell(ExternalCell):
         self.actions = list(itertools.product(list(range(len(self.active_cell_indices))), repeat = 2))
    
 
-    def act(self, obs: int) -> str:
+    def act(self, obs: int, reward_signal = False) -> str:
         """Perform state and action inference, return the action string
         which includes the action signal for each actionable neighbor
         of this cell
 
         obs: the observation signal index from the observable neighbors
+
+
+        Here for the tmaze cell, the observation will be the location of the rat
+        one out of four possible observations coming from the active cells 
         """
         actions_per_factor = [obs, 0]
         env_step = self.tmaze.step(actions_per_factor)
-        sensory_states = list(itertools.product((0,1), repeat = 5))[:24]
+        #sensory_states = list(itertools.product((0,1), repeat = 5))[:24]
 
-        actions = list(itertools.product(range(4), range(3), range(2)))
-        sensory_mapping = {a: s for a,s in zip(actions, sensory_states)}
+        #actions = list(itertools.product(range(4), range(3), range(2)))
+        #sensory_mapping = {a: s for a,s in zip(actions, sensory_states)}
 
         #TODO: how does this feed into the sensory observations? 
 
@@ -61,13 +65,47 @@ class TMazeCell(ExternalCell):
         #we need 5 cells to represent 32 possible observations
         #so this is defo worth discussing with the team... 
 
-        print(f"REWARD : {env_step[1]}")
+        location = env_step[0]
+        reward = env_step[1] #['No reward','Reward!','Loss!']
 
-        action = sensory_mapping[tuple(env_step)]
+        cue = env_step[2]
 
-        self.action_string = ''.join(map(str, action))
+        print(f"Reward from env: {reward}")
 
-        return self.action_string
+        if int(reward) == 1 or reward_signal is True: #reward
+
+            print("In reward interval")
+
+            action_string = "0011" #predictable reward that wouldn't occur otherwise 
+            reward_signal = True 
+        else:
+            reward_signal = False
+            action_string = ""
+
+            #locations: ['CENTER','RIGHT ARM','LEFT ARM','CUE LOCATION']
+
+            if location == 0: #center
+                action_string += "00"
+            elif location == 1: #right arm
+                action_string += "01"
+            elif location == 2: #left arm
+                action_string += "10"
+            elif location == 3: #cue location
+                action_string += "11"
+            
+            if location == 3: #cue location
+                if cue == 0:
+                    action_string += "00"
+                elif cue == 1:
+                    action_string += "01"
+            else:
+                action_string += "10"
+
+        self.action_string = action_string
+
+        print(f"Returning reward: {reward_signal}")
+
+        return self.action_string, reward_signal 
     
 
     

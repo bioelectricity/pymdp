@@ -10,7 +10,7 @@ import networkx
 num_internal_cells = 4 #arbitrary choice 
 
 num_active_cells = 2 #four possible actions: 00,01,10,11
-num_sensory_cells = 5 #24 possible actions (this includes 32 possibilities, but 6 of them will never occur from env)
+num_sensory_cells = 4 #Two cells per location, two cells per cue 
 num_external_cells = 1 #externall cell act function is just the tmaze step function given the action from the active cells 
 
 internal_cells = [f"i{i}" for i in range(num_internal_cells)]
@@ -66,22 +66,32 @@ filenames = []
 import imageio
 import os
 
-for t in range(50):
-    system.step(logging=False)
 
-    temp_file_name = draw_network(
-        system.system,
-        colors,
-        t=t,
-        title="System Network",
-        pos=pos,
-        _draw_neighboring_pairs=True,
-        save=True,
-    )
+trial_length = 50
+num_trials = 10
 
-    images.append(imageio.imread(temp_file_name))
-    filenames.append(temp_file_name)
-    plt.close()
+for trial in range(num_trials):
+    print(f"Trial :{trial}")
+    for t in range(trial_length):
+        system.step(logging=False)
+
+        # temp_file_name = draw_network(
+        #     system.system,
+        #     colors,
+        #     t=t,
+        #     title="System Network",
+        #     pos=pos,
+        #     _draw_neighboring_pairs=True,
+        #     save=True,
+        # )
+
+        # images.append(imageio.imread(temp_file_name))
+        # filenames.append(temp_file_name)
+        # plt.close()
+
+    system.t = 0
+    system.update_after_trial()
+
 
 
 # Create a GIF from the images
