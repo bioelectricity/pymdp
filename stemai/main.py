@@ -1,5 +1,5 @@
 # %%
-from stemai.networks.environment import GenerativeProcess
+from stemai.networks.external_network import GenerativeProcess
 import networkx
 import matplotlib.pyplot as plt
 import imageio

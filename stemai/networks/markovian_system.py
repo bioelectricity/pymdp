@@ -3,6 +3,7 @@ import pathlib
 import sys
 import os
 from networks.network import Network
+from pymdp.envs import Env
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -149,8 +150,8 @@ class MarkovianSystem(Network):
             self.internal_network.nodes[node] for node in self.internal_network.nodes
         ] + [self.active_network.nodes[node] for node in self.active_network.nodes]
 
-        print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
-        print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
+        # print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
+        # print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
 
         sensory_agent = self.sensory_network.nodes[node]["agent"]
         if self.t == 0:
@@ -239,9 +240,11 @@ class MarkovianSystem(Network):
         signals = [external_agent.actions_received[i] for i in incoming_nodes]
         if logging:
             print(f"Signal to external agent: {signals}")
+        
         external_obs = external_agent.state_signal_to_index(signals)
         if logging:
             print(f"External observation: {external_obs}")
+
         action_string = external_agent.act(external_obs)
         if logging:
             print(f"External action: {action_string}")

@@ -75,11 +75,11 @@ def draw_network(
     shifted_pos = {node: node_pos + shift for node, node_pos in pos.items()}
 
     GS_labels = {}
-    print(f"Nodes: {network.nodes}")
     for node in network.nodes:
-        G = network.nodes[node]["agent"].G.sum().round(2) * -1
-        S = stemness(network.nodes[node]["agent"].B).round(2)
-        GS_labels[node] = f"G: {G}, S: {S}"
+        if hasattr(network.nodes[node]["agent"], "G"):
+            G = network.nodes[node]["agent"].G.sum().round(2) * -1
+            S = stemness(network.nodes[node]["agent"].B).round(2)
+            GS_labels[node] = f"G: {G}, S: {S}"
     if _draw_neighboring_pairs:
 
         networkx.draw(

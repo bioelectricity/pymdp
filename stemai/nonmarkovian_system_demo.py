@@ -1,4 +1,8 @@
 # %%
+
+import os 
+
+os.chdir("../")
 from stemai.networks.nonmarkovian_system import NonMarkovianSystem
 from networks.internal_network import InternalNetwork
 from networks.external_network import ExternalNetwork
