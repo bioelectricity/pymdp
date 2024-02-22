@@ -38,7 +38,7 @@ class TMazeCell(ExternalCell):
         self.actions = list(itertools.product(list(range(len(self.active_cell_indices))), repeat = 2))
    
 
-    def act(self, obs: int, reward_signal = False) -> str:
+    def act(self, obs: int, in_consistent_interval = False) -> str:
         """Perform state and action inference, return the action string
         which includes the action signal for each actionable neighbor
         of this cell
@@ -70,16 +70,9 @@ class TMazeCell(ExternalCell):
 
         cue = env_step[2]
 
-        print(f"Reward from env: {reward}")
-
-        if int(reward) == 1 or reward_signal is True: #reward
-
-            print("In reward interval")
-
+        if int(reward) == 1 or in_consistent_interval is True: #reward
             action_string = "0011" #predictable reward that wouldn't occur otherwise 
-            reward_signal = True 
         else:
-            reward_signal = False
             action_string = ""
 
             #locations: ['CENTER','RIGHT ARM','LEFT ARM','CUE LOCATION']
@@ -103,9 +96,7 @@ class TMazeCell(ExternalCell):
 
         self.action_string = action_string
 
-        print(f"Returning reward: {reward_signal}")
-
-        return self.action_string, reward_signal 
+        return self.action_string, int(reward), int(location), int(cue)
     
 
     

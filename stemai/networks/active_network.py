@@ -25,10 +25,12 @@ class ActiveNetwork(Network):
     ) -> ActiveCell:
         """Creates an active inference agent for a given node in the network"""
 
+        active_neighbors = list(networkx.neighbors(self.network, node))
+
         agent = ActiveCell(
             node,
-            internal_and_sensory_cells,
-            external_and_sensory_cells,
+            active_neighbors + internal_and_sensory_cells,
+            active_neighbors + external_and_sensory_cells,
             states,
         )
         agent._action = self.actions[node]

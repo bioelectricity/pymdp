@@ -55,14 +55,15 @@ class BlanketCell(Cell):
     def build_D(self):
         return self.build_uniform_D()
 
-    def act(self, obs: int) -> str:
+    def act(self, obs: int, update = True, accumulate = True) -> str:
         """Here we overwrite the abstract act() class
         for blanket cells, because blanket cells
         will update their transition likelihoods after every state inference"""
 
         if self.qs is not None:
             self.qs_prev = self.qs
-            self.qs_over_time.append(self.qs)
+            if accumulate:
+                self.qs_over_time.append(self.qs)
 
         #the first entry in self.qs_over_time will be the second state inferred 
         #which is the qs_previous for the first action 
@@ -70,12 +71,16 @@ class BlanketCell(Cell):
 
         self.infer_policies()
         self.action_signal = int(self.sample_action()[0])
-        self.actions_over_time.append(self.action)
+        if accumulate:
+            self.actions_over_time.append(self.action)
 
         #the first entry in self.actions_over_time will be the first action inferred
         #when qs_prev is None and qs is not None
         self.action_string = self.action_names[self.action_signal]
 
+        if update:
+            if self.qs_prev is not None:
+                self.update_B(self.qs_prev)
         # # update B
         # if self.qs_prev is not None:
         #     self.update_B(self.qs_prev)
@@ -86,7 +91,7 @@ class BlanketCell(Cell):
         self.actions_over_time = []
         self.curr_timestep = 0
 
-    def update_B(self):
+    def update_B_after_trial(self):
         # update B
         for t in range(len(self.qs_over_time) - 1):
             qB = learning.update_state_likelihood_dirichlet_interactions(

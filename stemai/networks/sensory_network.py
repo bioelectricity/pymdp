@@ -21,14 +21,17 @@ class SensoryNetwork(Network):
         self, node, external_and_active_cells, internal_and_active_cells, states
     ) -> SensoryCell:
         """Creates an active inference agent for a given node in the network"""
+        sensory_neighbors = list(networkx.neighbors(self.network, node))
 
         agent = SensoryCell(
             node,
-            external_and_active_cells,
-            internal_and_active_cells,
+            sensory_neighbors + external_and_active_cells,
+            sensory_neighbors + internal_and_active_cells,
             states,
         )
         agent._action = self.actions[node]
         networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
+        agent.actions_received = {n: 0 for n in sensory_neighbors}
+        agent.actions_sent = {n: 0 for n in sensory_neighbors}
         return agent

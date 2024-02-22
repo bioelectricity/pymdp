@@ -58,7 +58,7 @@ def stemness(B):
 
 
 def draw_network(
-    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False
+    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False, show = False
 ):
     """
     Draw a network using networkx and matplotlib.
@@ -108,8 +108,8 @@ def draw_network(
         # Save the current figure to a temporary file and add it to the images list
         temp_file_name = f"temp_image_{t}.png"
         plt.savefig(temp_file_name)
-
-    plt.show()
+    if show:
+        plt.show()
     return temp_file_name
 
 

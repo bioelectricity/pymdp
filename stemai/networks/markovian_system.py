@@ -68,7 +68,7 @@ class MarkovianSystem(Network):
             )
         )
         self.reward_interval = 0
-        self.reward_signal = False
+        self.in_consistent_interval = False
 
         print(f"Internal cell indices: {self.internal_cell_indices}")
         print(f"Sensory cell indices: {self.sensory_cell_indices}")
@@ -137,18 +137,20 @@ class MarkovianSystem(Network):
         for idx, neighbor in enumerate(neighbors):
             neighbor["agent"].actions_received[node] = int(action_string[idx])
 
-    def sensory_act(self, node, logging=False):
+    def sensory_act(self, node, update = True, accumulate = True, logging=False):
+
+        sensory_neighbors = list(networkx.neighbors(self.sensory_network.network, node))
 
         # nodes that send signals to the sensory cells
-        incoming_nodes_names = list(self.external_network.network.nodes) + list(
+        incoming_nodes_names = sensory_neighbors + list(self.external_network.network.nodes) + list(
             self.active_network.network.nodes
         )
         # nodes that receive signals from the sensory cells
-        outgoing_node_names = list(self.internal_network.network.nodes) + list(
+        outgoing_node_names = sensory_neighbors + list(self.internal_network.network.nodes) + list(
             self.active_network.network.nodes
         )
 
-        outgoing_nodes = [
+        outgoing_nodes = [self.sensory_network.nodes[node] for node in sensory_neighbors] + [
             self.internal_network.nodes[node] for node in self.internal_network.nodes
         ] + [self.active_network.nodes[node] for node in self.active_network.nodes]
 
@@ -156,10 +158,11 @@ class MarkovianSystem(Network):
         # print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
 
         sensory_agent = self.sensory_network.nodes[node]["agent"]
+
         if self.t == 0:
             sensory_agent.actions_received = {n: 0 for n in incoming_nodes_names}
             sensory_agent.actions_sent = {n: 0 for n in outgoing_node_names}
-            signals = self.external_obs  # a list of signals from each external node
+            signals = [0 for i in range(len(incoming_nodes_names))]  # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
         if logging:
@@ -168,16 +171,14 @@ class MarkovianSystem(Network):
         if logging:
             print(f"Sensory observation: {sensory_obs}")
 
-        action_string = sensory_agent.act(sensory_obs)
+        action_string = sensory_agent.act(sensory_obs, update = update,accumulate=accumulate)
 
         if logging:
             print(f"Sensory action: {action_string}")
 
-        outgoing_nodes = [self.internal_network.nodes[node] for node in self.internal_network.nodes]
-
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def internal_act(self, node, logging=False):
+    def internal_act(self, node, update=True, accumulate = True, logging=False):
 
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
@@ -196,17 +197,20 @@ class MarkovianSystem(Network):
         internal_obs = internal_agent.state_signal_to_index(signals)
         if logging:
             print(f"Internal agent {node} observation: {internal_obs}")
-        action_string = internal_agent.act(internal_obs)
+        action_string = internal_agent.act(internal_obs, update=update,accumulate=accumulate)
         if logging:
             print(f"Internal agent {node} action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def active_act(self, node, logging=False):
+    def active_act(self, node, update=True, accumulate = True, logging=False):
+
+        active_neighbors = list(networkx.neighbors(self.active_network.network, node))
+
         # nodes that send signals to the active cells
-        incoming_nodes = list(self.internal_network.nodes) + list(self.sensory_network.nodes)
+        incoming_nodes = active_neighbors + list(self.internal_network.nodes) + list(self.sensory_network.nodes)
 
         # nodes that receive signals from the active cells
-        outgoing_nodes = [
+        outgoing_nodes = [self.active_network.nodes[node] for node in active_neighbors] + [
             self.external_network.nodes[node] for node in self.external_network.nodes
         ] + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
 
@@ -222,12 +226,15 @@ class MarkovianSystem(Network):
         active_obs = active_agent.state_signal_to_index(incoming_signals)
         if logging:
             print(f"Active observation: {active_obs}")
-        action_string = active_agent.act(active_obs)
+        action_string = active_agent.act(active_obs, update=update, accumulate = accumulate)
         if logging:
             print(f"Active action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def external_act(self, node, reward_signal, logging=False):
+        return action_string
+
+
+    def external_act(self, node, logging=False):
 
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
@@ -247,21 +254,11 @@ class MarkovianSystem(Network):
         if logging:
             print(f"External observation: {external_obs}")
 
-        action_string, reward_signal = external_agent.act(external_obs, reward_signal)
-        print(f"Reward signal from act function: {reward_signal}")
-        if reward_signal and self.reward_interval < 10: #if we got rewarded and we are still in the reward interval
-            print("IN REWARD INTERVAL")
-            self.reward_interval += 1
-            print(f"Reward interval: {self.reward_interval}")
-        if self.reward_interval == 10: #if we hit the end of the reward interval
-            print(f"Received reward: {reward_signal}, leaving reward interval")
-            reward_signal = False
-            self.reward_interval = 0
+        action_string = external_agent.act(external_obs, self.in_consistent_interval)
         if logging:
             print(f"External action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-        return reward_signal
 
     def step(self, logging=False):
 
@@ -269,31 +266,31 @@ class MarkovianSystem(Network):
 
         # first the sensory cells act in response to the previous external observation
         for sensory_node in self.sensory_network.nodes:
-            self.sensory_act(sensory_node, logging=logging)
+            self.sensory_act(sensory_node, update=True, logging=logging)
 
         # then, the internal cells act
         for internal_node in self.internal_network.nodes:
-            self.internal_act(internal_node, logging=logging)
+            self.internal_act(internal_node, update = True, logging=logging)
 
         # then, the active cells act
         for active_node in self.active_network.nodes:
-            self.active_act(active_node, logging=logging)
+            self.active_act(active_node, update=True, logging=logging)
 
         # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            self.reward_signal = self.external_act(external_node, reward_signal = self.reward_signal, logging=logging)
-            print(f"Reward signal: {self.reward_signal}")
+            self.external_act(external_node, logging=logging)
 
         self.t += 1
 
     def update_after_trial(self):
+        print("Updating transition matrices")
         for node in self.internal_network.nodes:
-            self.internal_network.nodes[node]["agent"].update_B()
+            self.internal_network.nodes[node]["agent"].update_B_after_trial()
             self.internal_network.nodes[node]["agent"]._reset()
         for node in self.sensory_network.nodes:
-            self.sensory_network.nodes[node]["agent"].update_B()
+            self.sensory_network.nodes[node]["agent"].update_B_after_trial()
             self.sensory_network.nodes[node]["agent"]._reset()
 
         for node in self.active_network.nodes:
-            self.active_network.nodes[node]["agent"].update_B()
+            self.active_network.nodes[node]["agent"].update_B_after_trial()
             self.active_network.nodes[node]["agent"]._reset()

@@ -32,8 +32,9 @@ class InternalCell(Cell):
         self,
         node_idx,
         internal_neighbors,
-        sensory_cell_indices,
-        active_cell_indices,
+        internal_neighbor_indices,
+        sensory_cells,
+        active_cells,
         states,
     ):
         """
@@ -48,12 +49,12 @@ class InternalCell(Cell):
         self.num_internal_neighbors = len(internal_neighbors)
 
         self.internal_neighbors = internal_neighbors  # list of neighboring nodes
-        self.internal_neighbor_indices = [idx for idx, _ in enumerate(internal_neighbors)]
-        self.sensory_cell_indices = sensory_cell_indices
-        self.active_cell_indices = active_cell_indices
+        self.internal_neighbor_indices = internal_neighbor_indices
+        self.sensory_cell_indices = sensory_cells
+        self.active_cell_indices = active_cells
 
-        self.state_neighbors = internal_neighbors + sensory_cell_indices
-        self.action_neighbors = internal_neighbors + active_cell_indices
+        self.state_neighbors = internal_neighbors + sensory_cells
+        self.action_neighbors = internal_neighbors + active_cells
 
         self.states = states
 
@@ -104,14 +105,15 @@ class InternalCell(Cell):
         """Internal cells have uniform priors over states"""
         return self.build_uniform_D()
 
-    def act(self, obs: int) -> str:
+    def act(self, obs: int, update=True, accumulate = True) -> str:
         """Here we overwrite the abstract act() class
         for internal cells, because internal cells
         will update their transition likelihoods after every state inference"""
 
         if self.qs is not None:
             self.qs_prev = self.qs
-            self.qs_over_time.append(self.qs)
+            if accumulate:
+                self.qs_over_time.append(self.qs)
 
         #the first entry in self.qs_over_time will be the second state inferred 
         #which is the qs_previous for the first action 
@@ -119,19 +121,21 @@ class InternalCell(Cell):
 
         self.infer_policies()
         self.action_signal = int(self.sample_action()[0])
-        self.actions_over_time.append(self.action)
+        if accumulate:
+            self.actions_over_time.append(self.action)
 
         #the first entry in self.actions_over_time will be the first action inferred
         #when qs_prev is None and qs is not None
         self.action_string = self.action_names[self.action_signal]
 
         # # update B
-        # if self.qs_prev is not None:
-        #     self.update_B(self.qs_prev)
+        if update:
+            if self.qs_prev is not None:
+                self.update_B(self.qs_prev)
 
         return self.action_string
     
-    def update_B(self):
+    def update_B_after_trial(self):
         # update B
         for t in range(len(self.qs_over_time) - 1):
             qB = learning.update_state_likelihood_dirichlet_interactions(
@@ -162,9 +166,10 @@ class InternalCell(Cell):
             neighbor in self.internal_neighbors
         ), f"Trying to remove an internal neighbor: {neighbor}, that is not in cell neighborhood: {self.internal_neighbors}"
 
+        neighbor_idx = self.internal_neighbors.index(neighbor).copy()
         self.internal_neighbors.remove(neighbor)
 
-        self.internal_neighbor_indices = [idx for idx, _ in enumerate(self.internal_neighbors)]
+        self.internal_neighbor_indices.remove(self.internal_neighbor_indices[neighbor_idx])
 
         self.num_internal_neighbors -= 1
 

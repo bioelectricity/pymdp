@@ -1,5 +1,5 @@
 # %%
-from stemai.networks.markovian_system import MarkovianSystem
+from networks.markovian_system import MarkovianSystem
 from networks.internal_network import InternalNetwork
 from networks.external_network import ExternalNetwork
 from networks.sensory_network import SensoryNetwork
@@ -86,7 +86,7 @@ for t in range(50):
 
 
 # Create a GIF from the images
-gif_path = f"simulation:{num_internal_cells}-{num_external_cells}.gif"
+gif_path = f"markovian-demo:{num_internal_cells}-{num_external_cells}.gif"
 imageio.mimsave(gif_path, images, fps=1)
 
 

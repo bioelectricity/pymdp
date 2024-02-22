@@ -34,10 +34,12 @@ class InternalNetwork(Network):
         """Creates an active inference agent for a given node in the network"""
 
         internal_neighbors = list(networkx.neighbors(self.network, node))
+        internal_neighbor_indices = [list(self.network.nodes).index(neighbor) for neighbor in internal_neighbors]
 
         agent = InternalCell(
             node,
             internal_neighbors,
+            internal_neighbor_indices,
             sensory_cell_indices,
             active_cell_indices,
             global_states,
