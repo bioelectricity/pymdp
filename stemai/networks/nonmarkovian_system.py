@@ -2,7 +2,7 @@
 import pathlib
 import sys
 import os
-from networks.network import Network
+from stemai.networks.network import Network
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"

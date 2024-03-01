@@ -103,9 +103,9 @@ class MarkovianSystem(Network):
         system = networkx.compose(system, active_network.network)
         self.system = networkx.compose(system, external_network.network)
 
-        self.external_obs = np.random.choice(
-            [0, 1], size=self.num_external_cells + self.num_active_cells
-        )
+        # self.external_obs = np.random.choice(
+        #     [0, 1], size=self.num_external_cells + self.num_active_cells
+        # )
 
         self.t = 0
 
@@ -160,9 +160,9 @@ class MarkovianSystem(Network):
         sensory_agent = self.sensory_network.nodes[node]["agent"]
 
         if self.t == 0:
-            sensory_agent.actions_received = {n: 0 for n in incoming_nodes_names}
-            sensory_agent.actions_sent = {n: 0 for n in outgoing_node_names}
-            signals = [0 for i in range(len(incoming_nodes_names))]  # a list of signals from each external node
+            sensory_agent.actions_received = {n: np.random.choice([0,1]) for n in incoming_nodes_names}
+            sensory_agent.actions_sent = {n: np.random.choice([0,1]) for n in outgoing_node_names}
+            signals = [np.random.choice([0,1]) for i in range(len(incoming_nodes_names))]  # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
         if logging:
@@ -254,9 +254,10 @@ class MarkovianSystem(Network):
         if logging:
             print(f"External observation: {external_obs}")
 
-        action_string = external_agent.act(external_obs, self.in_consistent_interval)
-        if logging:
-            print(f"External action: {action_string}")
+        action, self.agent_location, self.distance_to_reward, self.probabilities = external_agent.act(signals)
+
+        #so here, does the external agent send the same signal to all of the sensory agents? 
+        action_string = "".join([str(action) for i in range(len(outgoing_nodes))])
         self.update_observations(node, action_string, outgoing_nodes)
 
 
@@ -278,9 +279,61 @@ class MarkovianSystem(Network):
 
         # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            self.external_act(external_node, logging=logging)
+            action, agent_location, distance, probabilities = self.external_act(external_node, logging=logging)
 
         self.t += 1
+
+    def _reset(self):
+        for node in self.internal_network.nodes:
+            self.internal_network.nodes[node]["agent"].curr_timestep = 0
+        for node in self.sensory_network.nodes:
+            self.sensory_network.nodes[node]["agent"].curr_timestep = 0
+
+        for node in self.active_network.nodes:
+            self.active_network.nodes[node]["agent"].curr_timestep = 0
+        for node in self.external_network.nodes:
+            self.external_network.nodes[node]["agent"].agent_location = self.agent_location
+            self.external_network.nodes[node]["agent"].reward_location = self.reward_location
+
+    def update_gamma_A(self):
+        for node in self.internal_network.nodes:
+            self.internal_network.nodes[node]["agent"].update_after_trial()
+            #self.internal_network.nodes[node]["agent"].curr_timestep = 0
+        for node in self.sensory_network.nodes:
+            self.sensory_network.nodes[node]["agent"].update_after_trial()
+            #self.sensory_network.nodes[node]["agent"].curr_timestep = 0
+
+        for node in self.active_network.nodes:
+            self.active_network.nodes[node]["agent"].update_after_trial()
+            #self.active_network.nodes[node]["agent"].curr_timestep = 0
+
+    def prune(self):
+        for node in self.internal_network.nodes:
+            agent = self.internal_network.nodes[node]["agent"]
+            neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            neighbor_idx = 0
+            for neighbor in neighbors:
+                if 'i' not in neighbor:
+                    neighbor_idx += 1
+                    continue
+
+                #neighbor_node = self.internal_network.nodes[neighbors[neighbor_idx]]
+                gamma_A_m = agent.beta_zeta[neighbor_idx] 
+                print(f"Gamma: {gamma_A_m}")
+                print(f"Checking if I should prune: {1 / gamma_A_m[1]}")
+                if 1/ gamma_A_m[1] < 0.2:
+                    print(f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {1 / gamma_A_m} and A value {agent.A[neighbor_idx]}")
+                    #prune this connection 
+                    self.internal_network.nodes[node]["agent"].disconnect_from(neighbor)
+                    self.internal_network.nodes[neighbor]["agent"].disconnect_from(node)
+
+                    node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+                    if neighbor in node_neighbors:
+                        self.internal_network.network.remove_edge(node, neighbor)
+                    # Update neighbor index after pruning
+                    neighbor_idx -= 1
+                neighbor_idx += 1
+
 
     def update_after_trial(self):
         print("Updating transition matrices")

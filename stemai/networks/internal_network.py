@@ -10,15 +10,15 @@ path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
 sys.path.append(module_path)
 import networkx
-from networks.network import Network
-from cells.internal_cell import InternalCell
+from stemai.networks.network import Network
+from stemai.cells.internal_cell import InternalCell
 import numpy as np
 
 
 class InternalNetwork(Network):
     """A network object representing a network of internal cells"""
 
-    def __init__(self, num_internal_cells, connectivity, cells):
+    def __init__(self, num_internal_cells, connectivity, cells, celltype=InternalCell):
         """We start assuming our Generative Model can be modeled as an Erdos Renyi graph
         with num_cells nodes and connectivity probability connectivity.
 
@@ -26,8 +26,10 @@ class InternalNetwork(Network):
         for other kinds of random graphs"""
 
         self.color = "mediumseagreen"
-        super().__init__(num_internal_cells, connectivity, cells)
+        super().__init__(num_internal_cells, connectivity, cells, celltype)
 
+    
+    
     def create_agent(
         self, node, sensory_cell_indices, active_cell_indices, global_states
     ) -> InternalCell:
@@ -36,7 +38,7 @@ class InternalNetwork(Network):
         internal_neighbors = list(networkx.neighbors(self.network, node))
         internal_neighbor_indices = [list(self.network.nodes).index(neighbor) for neighbor in internal_neighbors]
 
-        agent = InternalCell(
+        agent = self.celltype(
             node,
             internal_neighbors,
             internal_neighbor_indices,

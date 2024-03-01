@@ -8,7 +8,7 @@ import networkx
 import matplotlib.pyplot as plt
 from networks.tmaze_network import TMazeNetwork, TMazeSystem
 reward_conditions = ["Right", "Left"]
-location_observations = ['CENTER','RIGHT ARM','LEFT ARM','CUE LOCATION']
+location_observations = ['CENTER','RIGHT A-RM','LEFT ARM','CUE LOCATION']
 reward_observations = ['No reward','Reward!','Loss!']
 cue_observations = ['Cue Right','Cue Left']
 

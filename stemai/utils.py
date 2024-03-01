@@ -107,6 +107,7 @@ def draw_network(
     if save:
         # Save the current figure to a temporary file and add it to the images list
         temp_file_name = f"temp_image_{t}.png"
+        print(f"Saving to: {temp_file_name}")
         plt.savefig(temp_file_name)
     if show:
         plt.show()

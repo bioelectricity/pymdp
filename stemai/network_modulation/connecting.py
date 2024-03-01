@@ -1,6 +1,6 @@
 import numpy as np
 from pymdp import utils
-from network_modulation.utils import distribute
+from stemai.network_modulation.utils import distribute
 
 
 def add_neighbor_to_pB(pB, states_and_actions_to_distribute):

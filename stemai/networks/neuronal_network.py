@@ -8,13 +8,14 @@ module_path = str(path.parent) + "/"
 sys.path.append(module_path)
 import networkx
 import numpy as np
+from stemai.cells.neuronal_cell import NeuronalCell
 from stemai.utils import generate_binary_numbers
 
 
-class Network:
+class NeuronalNetwork:
     """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
 
-    def __init__(self, num_cells, connectivity, node_labels, celltype):
+    def __init__(self, num_cells, connectivity, node_labels, celltype=NeuronalCell, gamma_A = 0.5, gamma_B = 16.0):
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
@@ -30,18 +31,18 @@ class Network:
             self.network, dict(zip(self.network.nodes, node_labels))
         )
         self.nodes = self.network.nodes
-        self.celltype = celltype
 
         self.actions = {n: np.random.choice([0, 1]) for n in node_labels}
 
-        self.set_states()
+        self.gamma_A = gamma_A
 
-    def set_states(self):
-        """The global state names for all the cell signals in the network"""
+        self.gamma_B = gamma_B
 
-        self.states = [x[::-1] for x in generate_binary_numbers(self.num_cells, 2**self.num_cells)]
+        self.color = "lightblue"  # for plotting
 
-    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node=None):
+        self.celltype = celltype
+
+    def create_agents(self, incoming_cells, outgoing_cells):
         """Creates active inference agents for each node in the network
 
         incoming_cells: list of indices of cells that send signals to the current cell
@@ -49,14 +50,28 @@ class Network:
 
         This function will be called from within the global system that has multiple composed networks,
         and here, global states represents the entire state space of the global system"""
-
-        self.global_states = global_states
-
+        
         for idx, node in enumerate(self.network.nodes):
-            if seed_node is not None and idx != seed_node:
-                self.create_agent(node, [], [], global_states)
-            else:
-                self.create_agent(node, incoming_cells, outgoing_cells, global_states)
+            neighbors = list(networkx.neighbors(self.network, node)) + incoming_cells 
 
-        return self.network
+            
+            agent = self.celltype(idx, neighbors, self.gamma_A, self.gamma_B)
+            networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
+            print("CREATING AGENT ")
+
+            print(f"Node {node}")
+            print(f"Neighbors: {neighbors}")
+            print(f"A matrix: {agent.A}")
+            print(f"B matrix: {agent.B}")
+            print(f"Gamma A: {agent.gamma_A}")
+            print()
+            
+            # initialize the actions received from other internal neighbors
+            agent.actions_received = {
+                n: np.random.choice([0, 1]) for n in neighbors
+            }  # keep track of what you received and from who
+
+            # initialize the actions sent to other internal neighbors
+            agent.actions_sent = {n: np.random.choice([0, 1]) for n in neighbors + outgoing_cells}
+ 

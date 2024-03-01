@@ -1,13 +1,13 @@
-from cells.cell import Cell
+from stemai.cells.cell import Cell
 from pymdp import utils
 from pymdp import learning
 import numpy as np
-from network_modulation.disconnecting import (
+from stemai.network_modulation.disconnecting import (
     remove_neighbor_from_pB,
     remove_neighbor_from_C,
     remove_neighbor_from_D,
 )
-from network_modulation.connecting import (
+from stemai.network_modulation.connecting import (
     add_neighbor_to_C,
     add_neighbor_to_D,
     add_neighbor_to_pB,

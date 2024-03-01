@@ -1,4 +1,4 @@
-from cells.blanket_cell import BlanketCell
+from stemai.cells.blanket_cell import BlanketCell
 from pymdp import utils
 import numpy as np
 
