@@ -1,69 +1,60 @@
-#%%
+# %%
 import pathlib
 import sys
-import os 
+import os
+
 path = pathlib.Path(os.getcwd())
-module_path = str(path.parent) + '/'
+module_path = str(path.parent) + "/"
 sys.path.append(module_path)
-import networkx 
+import networkx
 import numpy as np
 from utils import generate_binary_numbers
 
-class Network:
 
-    def __init__(self, num_cells, connectivity, initial_action = None):
+class Network:
+    """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
+
+    def __init__(self, num_cells, connectivity, node_labels):
+        """
+        num_cells: number of cells in the network
+        connectivity: float between 0 and 1, probability of connection between any two cells
+        node_labels: list of strings, the names of the nodes in the network
+        """
 
         self.num_cells = num_cells
         self.connectivity = connectivity
+
         self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
 
-        if initial_action is None:
-            initial_action = np.random.choice([0,1], size = num_cells)
-        self.actions = initial_action
-        self.global_states = [x[::-1] for x in generate_binary_numbers(num_cells+1, 2**(num_cells+1))]
+        self.network = networkx.relabel_nodes(
+            self.network, dict(zip(self.network.nodes, node_labels))
+        )
+        self.nodes = self.network.nodes
 
-        print(f"Global_states : {self.global_states}")
+        self.actions = {n: np.random.choice([0, 1]) for n in node_labels}
 
-    
-    def generate_observations(self, obs, agent, neighbors):
+        self.set_states()
 
-        actions_received = [agent.actions_received[i] for i in neighbors]
+    def set_states(self):
+        """The global state names for all the cell signals in the network"""
 
-        signals = actions_received + [obs]# a list of zero or 1 for each neighbor
-        print(f"All signals: {signals}")
-        index = agent.signal_to_index(signals)
-        print(f"index: {index}")
-        return index
+        self.states = [x[::-1] for x in generate_binary_numbers(self.num_cells, 2**self.num_cells)]
 
-    
-    def act(self, env_observation):
-        
-        action_to_env = []
+    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node=None):
+        """Creates active inference agents for each node in the network
 
-        for node in self.network.nodes:
-            agent = self.network.nodes[node]["agent"]
-            neighbors = list(networkx.neighbors(self.network, node))
+        incoming_cells: list of indices of cells that send signals to the current cell
+        outgoing_cells: list of indices of cells that receive signals from the current cell
 
-            obs = self.generate_observations(env_observation,agent,neighbors)
-            agent.infer_states([obs])
-            agent.infer_policies()
-            agent.action_signal = int(agent.sample_action()[0])
+        This function will be called from within the global system that has multiple composed networks,
+        and here, global states represents the entire state space of the global system"""
 
-            agent.full_actions = agent.state_names[agent.action_signal]
-            #this is the action sent to each neighbor + action sent to env
+        self.global_states = global_states
 
-            print(f"Full actions: {agent.full_actions}")
+        for idx, node in enumerate(self.network.nodes):
+            if seed_node is not None and idx != seed_node:
+                self.create_agent(node, [], [], global_states)
+            else:
+                self.create_agent(node, incoming_cells, outgoing_cells, global_states)
 
-            for idx, neighbor in enumerate(neighbors):
-                neighbor = self.network.nodes[neighbor]
-                neighbor["agent"].actions_received[node] = agent.full_actions[idx]
-
-            action_to_env.append(agent.full_actions[-1])
-        return action_to_env
-
-    def create_agents(self):
-        """This function creates agents and will differ depending on 
-        whether the network is a generative process or a generative model"""
-
-        pass
-#%%
+        return self.network
