@@ -15,7 +15,7 @@ from stemai.utils import generate_binary_numbers
 class NeuronalNetwork:
     """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
 
-    def __init__(self, num_cells, connectivity, node_labels, celltype=NeuronalCell, gamma_A = 0.5, gamma_B = 16.0):
+    def __init__(self, num_cells, connectivity, node_labels, celltype=NeuronalCell, gamma_A = 1.0, gamma_B = 1.0):
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
@@ -42,7 +42,8 @@ class NeuronalNetwork:
 
         self.celltype = celltype
 
-    def create_agents(self, incoming_cells, outgoing_cells):
+        
+    def create_agents(self, incoming_cells, outgoing_cells, cell_type=None):
         """Creates active inference agents for each node in the network
 
         incoming_cells: list of indices of cells that send signals to the current cell
@@ -50,6 +51,8 @@ class NeuronalNetwork:
 
         This function will be called from within the global system that has multiple composed networks,
         and here, global states represents the entire state space of the global system"""
+        print("HERE")
+        print("Creating agents")
         
         for idx, node in enumerate(self.network.nodes):
             neighbors = list(networkx.neighbors(self.network, node)) + incoming_cells 
@@ -66,6 +69,7 @@ class NeuronalNetwork:
             print(f"B matrix: {agent.B}")
             print(f"Gamma A: {agent.gamma_A}")
             print()
+            agent.cell_type = cell_type
             
             # initialize the actions received from other internal neighbors
             agent.actions_received = {

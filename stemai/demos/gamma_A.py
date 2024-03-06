@@ -26,15 +26,18 @@ for action in range(2):
 D = utils.obj_array(1)
 D[0] = np.array([1,0])
 agent = Agent(A = A, B = B,D=D, beta_zeta = gamma_A, beta_zeta_prior = gamma_A_prior )
+agent.qs_over_time = []
 print(f"Original A: {agent.A}")
 print(agent.A[0][0,:])
 print(f"Gamma A: {agent.beta_zeta}")
-
+agent.observation_history = []
 obs = [0,1]
+agent.observation_history.append(obs)
 
 agent.infer_states(obs)
 print(f"QS: {agent.qs}")
-agent.update_zeta(obs)
+agent.qs_over_time.append(agent.qs)
+agent.update_zeta(agent.observation_history[0], agent.qs)
 
 print(f"New A: {agent.A}")
 print(agent.A[0][0,:])

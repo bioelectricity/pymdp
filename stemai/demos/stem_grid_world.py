@@ -10,7 +10,7 @@ from stemai.networks.external_network import ExternalNetwork
 from stemai.networks.sensory_network import SensoryNetwork
 from stemai.networks.active_network import ActiveNetwork
 from stemai.cells.gridworld_cell import GridWorldCell
-from stemai.networks.neuronal_cell_system import System
+from stemai.networks.stem_cell_system import StemCellSystem
 
 from stemai.utils import draw_network
 import networkx
@@ -69,7 +69,7 @@ sensory_network = SensoryNetwork(
 active_network = ActiveNetwork(num_active_cells, 1, active_cells)
 
 external_network = ExternalNetwork(num_external_cells, 1, external_node_labels, celltype = GridWorldCell)
-system = System(internal_network, external_network, sensory_network, active_network)
+system = StemCellSystem(internal_network, external_network, sensory_network, active_network)
 
 for node in external_network.network.nodes:
     node = external_network.network.nodes[node]
@@ -78,7 +78,8 @@ for node in external_network.network.nodes:
     node["agent"].agent_location = AGENT_LOCATION
 
     node["agent"].grid_size = GRID_SIZE
-
+system.reward_location = REWARD_LOCATION
+system.agent_location = AGENT_LOCATION
 colors = {}
 for network in [internal_network, sensory_network, active_network, external_network]:
     for node in network.network.nodes:
@@ -107,19 +108,24 @@ trial = 0
 
 time_to_reward = []
 overall_t = 0
+pos = networkx.spring_layout(system.system)
 
 all_reward_locations = [(0,0),(9,9),(0,9),(9,0)]
+num_trials = len(all_reward_locations)
+
+system.distance_to_reward=1
 
 while agent_location != REWARD_LOCATION and trial < num_trials:
     print(f"Trial {trial}, T :{system.t}")
     print()
 
-    action, agent_location, distance, probabilities = system.step(logging=False)
+    action, agent_location, distance, probabilities = system.step(logging=True)
     grid = np.zeros((GRID_SIZE, GRID_SIZE))
     print()
     REWARD_LOCATION = all_reward_locations[trial % 4]
     grid[REWARD_LOCATION] = 1
     grid[system.agent_location] = 2
+    system.update_reward_location(REWARD_LOCATION)
 
 
     #fig = plt.figure(figsize = (6,6))
@@ -130,12 +136,14 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     #     plt.text(2, 2, "UPDATING GAMMA_A", fontsize=12, color='white')
     plt.imshow(grid)
 
-    plt.savefig(f"grid_at_{trial}_{system.t}.png", facecolor='w')
-    image = imageio.imread(f"grid_at_{trial}_{system.t}.png")
-    if len(grid_images) > 0 and image.shape == grid_images[-1].shape:
+    fn = f"STEM_grid_at_{trial}_{system.t}.png"
+
+    plt.savefig(fn, facecolor='w')
+    image = imageio.imread(fn)
+    if system.t > 0:
         grid_images.append(image)
-        grid_filenames.append(f"grid_at_{trial}_{system.t}.png")
-    #plt.show()
+        grid_filenames.append(fn)
+        #plt.show()
     plt.clf()
 
 
@@ -151,7 +159,7 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     temp_file_name = draw_network(
     system.system,
     colors,
-    t=f"{trial}_{system.t}",
+    t=f"STEM_{trial}_{system.t}",
     title=f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}",
     pos=pos,
     _draw_neighboring_pairs=True,
@@ -163,9 +171,9 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     network_images.append(imageio.imread(temp_file_name))
     network_filenames.append(temp_file_name)
     overall_t += 1
-    if overall_t % 100 == 0:
-        print(f"Pruning")
-        system.prune()
+    # if overall_t % 100 == 0:
+    #     print(f"Pruning")
+    #     system.prune()
 
 
 
@@ -181,7 +189,9 @@ for temp_file_name in network_filenames:
     os.remove(temp_file_name)
 
 # Create a GIF from the images
-gif_path = f"gridworld-grid-simulation-{num_internal_cells}.gif"
+gif_path = f"STEM-gridworld-grid-simulation-{num_internal_cells}.gif"
+for img in grid_images:
+    print(img.shape)
 imageio.mimsave(gif_path, grid_images, fps=1)
 
 

@@ -9,7 +9,7 @@ import tqdm
 class NeuronalCell(Agent):
     """A class that inherits from pymdp agent that represents an abstract cell in a network"""
 
-    def __init__(self, node_idx, neighbors, gamma_A_scalar = 1.0, gamma_B_scalar = 10.0):
+    def __init__(self, node_idx, neighbors, gamma_A_scalar = 1.0, gamma_B_scalar = 0.01):
         """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
@@ -23,10 +23,11 @@ class NeuronalCell(Agent):
         gamma_B = utils.obj_array(self.num_factors)
 
         for m in range(self.num_modalities):
-            # if m == self.num_modalities - 1:
-            #     gamma_A[m] = np.array([0.5,0.5])
-            # else:
-            gamma_A[m] = gamma_A_scalar
+            if m == self.num_modalities - 1:
+                gamma_A[m] = 10
+            else:
+                gamma_A[m] = gamma_A_scalar
+            
             #gamma_A[m] = np.array([gamma_A_scalar, gamma_A_scalar])
        
         for f in range(self.num_factors):
@@ -34,6 +35,7 @@ class NeuronalCell(Agent):
         self.gamma_A =gamma_A
         self.gamma_B = gamma_B
         self.observation_history = []
+        self.qs_over_time =[]
         self.actions_received = {}
         self.actions_sent = {}
 
@@ -45,7 +47,6 @@ class NeuronalCell(Agent):
         self.setup(self.num_neighbors)
 
         super().__init__(A = self.A, B = self.B, pA = self.A, beta_zeta_prior = self.gamma_A, beta_omega_prior = self.gamma_B)
-
     def setup(self, num_neighbors):
 
         self.num_states = [2]
@@ -74,6 +75,7 @@ class NeuronalCell(Agent):
         for f in range(self.num_factors):
             B[f] = np.eye(self.num_states[0]).reshape((self.num_states[0], self.num_states[0], 1))
         self.B = B 
+
 
   
     def disconnect_from(self, neighbor_node):
@@ -122,7 +124,7 @@ class NeuronalCell(Agent):
         self.neighbors.remove(self.neighbors[neighbor_idx])
         print(f"New beta zeta: {len(self.beta_zeta_prior)}")
 
-    def act(self, obs):
+    def act(self, obs, distance_to_reward=None):
         """
         For a neuronal cell, the observation is a 0 or 1 signal
         for each neighbor, and then the agent performs state inference
@@ -131,9 +133,16 @@ class NeuronalCell(Agent):
         self.observation_history.append(obs)
 
         qs = self.infer_states(obs)
-        action = utils.sample(qs[0])
+        self.qs_over_time.append(qs)
+        # if distance_to_reward is not None and distance_to_reward>0:
+        #     print(f"Qs softmaxed: {maths.softmax((0.5 + 1/distance_to_reward)*qs[0])}")
 
-        print(f"Qs : {qs}")
+        #     action = utils.sample(maths.softmax((0.5 + 1/distance_to_reward)*qs[0]))
+
+        # else:
+        action = utils.sample(maths.softmax(3.0*qs[0]))
+
+
         #self.update_zeta(obs)
 
 
@@ -144,8 +153,10 @@ class NeuronalCell(Agent):
     def update_after_trial(self):
         # update gamma_A
         for t in range(len(self.observation_history)):
-            self.update_zeta(self.observation_history[t])
+            self.update_zeta(self.observation_history[t], self.qs_over_time[t])
+           # self.update_A(self.observation_history[t])
            # self.update_A(self.observation_history[t])
         
         #overwrite the sensory ones
         self.observation_history = []
+        self.qs_over_time = []

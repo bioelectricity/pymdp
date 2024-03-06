@@ -24,6 +24,8 @@ class GridWorldCell(ExternalCell):
         #super().__init__(node, neighbors, external_cell_indices, active_cell_indices, sensory_cell_indices, states)
         
         self.neighbors = neighbors
+        self.cell_type = "external"
+        self.observation_history = []
 
         print(f"External neighbors: {self.neighbors}")
         #self.neighbor_indices = external_cell_indices
@@ -53,10 +55,13 @@ class GridWorldCell(ExternalCell):
         
         #obs should be 00, 01, 10, 11 : up, down, left, right
 
-        obs = ["00", "01", "10", "11"].index("".join(map(str, obs)))
+        #obs = np.argmax(obs)
 
-        print(f"ACTION: {self.action_names[obs]}")
-        if obs == 0:
+        obs = ["00", "01", "10", "11"].index("".join(map(str, obs)))
+        self.observation_history.append(obs)
+
+
+        if obs == 0: 
             if self.agent_location[1] < self.grid_size - 1:
                 self.agent_location = (self.agent_location[0], self.agent_location[1] + 1)
             # else:
@@ -66,12 +71,12 @@ class GridWorldCell(ExternalCell):
                 self.agent_location = (self.agent_location[0], self.agent_location[1] - 1)
             # else:
             #     self.agent_location = (self.agent_location[0], self.grid_size - 1)
-        elif obs == 2:
+        elif obs == 3: 
             if self.agent_location[0] > 0:
                 self.agent_location = (self.agent_location[0] - 1, self.agent_location[1])
             # else:
             #     self.agent_location = (self.grid_size - 1, self.agent_location[1])
-        elif obs == 3:
+        elif obs == 2: 
             if self.agent_location[0] < self.grid_size - 1:
                 self.agent_location = (self.agent_location[0] + 1, self.agent_location[1])
             # else:
@@ -82,6 +87,7 @@ class GridWorldCell(ExternalCell):
 
         print(f"Agent location: {self.agent_location}")
         print(f"Distance to reward location: {distance_to_reward_location}")
+
         
         probabilities = [0.5,0.5]
         
@@ -100,3 +106,86 @@ class GridWorldCell(ExternalCell):
 
         return signal, self.agent_location, distance_to_reward_location, probabilities
 
+
+    def act_accumulated(self, obs: int) -> str:
+            """Perform state and action inference, return the action string
+            which includes the action signal for each actionable neighbor
+            of this cell
+
+            obs: the observation signal index from the observable neighbors
+
+
+            Here for the tmaze cell, the observation will be the location of the rat
+            one out of four possible observations coming from the active cells 
+            """
+            obs = ["00", "01", "10", "11"].index("".join(map(str, obs)))
+            self.observation_history.append(obs)
+            
+            first = []
+            second = []
+
+            for obs in self.observation_history[:10]:
+                obs_string = ["00", "01", "10", "11"][obs]
+                first.append(int(obs_string[0]))
+                second.append(int(obs_string[1]))
+            
+            mean_first = int(np.mean(first))
+            mean_second = int(np.mean(second))
+
+            averaged_obs = f"{mean_first}{mean_second}"
+            obs = ["00", "01", "10", "11"].index("".join(map(str, averaged_obs)))
+
+            print(f"Obs over time: {self.observation_history}")
+
+            print(self.observation_history[-10:])
+
+            print(np.floor(np.mean(self.observation_history[-10:], axis=0)))
+
+            obs = int(np.floor(np.mean(self.observation_history[-10:], axis=0)).round(0))
+
+            print(f"Averaged observation: {obs}")
+
+            if obs == 0: 
+                if self.agent_location[1] < self.grid_size - 1:
+                    self.agent_location = (self.agent_location[0], self.agent_location[1] + 1)
+                # else:
+                #     self.agent_location = (self.agent_location[0], 0)
+            elif obs == 1:
+                if self.agent_location[1] > 0:
+                    self.agent_location = (self.agent_location[0], self.agent_location[1] - 1)
+                # else:
+                #     self.agent_location = (self.agent_location[0], self.grid_size - 1)
+            elif obs == 3: 
+                if self.agent_location[0] > 0:
+                    self.agent_location = (self.agent_location[0] - 1, self.agent_location[1])
+                # else:
+                #     self.agent_location = (self.grid_size - 1, self.agent_location[1])
+            elif obs == 2: 
+                if self.agent_location[0] < self.grid_size - 1:
+                    self.agent_location = (self.agent_location[0] + 1, self.agent_location[1])
+                # else:
+                #     self.agent_location = (0, self.agent_location[1])
+
+            #manhattan distance
+            distance_to_reward_location = abs(self.agent_location[0] - self.reward_location[0]) + abs(self.agent_location[1] - self.reward_location[1])
+
+            print(f"Agent location: {self.agent_location}")
+            print(f"Distance to reward location: {distance_to_reward_location}")
+
+            
+            probabilities = [0.5,0.5]
+            
+            if distance_to_reward_location == 0: #on the point
+                signal = 0
+            elif distance_to_reward_location == self.grid_size*2:
+                #completely rnadom 
+                signal = np.random.choice([0,1], p=[0.5, 0.5])
+            else:
+                #sampling randomly from a distance across 0 and 1 
+                #the probabilities of the reward depend on the distance 
+                probabilities = np.array([0.5 - ((20 - distance_to_reward_location)/20)/2, 0.5 + ((20 - distance_to_reward_location)/20)/2])
+                print(f"Probabilities for external agent action sampling: {probabilities}")
+                signal = np.random.choice([0,1], p=probabilities)
+                print(f"Environmental signal : {signal}")
+
+            return signal, self.agent_location, distance_to_reward_location, probabilities

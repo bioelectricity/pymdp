@@ -12,7 +12,7 @@ import networkx
 import numpy as np
 
 
-class MarkovianSystem(Network):
+class StemCellSystem(Network):
     """A class representing a system of interacting networks"""
 
     def __init__(
@@ -137,6 +137,15 @@ class MarkovianSystem(Network):
         for idx, neighbor in enumerate(neighbors):
             neighbor["agent"].actions_received[node] = int(action_string[idx])
 
+    def update_observations_external(self, node, action, neighbors, qs = None):
+
+        for idx, neighbor in enumerate(neighbors):
+            neighbor["agent"].actions_received[node] = int(action)
+    def update_reward_location(self, reward_location):
+        self.reward_location = reward_location
+        for node in self.external_network.network.nodes:
+            self.external_network.network.nodes[node]["agent"].reward_location = self.reward_location
+
     def sensory_act(self, node, update = True, accumulate = True, logging=False):
 
         sensory_neighbors = list(networkx.neighbors(self.sensory_network.network, node))
@@ -235,7 +244,7 @@ class MarkovianSystem(Network):
 
 
     def external_act(self, node, logging=False):
-
+        print(f"EXTERNAL ACT FOR NODE {node}")
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
 
@@ -249,16 +258,16 @@ class MarkovianSystem(Network):
         signals = [external_agent.actions_received[i] for i in incoming_nodes]
         if logging:
             print(f"Signal to external agent: {signals}")
-        
-        external_obs = external_agent.state_signal_to_index(signals)
-        if logging:
-            print(f"External observation: {external_obs}")
 
         action, self.agent_location, self.distance_to_reward, self.probabilities = external_agent.act(signals)
+        
+        self.external_signal = action
 
-        #so here, does the external agent send the same signal to all of the sensory agents? 
-        action_string = "".join([str(action) for i in range(len(outgoing_nodes))])
-        self.update_observations(node, action_string, outgoing_nodes)
+
+        self.update_observations_external(node, action, outgoing_nodes)
+
+        return action, self.agent_location, self.distance_to_reward, self.probabilities
+
 
 
     def step(self, logging=False):
@@ -281,7 +290,10 @@ class MarkovianSystem(Network):
         for external_node in self.external_network.nodes:
             action, agent_location, distance, probabilities = self.external_act(external_node, logging=logging)
 
-        self.t += 1
+        self.t += 1 
+
+        return action, agent_location, distance, probabilities
+    
 
     def _reset(self):
         for node in self.internal_network.nodes:
