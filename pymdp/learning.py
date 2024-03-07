@@ -460,7 +460,8 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
 
 
 
-def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False):
+
+def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False, modalities = None):
 
     """
     beta_zeta can be:
@@ -470,47 +471,92 @@ def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_li
     m, n, k are the indices of the state factors that modality [m] depends on
     """
 
+    # print(f"Observation: {observation}")
+
+    #Do we want to do empirical bayes where we update pzeta? 
+    if update_prior:
+        new_beta_zeta_prior = beta_zeta
+    else:
+        new_beta_zeta_prior = beta_zeta_prior
+    
     expected_A = utils.scale_A_with_zeta(A, beta_zeta)
+
+
+  #  beta_zeta = 1/ np.array(beta_zeta)
+   # beta_zeta_prior = 1/ np.array(beta_zeta_prior)
 
     # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
     get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
     qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
+    # print(f"Expected a : {expected_A}")
+    # print(f"Qs relevant : {qs_relevant}")
+    # print(f"Qs relevant : {qs_relevant}")
     bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
 
     observation_array = utils.obj_array_from_list([utils.onehot(observation[m], A[m].shape[0]) for m in range(len(A))])
 
-    prediction_errors = bold_o_per_modality - observation_array
+    # print(f"Observations under gamma_A: {bold_o_per_modality}")
+    # print(f"Observations: {observation_array}")
+
+    prediction_errors = np.absolute(np.array(bold_o_per_modality) - np.array(observation_array))
+
+    # print(f"Beta zeta prior: {beta_zeta_prior}")
+    # print(f"Inverse beta zeta prior: {1/beta_zeta_prior}")
 
 
-    lnA = maths.spm_log_obj_array(A)
-    beta_zeta_full = utils.obj_array(len(A))
+    #lnA = maths.spm_log_obj_array(A)
 
     # do checking here to make sure pzeta is broadcast-consistent
+    
+    if modalities is None:
+        modalities = range(len(A))
+
+    beta_zeta_full = utils.obj_array(len(A))
+    
     if np.isscalar(beta_zeta_prior):
         beta_zeta_prior = np.array([beta_zeta_prior] * len(A))
 
+    #print(f"beta zeta prior :{beta_zeta_prior}")
 
     for m in range(len(A)):
-        prediction_errors_expanded = prediction_errors[m]
-        for _ in range(A[m].ndim - 1):
-            prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
-            
-        beta_zeta_full[m] = (prediction_errors_expanded[m] * lnA[m]).sum(axis=0) + beta_zeta_prior[m]
+        if m not in modalities:
 
+            beta_zeta_full[m] =np.array([beta_zeta_prior[m]]*2)
+        else:
+
+            # print(f"MODALITY : {m}, prediction error: {prediction_errors[m]}")
+            prediction_errors_expanded = prediction_errors[m]
+            for _ in range(A[m].ndim - 1):
+                prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
+            #print(f"Zeta prior : {beta_zeta_prior[m]}")
+
+            # print(f"pred error times A[m]: {(prediction_errors_expanded * A[m]).sum(axis=0)}")
+
+            #beta_zeta_full_m = (prediction_errors_expanded * lnA[m]).sum(axis=0) + (1/beta_zeta_prior[m])
+            beta_zeta_full_m = (prediction_errors_expanded * A[m]).sum(axis=0) + (1/beta_zeta_prior[m])
+
+            # print(f"Beta zeta full m: { 1 / (np.array(beta_zeta_full_m) + 1e-16)}")
+
+            beta_zeta_full[m] = 1 / (np.array(beta_zeta_full_m) + 1e-16)
+
+            # print(f"Beta zeta full m: {beta_zeta_full[m]}")
+
+       # beta_zeta_full[m] = np.array([np.minimum(x,100) for x in beta_zeta_full_m])
     # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
+    #print(f"Beta zeta full: {beta_zeta_full}")
     if np.isscalar(beta_zeta):
         beta_zeta_posterior = sum([beta_zeta_m.sum() for beta_zeta_m in beta_zeta_full])
     elif np.isscalar(beta_zeta[0]):
-        beta_zeta_posterior = [beta_zeta_m.sum() for beta_zeta_m in beta_zeta_full]
+        beta_zeta_posterior = np.array([beta_zeta_m.sum() / 2 for beta_zeta_m in beta_zeta_full])
+    # #     print(f"Gamma_A posterior : {beta_zeta_posterior}")
     else:
         beta_zeta_posterior = beta_zeta_full
+
+    if np.nan in beta_zeta_posterior:
+        beta_zeta_posterior = np.nan_to_num(beta_zeta_posterior) + 0.0001
+
         
-
-    #Do we want to do empirical bayes where we update pzeta? 
-    if update_prior:
-        beta_zeta_prior = beta_zeta_posterior
-
-    return beta_zeta_posterior, beta_zeta_prior
+    return np.array(beta_zeta_posterior), np.array(new_beta_zeta_prior)
 
 
 # E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions
@@ -572,6 +618,7 @@ def update_beta_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_pr
         beta_omega_posterior = [beta_omege_f.sum() for beta_omege_f in beta_omega_summed_over_policies]
     else:
         beta_omega_posterior = beta_omega_summed_over_policies
+
 
     if update_prior:
         beta_omega_prior = beta_omega_posterior

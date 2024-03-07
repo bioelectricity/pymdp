@@ -9,7 +9,7 @@ import tqdm
 class NeuronalCell(Agent):
     """A class that inherits from pymdp agent that represents an abstract cell in a network"""
 
-    def __init__(self, node_idx, neighbors, gamma_A_scalar = 1.0, gamma_B_scalar = 0.01):
+    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar = 0.01):
         """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
@@ -19,16 +19,7 @@ class NeuronalCell(Agent):
         self.num_neighbors = len(neighbors)
         self.num_modalities = len(neighbors)  # currently we only have one observation modality
 
-        gamma_A = utils.obj_array(self.num_modalities)
         gamma_B = utils.obj_array(self.num_factors)
-
-        for m in range(self.num_modalities):
-            if m == self.num_modalities - 1:
-                gamma_A[m] = 10
-            else:
-                gamma_A[m] = gamma_A_scalar
-            
-            #gamma_A[m] = np.array([gamma_A_scalar, gamma_A_scalar])
        
         for f in range(self.num_factors):
             gamma_B[f] = np.array([gamma_B_scalar + np.random.uniform(0,0.1), gamma_B_scalar + np.random.uniform(0,0.1)])
@@ -150,13 +141,16 @@ class NeuronalCell(Agent):
         return action
     
 
-    def update_after_trial(self):
+    def update_after_trial(self, modalities_to_omit):
         # update gamma_A
         for t in range(len(self.observation_history)):
-            self.update_zeta(self.observation_history[t], self.qs_over_time[t])
-           # self.update_A(self.observation_history[t])
-           # self.update_A(self.observation_history[t])
-        
+            if self.cell_type == "internal":
+                modalities = list(range(self.num_modalities-modalities_to_omit))
+                self.update_zeta(self.observation_history[t], self.qs_over_time[t],modalities=modalities)
+            else:
+                self.update_zeta(self.observation_history[t], self.qs_over_time[t])
+            self.update_A(self.observation_history[t])
+                    
         #overwrite the sensory ones
         self.observation_history = []
         self.qs_over_time = []

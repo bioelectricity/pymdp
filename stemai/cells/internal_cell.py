@@ -44,6 +44,8 @@ class InternalCell(Cell):
         active_cell_indices: the indices of the active cells in the network
         states: the global states of the network"""
 
+        
+        
         super().__init__(node_idx)
 
         self.num_internal_neighbors = len(internal_neighbors)

@@ -81,11 +81,10 @@ class BlanketCell(Cell):
         if update:
             if self.qs_prev is not None:
                 self.update_B(self.qs_prev)
-        # # update B
-        # if self.qs_prev is not None:
-        #     self.update_B(self.qs_prev)
 
         return self.action_string
+    
+
     def _reset(self):
         self.qs_over_time = []
         self.actions_over_time = []
