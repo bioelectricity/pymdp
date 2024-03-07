@@ -149,8 +149,8 @@ class NeuronalCell(Agent):
                 self.update_zeta(self.observation_history[t], self.qs_over_time[t],modalities=modalities)
             else:
                 self.update_zeta(self.observation_history[t], self.qs_over_time[t])
-            self.update_A(self.observation_history[t])
-                    
+            #self.update_A(self.observation_history[t])
+
         #overwrite the sensory ones
         self.observation_history = []
         self.qs_over_time = []
