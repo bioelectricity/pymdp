@@ -21,7 +21,8 @@ class System(Network):
         internal_network: Network,
         external_network: Network,
         sensory_network: Network, 
-        active_network: Network
+        active_network: Network, 
+        connectivity_proportion = 0.6
     ):
         """
         internal_network: a Network of internal cells
@@ -46,6 +47,7 @@ class System(Network):
         self.num_external_cells = external_network.num_cells
         self.num_sensory_cells = sensory_network.num_cells
         self.num_active_cells = active_network.num_cells
+        self.connectivity_proportion = connectivity_proportion
 
         self.action_names = ["RIGHT", "LEFT", "DOWN", "UP"]
 
@@ -128,7 +130,7 @@ class System(Network):
         # modify the code to randomly sample internal nodes and sensory nodes to connect to active nodes
 
         for active_node in self.active_network.network.nodes:
-            internal_nodes_to_connect_to_active = np.random.choice(first_half_of_internal, size=int(len(first_half_of_internal)*0.6), replace=False)
+            internal_nodes_to_connect_to_active = np.random.choice(first_half_of_internal, size=int(len(first_half_of_internal)*self.connectivity_proportion), replace=False)
             for internal_node in internal_nodes_to_connect_to_active:
                 self.system.add_edge(internal_node, active_node)
                 self.internal_network.outgoing_nodes[internal_node].append(active_node)
@@ -137,7 +139,7 @@ class System(Network):
         
         
         for sensory_node in self.sensory_network.network.nodes:
-            internal_nodes_to_connect_to_sensory = np.random.choice(second_half_of_internal, size=int(len(second_half_of_internal)*0.6), replace=False)
+            internal_nodes_to_connect_to_sensory = np.random.choice(second_half_of_internal, size=int(len(second_half_of_internal)*self.connectivity_proportion), replace=False)
 
             for internal_node in internal_nodes_to_connect_to_sensory:
                 self.system.add_edge(sensory_node, internal_node)

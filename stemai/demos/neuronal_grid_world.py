@@ -34,7 +34,7 @@ external_network = ExternalNetwork(num_external_cells, external_connectivity, ex
 print("Created all networks")
 #now connect them together 
 # compose all the networks into one system network
-system = System(internal_network, external_network, sensory_network, active_network)
+system = System(internal_network, external_network, sensory_network, active_network, connectivity_proportion=connectivity_proportion)
 
 #set the reward states of external cells 
 for node in external_network.network.nodes:
@@ -194,11 +194,11 @@ imageio.mimsave(gif_path, grid_images, fps=5)
 
 
 
-time_to_reward_1 = [133, 200, 105,32,99]
+# time_to_reward_1 = [133, 200, 105,32,99]
 
-time_to_reward_2 = [535, 1887, 118,642,6504]
+# time_to_reward_2 = [535, 1887, 118,642,6504]
 
-time_to_reward_3 = [73,537,9,105,42,57]
+# time_to_reward_3 = [73,537,9,105,42,57]
 
 plt.plot(time_to_reward)
 plt.xlabel("Trials")
