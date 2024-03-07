@@ -1,6 +1,6 @@
 import numpy as np
 from pymdp import utils
-from network_modulation.utils import marginalize
+from stemai.network_modulation.utils import marginalize
 
 
 def remove_neighbor_from_pB(pB, states_and_actions_to_marginalize):

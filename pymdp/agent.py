@@ -69,7 +69,7 @@ class Agent(object):
         save_belief_hist=False,
         A_factor_list=None,
         B_factor_list=None,
-        update_zeta_prior = False, 
+        update_zeta_prior = True, 
         update_omega_prior=False,
     ):
 
@@ -102,13 +102,33 @@ class Agent(object):
 
         self.A = utils.to_obj_array(A)
 
-        if beta_zeta is None:
-            beta_zeta = beta_zeta_prior 
-        self.beta_zeta = beta_zeta
+        if beta_zeta_prior is not None:
+            beta_zeta_prior *= 0.1
+            if beta_zeta is None:
+                beta_zeta = np.copy(beta_zeta_prior)
+        
+        
+        if beta_omega_prior is not None:
+            beta_omega_prior *= 0.1
+
+        if beta_zeta is not None and beta_zeta_prior is None:
+            self.beta_zeta = beta_zeta * 0.1
+        elif beta_zeta is None:
+            self.beta_zeta = None
+        else:
+            self.beta_zeta = beta_zeta
+
+        print(f"Beta zeta prior: {beta_zeta_prior}")
+        print(f"Beta zeta: {self.beta_zeta}")   
+
 
         if self.beta_zeta is not None:
-            self.base_A = A
-            self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
+            print(f"Scaling base A {A} with beta_zeta: {self.beta_zeta}")
+            self.base_A = np.copy(A)
+            print(f"Base A: {self.base_A}")
+            self.A = utils.scale_A_with_zeta(A, self.beta_zeta)
+
+       
         self.beta_zeta_prior = beta_zeta_prior
 
         assert utils.is_normalized(self.A), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
@@ -133,14 +153,15 @@ class Agent(object):
         self.beta_omega = beta_omega   
 
         if self.beta_omega is not None:
-            self.base_B = B
-            self.B = utils.scale_B_with_omega(self.base_B, self.beta_omega)
+            self.base_B = np.copy(B)
+            self.B = utils.scale_B_with_omega(B, self.beta_omega)
         self.beta_omega_prior = beta_omega_prior
 
         assert utils.is_normalized(self.B), "B matrix is not normalized (i.e. B[f].sum(axis = 0) must all equal 1.0 for all factors)"
 
         # Determine number of hidden state factors and their dimensionalities
         self.num_states = [self.B[f].shape[0] for f in range(len(self.B))]
+        
         self.num_factors = len(self.num_states)
 
         # Assigning prior parameters on transition model (pB matrices) 
@@ -155,19 +176,19 @@ class Agent(object):
             self.num_controls = num_controls
 
         # checking that `A_factor_list` and `B_factor_list` are consistent with `num_factors`, `num_states`, and lagging dimensions of `A` and `B` tensors
-        if A_factor_list == None:
+        if A_factor_list is None:
             self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
             for m in range(self.num_modalities):
                 factor_dims = tuple([self.num_states[f] for f in self.A_factor_list[m]])
                 assert self.A[m].shape[1:] == factor_dims, f"Please input an `A_factor_list` whose {m}-th indices pick out the hidden state factors that line up with lagging dimensions of A{m}..." 
-                if self.pA != None:
+                if self.pA is not None:
                     assert self.pA[m].shape[1:] == factor_dims, f"Please input an `A_factor_list` whose {m}-th indices pick out the hidden state factors that line up with lagging dimensions of pA{m}..." 
         else:
             for m in range(self.num_modalities):
                 assert max(A_factor_list[m]) <= (self.num_factors - 1), f"Check modality {m} of A_factor_list - must be consistent with `num_states` and `num_factors`..."
                 factor_dims = tuple([self.num_states[f] for f in A_factor_list[m]])
                 assert self.A[m].shape[1:] == factor_dims, f"Check modality {m} of A_factor_list. It must coincide with lagging dimensions of A{m}..." 
-                if self.pA != None:
+                if self.pA is not None:
                     assert self.pA[m].shape[1:] == factor_dims, f"Check modality {m} of A_factor_list. It must coincide with lagging dimensions of pA{m}..."
             self.A_factor_list = A_factor_list
 
@@ -894,9 +915,15 @@ class Agent(object):
 
         return qB
     
-    def update_zeta(self, observation):
-        self.beta_zeta, self.beta_zeta_prior = learning.update_beta_zeta(observation, self.A, self.beta_zeta, self.qs, self.beta_zeta_prior, self.A_factor_list, update_prior = self.update_zeta_prior)
-        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
+    def update_zeta(self, observation, qs, modalities = None):
+        self.beta_zeta, self.beta_zeta_prior = learning.update_beta_zeta(observation, np.copy(self.base_A), self.beta_zeta, qs, self.beta_zeta_prior, self.A_factor_list, update_prior = self.update_zeta_prior, modalities = modalities)
+
+        # print(f"Old gamma_A: {self.beta_zeta_prior}")
+        # print(f"Base A: {self.base_A}")
+        self.A = utils.scale_A_with_zeta(np.copy(self.base_A), self.beta_zeta)
+
+        # print(f"Scaled A: {self.A}")
+        
         return self.beta_zeta, self.beta_zeta_prior
     
     def update_omega(self):

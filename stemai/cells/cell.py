@@ -176,7 +176,7 @@ class Cell(Agent):
 
         return self.action_names.index(action)
 
-    def act(self, obs: int) -> str:
+    def act(self, obs: int, in_consistent_interval=None) -> str:
         """Perform state and action inference, return the action string
         which includes the action signal for each actionable neighbor
         of this cell

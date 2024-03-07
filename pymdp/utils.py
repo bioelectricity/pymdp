@@ -670,18 +670,19 @@ def scale_A_with_zeta(A, beta_zeta):
 
     #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
     lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+    
     if np.isscalar(beta_zeta):
-        zeta = 1/ beta_zeta
         for m in range(len(A)):
-            A[m] = maths.softmax(zeta*lnA[m] )          
+           A[m] = maths.softmax(beta_zeta[m]*lnA[m] )
+
     elif np.isscalar(beta_zeta[0]): #one value per modality 
         for m in range(len(A)):
-            zeta = 1/ beta_zeta[m]
-            A[m] = maths.softmax(zeta*lnA[m])
+            A[m] = maths.softmax(beta_zeta[m]*lnA[m])
     else: 
         for m in range(len(A)): 
-            zeta = 1/ beta_zeta[m]  #a numpy array of shape (num_states[0], num_states[1])
-            A[m] = maths.softmax(zeta[None,...]*lnA[m]) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+            dist = np.array(beta_zeta[m][None,...]*lnA[m], dtype = np.float64)
+            A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+
     return A
 
 def scale_B_with_omega(B, beta_omega):
@@ -696,16 +697,13 @@ def scale_B_with_omega(B, beta_omega):
 
     lnB = maths.spm_log_obj_array(B)
     if np.isscalar(beta_omega):
-        omega = 1 / beta_omega
         for f in range(len(B)):
-            B[f] = maths.softmax(omega*lnB[f])
+            B[f] = maths.softmax(beta_omega*lnB[f])
     
     elif np.isscalar(beta_omega[0]): #one scalar per state factor
         for f in range(len(B)):
-            omega = 1 / beta_omega[f]
-            B[f] = maths.softmax(omega*lnB[f])
+            B[f] = maths.softmax(beta_omega[f]*lnB[f])
     else:
         for f in range(len(B)):
-            omega = 1 / beta_omega[f]
-            B[f] = maths.softmax(omega[None,...]*lnB[f])
+            B[f] = maths.softmax(beta_omega[f][None,...]*lnB[f])
     return B

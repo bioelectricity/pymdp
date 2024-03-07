@@ -1,12 +1,13 @@
-from cells.cell import Cell
+from stemai.cells.cell import Cell
 from pymdp import utils
+from pymdp import learning
 import numpy as np
-from network_modulation.disconnecting import (
+from stemai.network_modulation.disconnecting import (
     remove_neighbor_from_pB,
     remove_neighbor_from_C,
     remove_neighbor_from_D,
 )
-from network_modulation.connecting import (
+from stemai.network_modulation.connecting import (
     add_neighbor_to_C,
     add_neighbor_to_D,
     add_neighbor_to_pB,
@@ -31,8 +32,9 @@ class InternalCell(Cell):
         self,
         node_idx,
         internal_neighbors,
-        sensory_cell_indices,
-        active_cell_indices,
+        internal_neighbor_indices,
+        sensory_cells,
+        active_cells,
         states,
     ):
         """
@@ -42,21 +44,27 @@ class InternalCell(Cell):
         active_cell_indices: the indices of the active cells in the network
         states: the global states of the network"""
 
+        
+        
         super().__init__(node_idx)
 
         self.num_internal_neighbors = len(internal_neighbors)
 
         self.internal_neighbors = internal_neighbors  # list of neighboring nodes
-        self.internal_neighbor_indices = [idx for idx, _ in enumerate(internal_neighbors)]
-        self.sensory_cell_indices = sensory_cell_indices
-        self.active_cell_indices = active_cell_indices
+        self.internal_neighbor_indices = internal_neighbor_indices
+        self.sensory_cell_indices = sensory_cells
+        self.active_cell_indices = active_cells
 
-        self.state_neighbors = internal_neighbors + sensory_cell_indices
-        self.action_neighbors = internal_neighbors + active_cell_indices
+        self.state_neighbors = internal_neighbors + sensory_cells
+        self.action_neighbors = internal_neighbors + active_cells
 
         self.states = states
 
         self.cell_type = "internal"
+
+        self.qs_over_time = []
+        self.actions_over_time = []
+
 
         # initialize the actions received from other internal neighbors
         self.actions_received = {
@@ -79,6 +87,11 @@ class InternalCell(Cell):
         # build the generative model of the cell
         self.build_generative_model()
 
+    def _reset(self):
+        self.qs_over_time = []
+        self.actions_over_time = []
+        self.curr_timestep = 0
+
     def build_B(self) -> np.ndarray:
         """Internal cells will have uniform transition likelihoods
         meaning they are initialized without any information about how the actions they perform
@@ -94,24 +107,52 @@ class InternalCell(Cell):
         """Internal cells have uniform priors over states"""
         return self.build_uniform_D()
 
-    def act(self, obs: int) -> str:
+    def act(self, obs: int, update=True, accumulate = True) -> str:
         """Here we overwrite the abstract act() class
         for internal cells, because internal cells
         will update their transition likelihoods after every state inference"""
 
         if self.qs is not None:
             self.qs_prev = self.qs
+            if accumulate:
+                self.qs_over_time.append(self.qs)
+
+        #the first entry in self.qs_over_time will be the second state inferred 
+        #which is the qs_previous for the first action 
         self.infer_states([obs])
 
         self.infer_policies()
         self.action_signal = int(self.sample_action()[0])
+        if accumulate:
+            self.actions_over_time.append(self.action)
+
+        #the first entry in self.actions_over_time will be the first action inferred
+        #when qs_prev is None and qs is not None
         self.action_string = self.action_names[self.action_signal]
 
-        # update B
-        if self.qs_prev is not None:
-            self.update_B(self.qs_prev)
+        # # update B
+        if update:
+            if self.qs_prev is not None:
+                self.update_B(self.qs_prev)
 
         return self.action_string
+    
+    def update_B_after_trial(self):
+        # update B
+        for t in range(len(self.qs_over_time) - 1):
+            qB = learning.update_state_likelihood_dirichlet_interactions(
+                self.pB,
+                self.B,
+                self.actions_over_time[t+1],
+                self.qs_over_time[t+1],
+                self.qs_over_time[t],
+                self.B_factor_list,
+                self.lr_pB,
+                self.factors_to_learn
+            )
+
+            self.pB = qB # set new prior to posterior
+            self.B = utils.norm_dist_obj_arr(qB)  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
 
     def disconnect_from(self, neighbor):
         """Disconnect this cell from the given neighbor
@@ -127,9 +168,10 @@ class InternalCell(Cell):
             neighbor in self.internal_neighbors
         ), f"Trying to remove an internal neighbor: {neighbor}, that is not in cell neighborhood: {self.internal_neighbors}"
 
+        neighbor_idx = self.internal_neighbors.index(neighbor).copy()
         self.internal_neighbors.remove(neighbor)
 
-        self.internal_neighbor_indices = [idx for idx, _ in enumerate(self.internal_neighbors)]
+        self.internal_neighbor_indices.remove(self.internal_neighbor_indices[neighbor_idx])
 
         self.num_internal_neighbors -= 1
 

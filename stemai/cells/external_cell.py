@@ -1,4 +1,4 @@
-from cells.cell import Cell
+from stemai.cells.cell import Cell
 from pymdp import utils
 import numpy as np
 

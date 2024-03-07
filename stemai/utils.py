@@ -58,7 +58,7 @@ def stemness(B):
 
 
 def draw_network(
-    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False
+    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False, show = False
 ):
     """
     Draw a network using networkx and matplotlib.
@@ -75,11 +75,11 @@ def draw_network(
     shifted_pos = {node: node_pos + shift for node, node_pos in pos.items()}
 
     GS_labels = {}
-    print(f"Nodes: {network.nodes}")
     for node in network.nodes:
-        G = network.nodes[node]["agent"].G.sum().round(2) * -1
-        S = stemness(network.nodes[node]["agent"].B).round(2)
-        GS_labels[node] = f"G: {G}, S: {S}"
+        if hasattr(network.nodes[node]["agent"], "G"):
+            G = network.nodes[node]["agent"].G.sum().round(2) * -1
+            S = stemness(network.nodes[node]["agent"].B).round(2)
+            GS_labels[node] = f"G: {G}, S: {S}"
     if _draw_neighboring_pairs:
 
         networkx.draw(
@@ -107,9 +107,10 @@ def draw_network(
     if save:
         # Save the current figure to a temporary file and add it to the images list
         temp_file_name = f"temp_image_{t}.png"
+        print(f"Saving to: {temp_file_name}")
         plt.savefig(temp_file_name)
-
-    plt.show()
+    if show:
+        plt.show()
     return temp_file_name
 
 
