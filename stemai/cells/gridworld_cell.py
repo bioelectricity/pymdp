@@ -80,7 +80,7 @@ class GridWorldCell(ExternalCell):
 
         print(f"Agent location: {self.agent_location}")
         print(f"Distance to reward location: {distance_to_reward_location}")
-        
+        probabilities = [0.5,0.5]
         if distance_to_reward_location == 0: #on the point
             signal = 1
         elif distance_to_reward_location == self.grid_size*2:
