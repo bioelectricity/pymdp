@@ -34,7 +34,7 @@ external_network = ExternalNetwork(num_external_cells, external_connectivity, ex
 print("Created all networks")
 #now connect them together 
 # compose all the networks into one system network
-system = System(internal_network, external_network, sensory_network, active_network, connectivity_proportion=connectivity_proportion)
+system = System(internal_network, external_network, sensory_network, active_network, connectivity_proportion=connectivity_proportion, action_time_horizon=action_time_horizon)
 
 #set the reward states of external cells 
 for node in external_network.network.nodes:
@@ -46,8 +46,8 @@ for node in external_network.network.nodes:
     node["agent"].grid_size = GRID_SIZE
 
     
-system.reward_location = REWARD_LOCATION
-system.agent_location = AGENT_LOCATION
+# system.reward_location = REWARD_LOCATION
+# system.agent_location = AGENT_LOCATION
 
 colors = {}
 for network in [internal_network, sensory_network, active_network, external_network]:
@@ -65,7 +65,6 @@ num_trials = 15
 import numpy as np
 grid = np.zeros((GRID_SIZE, GRID_SIZE))
 grid[REWARD_LOCATION] = 1
-grid[AGENT_LOCATION] = 2
 
 agent_location = AGENT_LOCATION
 
@@ -79,26 +78,41 @@ time_to_reward = []
 overall_t = 0
 
 # all_reward_locations = [(9,9),(9,9),(9,9),(9,9),(9,9),(0,9),(0,9),(0,9),(0,9),(0,9),(9,0),(9,0),(9,0),(9,0),(9,0),(9,0)]
-#all_reward_locations = [(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0)]
+all_reward_locations = [(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0),(9,9),(0,9),(9,0)]
 
 all_reward_locations = [(9,9),(9,9),(9,9),(9,9),(9,9),(9,9),(9,9),(9,9),(9,9),(9,9)]
 
+import random
+
+all_agent_locations = [(random.randint(0, 9), random.randint(0, 9)) for _ in range(len(all_reward_locations))]
+
 num_trials = len(all_reward_locations)
 system.distance_to_reward=1
+
+agent_location = all_agent_locations[0]
+REWARD_LOCATION = all_reward_locations[trial]
+AGENT_LOCATION = all_agent_locations[trial]
+system.update_grid_locations(REWARD_LOCATION, AGENT_LOCATION) 
 
 while agent_location != REWARD_LOCATION and trial < num_trials:
     print(f"Trial {trial}, T :{system.t}")
     print()
 
-    action, agent_location, distance, probabilities = system.step(logging=True)
 
     grid = np.zeros((GRID_SIZE, GRID_SIZE))
-    print()
-    REWARD_LOCATION = all_reward_locations[trial]
-    grid[REWARD_LOCATION] = 1
-    grid[system.agent_location] = 2
-    system.update_reward_location(REWARD_LOCATION)
 
+    print(f"Reward location: {REWARD_LOCATION}")
+    print(f"Agent location: {AGENT_LOCATION}")
+
+    grid[REWARD_LOCATION] = 1
+
+    print("UPDATING GRID FOR AGENT LOCATION: {AGENT_LOCATION}")
+    grid[system.agent_location] = 2
+    action, agent_location, distance, probabilities = system.step(logging=True)
+
+    # print(f"External signal: {system.external_signal}")
+
+    # grid[system.external_signal] = 3
 
     #fig = plt.figure(figsize = (6,6))
     plt.title(f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}", color='black')
@@ -112,18 +126,22 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     #plt.show()
     plt.clf()
 
-
     if agent_location == REWARD_LOCATION:
         time_to_reward.append(system.t)
         system.t = 0
-        system.agent_location = (0,0)
+        # system.agent_location = (0,0)
         system._reset()
         trial += 1
-        agent_location = (0,0)
+        # agent_location = (0,0)
 
         print(f"Pruning")
-        system.renormalize_precisions()
+        # system.renormalize_precisions()
         system.prune()     
+        REWARD_LOCATION = all_reward_locations[trial]
+        AGENT_LOCATION = all_agent_locations[trial]
+        agent_location = all_agent_locations[trial]
+        system.update_grid_locations(REWARD_LOCATION, AGENT_LOCATION) 
+
 
 
     temp_file_name = draw_network(
@@ -143,9 +161,15 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     #     print(f"Pruning")
     #     system.renormalize_precisions()
     #     system.prune()
+    
 
 
-
+plt.plot(time_to_reward)
+plt.xlabel("Trials")
+plt.ylabel("Number of timesteps to reward")
+plt.title(f"Number of timesteps to reward over trials, num_cells = {num_internal_cells}")
+plt.savefig(f"time_to_reward_{num_internal_cells}.png")
+plt.show()
 
 #%%
 
@@ -200,9 +224,3 @@ imageio.mimsave(gif_path, grid_images, fps=5)
 
 # time_to_reward_3 = [73,537,9,105,42,57]
 
-plt.plot(time_to_reward)
-plt.xlabel("Trials")
-plt.ylabel("Number of timesteps to reward")
-plt.title(f"Number of timesteps to reward over trials, num_cells = {num_internal_cells}")
-plt.savefig(f"time_to_reward_{num_internal_cells}.png")
-plt.show()

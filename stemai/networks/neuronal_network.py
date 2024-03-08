@@ -62,12 +62,12 @@ class NeuronalNetwork:
             if cell_type == "internal":
                 for m in range(len(neighbors)):
                     if m >= len(neighbors) - len(incoming_cells[node]):
-                        gamma_A[m] = 10
+                        gamma_A[m] = np.array([10,10])
                     else:
-                        gamma_A[m] = 1.0
+                        gamma_A[m] = np.array([1.0,1.0])
             else:
                 for m in range(len(neighbors)):
-                    gamma_A[m] = 1.0
+                    gamma_A[m] = np.array([1.0,1.0])
 
 
 

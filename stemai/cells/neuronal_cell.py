@@ -37,7 +37,7 @@ class NeuronalCell(Agent):
 
         self.setup(self.num_neighbors)
 
-        super().__init__(A = self.A, B = self.B, pA = self.A, beta_zeta_prior = self.gamma_A, beta_omega_prior = self.gamma_B)
+        super().__init__(A = self.A, B = self.B, C = self.C, D = self.D, pA = self.A, gamma_A_prior = self.gamma_A, gamma_B_prior = self.gamma_B)
     def setup(self, num_neighbors):
 
         self.num_states = [2]
@@ -47,6 +47,8 @@ class NeuronalCell(Agent):
 
         self.build_A()
         self.build_B()
+        self.D = self.build_uniform_D()
+        self.C = self.build_uniform_C()
 
     
     def build_A(self):
@@ -54,6 +56,7 @@ class NeuronalCell(Agent):
         A = utils.obj_array(self.num_modalities)
 
         for neighbor in range(self.num_modalities):
+
             A[neighbor] = np.eye(self.num_states[0])
             
         self.A = A
@@ -66,6 +69,24 @@ class NeuronalCell(Agent):
         for f in range(self.num_factors):
             B[f] = np.eye(self.num_states[0]).reshape((self.num_states[0], self.num_states[0], 1))
         self.B = B 
+
+    def build_uniform_C(self):
+        """Construts a uniform C vector, meaning the cell has
+        no preference for any particular observation."""
+        C = utils.obj_array(self.num_modalities)
+        for m in range(self.num_modalities):
+            C[m] = np.zeros(self.num_obs[m])
+        return C
+
+    def build_uniform_D(self):
+        """Constructs a uniform state prior"""
+        D = utils.obj_array(self.num_factors)
+        for f in range(self.num_factors):
+
+            D[f] = np.random.uniform(0, 1, size=self.num_states[f])
+            D[f] /= D[0].sum()
+        return D
+
 
 
   
@@ -84,9 +105,8 @@ class NeuronalCell(Agent):
         self.num_obs.remove(self.num_obs[neighbor_idx])
         old_A = np.copy(self.A)
         old_base_A = np.copy(self.base_A)
-        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
+        old_beta_zeta_prior = np.copy(self.gamma_A_prior)
 
-        print(f"Old beta zeta: {len(old_beta_zeta_prior)}")
         self.build_B()
         mapping = {}
         neighbor_idx = list(self.neighbors).index(neighbor_node)
@@ -110,10 +130,9 @@ class NeuronalCell(Agent):
             new_beta_zeta_prior[new_m] = old_beta_zeta_prior[old_m]
         self.A = new_A
         self.base_A = new_base_A
-        self.beta_zeta_prior = new_beta_zeta_prior
-        self.beta_zeta = new_beta_zeta_prior
+        self.gamma_A_prior = new_beta_zeta_prior
+        self.gamma_A = new_beta_zeta_prior
         self.neighbors.remove(self.neighbors[neighbor_idx])
-        print(f"New beta zeta: {len(self.beta_zeta_prior)}")
 
     def act(self, obs, distance_to_reward=None):
         """
@@ -146,6 +165,7 @@ class NeuronalCell(Agent):
         for t in range(len(self.observation_history)):
             if self.cell_type == "internal":
                 modalities = list(range(self.num_modalities-modalities_to_omit))
+
                 self.update_zeta(self.observation_history[t], self.qs_over_time[t],modalities=modalities)
             else:
                 self.update_zeta(self.observation_history[t], self.qs_over_time[t])

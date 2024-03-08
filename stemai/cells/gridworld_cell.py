@@ -114,9 +114,9 @@ class GridWorldCell(ExternalCell):
 
         self.observation_history.append(obs)
 
-        print(f"History: {self.observation_history[-10:]} ")
+        print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
         
-        obs = int(stats.mode(self.observation_history[-10:])[0])
+        obs = int(stats.mode(self.observation_history[-self.action_time_horizon:])[0])
 
         print(f"Averaged observation: {obs}")
 

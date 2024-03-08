@@ -22,7 +22,8 @@ class System(Network):
         external_network: Network,
         sensory_network: Network, 
         active_network: Network, 
-        connectivity_proportion = 0.6
+        connectivity_proportion = 0.6, 
+        action_time_horizon =10,
     ):
         """
         internal_network: a Network of internal cells
@@ -50,6 +51,7 @@ class System(Network):
         self.connectivity_proportion = connectivity_proportion
 
         self.action_names = ["RIGHT", "LEFT", "DOWN", "UP"]
+        self.action_time_horizon = action_time_horizon
 
         self.num_cells = (
             self.num_internal_cells
@@ -107,6 +109,7 @@ class System(Network):
             self.system.nodes[node]["agent"] = self.active_network.nodes[node]["agent"]
         for node in self.external_network.nodes:
             self.system.nodes[node]["agent"] = self.external_network.nodes[node]["agent"]
+            self.system.nodes[node]["agent"].action_time_horizon = self.action_time_horizon
 
 
         #different subsets of internal and active cells 
@@ -202,10 +205,13 @@ class System(Network):
 
 
 
-    def update_reward_location(self, reward_location):
+    def update_grid_locations(self, reward_location, agent_location):
         self.reward_location = reward_location
+        self.agent_location = agent_location
         for node in self.external_network.network.nodes:
             self.external_network.network.nodes[node]["agent"].reward_location = self.reward_location
+        for node in self.external_network.network.nodes:
+            self.external_network.network.nodes[node]["agent"].agent_location = self.agent_location
 
 
     def update_observations(self, node, action, neighbors, qs = None):
@@ -260,7 +266,7 @@ class System(Network):
     
     def internal_act(self, node, update=True, accumulate = True, logging=False):
         print(f"INTERNAL ACT FOR NODE {node}")
-        print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].beta_zeta}")
+        print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].gamma_A}")
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
         # nodes that send signals to the internal cells
@@ -347,15 +353,15 @@ class System(Network):
             modalities_to_omit = len(self.internal_network.incoming_nodes[node])
             print(f"Modalities to omit: {modalities_to_omit}")
 
-            if len(self.internal_network.nodes[node]["agent"].beta_zeta) > modalities_to_omit + 1:
-                print(self.internal_network.nodes[node]["agent"].beta_zeta)
+            if len(self.internal_network.nodes[node]["agent"].gamma_A) > modalities_to_omit + 1:
+                print(self.internal_network.nodes[node]["agent"].gamma_A)
 
-                print(self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit])
+                print(self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit])
 
                 if modalities_to_omit > 0:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit]
+                    bz = self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit]
                 else:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta
+                    bz = self.internal_network.nodes[node]["agent"].gamma_A
                 max_distance = max(bz)
                 min_distance = min(bz)
 
@@ -419,7 +425,7 @@ class System(Network):
 
     def update_gamma_A(self):
         for node in self.internal_network.nodes:
-            if len(self.internal_network.nodes[node]["agent"].beta_zeta) > 2:
+            if len(self.internal_network.nodes[node]["agent"].gamma_A) > 2:
                 self.internal_network.nodes[node]["agent"].update_after_trial(len(self.internal_network.incoming_nodes[node]))
             self.internal_network.nodes[node]["agent"].curr_timestep = 0
         # for node in self.sensory_network.nodes:
@@ -446,25 +452,23 @@ class System(Network):
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            precisions = [agent.beta_zeta[neighbor_idx] for neighbor_idx in internal_neighbor_indices]
-            
-            if np.nan in precisions:
-                raise
+            precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
 
             if len(precisions) < 2:
                 continue
 
-            log_precisions = np.log(precisions)
+            # log_precisions = np.log(precisions)
 
-            minimum_precision_neighbor = np.argmin(log_precisions)
+            minimum_precision_neighbor = np.argmin(precisions)
+            precision = precisions[minimum_precision_neighbor]
 
 
             neighbor = internal_neighbors[minimum_precision_neighbor]
             assert 'i' in neighbor
 
-            if log_precisions[minimum_precision_neighbor]*10 < -0.7:
+            if precision < 0.6 and precision > 0.4:
 
-                print(f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precisions[minimum_precision_neighbor]} and A value {agent.A[neighbor_idx]}")
+                print(f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precision} and A value {agent.A[neighbor_idx]}")
                 #prune this connection 
                 self.internal_network.nodes[node]["agent"].disconnect_from(neighbor)
                 self.internal_network.nodes[neighbor]["agent"].disconnect_from(node)
