@@ -97,7 +97,7 @@ class GridWorldCell(ExternalCell):
         return signal, self.agent_location, distance_to_reward_location, probabilities
 
 
-    def act_accumulated(self, qs_obs: int) -> str:
+    def act_accumulated(self, qs_obs: int, outgoing_nodes) -> str:
         """Perform state and action inference, return the action string
         which includes the action signal for each actionable neighbor
         of this cell
@@ -114,9 +114,9 @@ class GridWorldCell(ExternalCell):
 
         self.observation_history.append(obs)
 
-        print(f"History: {self.observation_history[-10:]} ")
+        print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
         
-        obs = int(stats.mode(self.observation_history[-10:])[0])
+        obs = int(stats.mode(self.observation_history[-self.action_time_horizon:])[0])
 
         print(f"Averaged observation: {obs}")
 
@@ -141,16 +141,19 @@ class GridWorldCell(ExternalCell):
         probabilities = [0.5,0.5]
 
         if distance_to_reward_location == 0: #on the point
-            signal = 1
+           probabilities = [0,1]
         elif distance_to_reward_location == self.grid_size*2:
             #completely rnadom 
-            signal = np.random.choice([0,1], p=[0.5, 0.5])
+            probabilities = [0.5,0.5]
+           # signal = np.random.choice([0,1], p=[0.5, 0.5])
         else:
             #sampling randomly from a distance across 0 and 1 
             #the probabilities of the reward depend on the distance 
             probabilities = np.array([0.5 - ((20 - distance_to_reward_location)/20)/2, 0.5 + ((20 - distance_to_reward_location)/20)/2])
-            print(f"Probabilities for external agent action sampling: {probabilities}")
-            signal = np.random.choice([0,1], p=probabilities)
-            print(f"Environmental signal : {signal}")
 
-        return signal, self.agent_location, distance_to_reward_location, probabilities
+        each_sensory_cell_signal = []
+        for outgoing_node in outgoing_nodes:
+            signal = np.random.choice([0,1], p=probabilities)
+            each_sensory_cell_signal.append(signal)
+
+        return each_sensory_cell_signal, self.agent_location, distance_to_reward_location, probabilities

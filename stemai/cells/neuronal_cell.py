@@ -29,15 +29,22 @@ class NeuronalCell(Agent):
         self.qs_over_time =[]
         self.actions_received = {}
         self.actions_sent = {}
+        self.num_obs = [2]*self.num_modalities
+        self.num_states = [2]
 
         print(f"Gamma A: {self.gamma_A}")
         print(f"Gamma B: {self.gamma_B}")
+
+        C = self.build_uniform_C()
+        D = self.build_uniform_D()
+
+
 
 
 
         self.setup(self.num_neighbors)
 
-        super().__init__(A = self.A, B = self.B, pA = self.A, beta_zeta_prior = self.gamma_A, beta_omega_prior = self.gamma_B)
+        super().__init__(A = self.A, B = self.B, pA = self.A, C= C, D=D, beta_zeta_prior = self.gamma_A, beta_omega_prior = self.gamma_B)
     def setup(self, num_neighbors):
 
         self.num_states = [2]
@@ -124,19 +131,13 @@ class NeuronalCell(Agent):
         self.observation_history.append(obs)
 
         qs = self.infer_states(obs)
+        #self.D = self.qs 
         self.qs_over_time.append(qs)
-        # if distance_to_reward is not None and distance_to_reward>0:
-        #     print(f"Qs softmaxed: {maths.softmax((0.5 + 1/distance_to_reward)*qs[0])}")
 
-        #     action = utils.sample(maths.softmax((0.5 + 1/distance_to_reward)*qs[0]))
-
-        # else:
+        
         action = utils.sample(maths.softmax(3.0*qs[0]))
 
-
-        #self.update_zeta(obs)
-
-
+        self.neuronal_action = action
 
         return action
     
@@ -154,3 +155,21 @@ class NeuronalCell(Agent):
         #overwrite the sensory ones
         self.observation_history = []
         self.qs_over_time = []
+
+
+    def build_uniform_C(self):
+        """Construts a uniform C vector, meaning the cell has
+        no preference for any particular observation."""
+        C = utils.obj_array(self.num_modalities)
+        for m in range(self.num_modalities):
+            C[m] = np.zeros(self.num_obs[m])
+        return C
+
+    def build_uniform_D(self):
+        """Constructs a uniform state prior"""
+        D = utils.obj_array(self.num_factors)
+        for f in range(self.num_factors):
+
+            D[f] = np.random.uniform(0, 1, size=self.num_states[f])
+            D[f] /= D[0].sum()
+        return D

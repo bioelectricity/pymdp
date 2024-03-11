@@ -13,4 +13,8 @@ REWARD_LOCATION = (9,9)
 AGENT_LOCATION = (4,4)
 GRID_SIZE = 10
 
-connectivity_proportion = 0.6
+active_connectivity_proportion = 0.6
+sensory_connectivity_proportion = 0.2
+action_time_horizon = 10
+precision_threshold = 0.5
+precision_update_frequency = 10

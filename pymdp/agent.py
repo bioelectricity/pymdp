@@ -540,6 +540,8 @@ class Agent(object):
                 )[0]
             else:
                 empirical_prior = self.D
+
+            print(f"Empirical prior: {empirical_prior}")
             qs = inference.update_posterior_states_factorized(
                 self.A,
                 observation,
