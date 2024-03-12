@@ -165,7 +165,7 @@ class Runner:
 
     def plot_distances_over_time(self):
         average = []
-        for trial, distances in self.distances_over_time.item():
+        for trial, distances in self.distances_over_time.items():
             plt.plot(distances)
             average.append(np.mean(distances))
             plt.xlabel("Timesteps")
@@ -197,9 +197,9 @@ class Runner:
         network_images = []
         grid_images = []
         for i in range(self.num_trials):            
-            network_fns = [f"out/{self.index}/{i}/networks/{j}.png" for j in range(len([x for x in os.listdir(f"out/{self.index}/{i}/networks/") if x.endswith('.png')]))]
+            network_fns = [f"out/{self.index}/{i}/networks/{j}.png" for j in range(1, len([x for x in os.listdir(f"out/{self.index}/{i}/networks/") if x.endswith('.png')]))]
             network_images+= [imageio.imread(f) for f in network_fns ]
-            grid_fns = [f"out/{self.index}/{i}/grids/{j}.png" for j in range(len([x for x in os.listdir(f"out/{self.index}/{i}/grids/") if x.endswith('.png')]))]
+            grid_fns = [f"out/{self.index}/{i}/grids/{j}.png" for j in range(1, len([x for x in os.listdir(f"out/{self.index}/{i}/grids/") if x.endswith('.png')]))]
             grid_images += [imageio.imread(f) for f in grid_fns]
         gif_path = f"out/{self.index}/network-simulation.gif"
         imageio.mimsave(gif_path, network_images, fps=5)
@@ -241,7 +241,7 @@ class Runner:
                 self.system.update_gamma_A()
                 self.gamma_update_times.append(self.system.t)
 
-            if agent_location == self.system.reward_location:
+            if agent_location == self.system.reward_location or self.system.t > 2000:
                 self.time_to_reward_per_trial.append(self.system.t)
                 self.plot_grids_for_trial(trial)
 
@@ -269,9 +269,13 @@ class Runner:
         
             self.draw(trial, self.system.t)
 
-        self.plot_time_to_reward()
-        self.plot_distances_over_time()
-        self.generate_gifs()
+            if trial == self.num_trials - 1:
+                self.write_data()
+
+                self.plot_time_to_reward()
+                self.plot_distances_over_time()
+                self.generate_gifs()
+                return
 
 
 

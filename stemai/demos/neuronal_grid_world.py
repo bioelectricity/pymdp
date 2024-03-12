@@ -2,7 +2,8 @@
 from stemai.runner import Runner 
 import os 
 #%%
-all_num_trials = [1]
+#comment these 
+all_num_trials = [15]
 all_num_internal_cells = [50,100,150]
 all_num_external_cells = [1]
 all_num_active_cells = [4]
@@ -40,18 +41,14 @@ async def run_simulation(index, param):
     print(f"Running simulation {index}")
     runner = Runner(**param, index=index)
     await runner.run()
-    await runner.plot_time_to_reward()
-    await runner.plot_distances_over_time()
-    await runner.generate_gifs()
 
     print(f"Finished simulation {index}")
 
 async def main():
-    tasks = [asyncio.create_task(run_simulation(index, param)) for index, param in enumerate(all_parameter_combinations)]
+    tasks = [asyncio.create_task(run_simulation(index+2, param)) for index, param in enumerate(all_parameter_combinations[2:])]
     await asyncio.gather(*tasks)
 
 asyncio.run(main())
-
 
 # index = 0
 # for param in all_parameter_combinations:

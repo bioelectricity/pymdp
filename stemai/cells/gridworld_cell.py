@@ -90,6 +90,9 @@ class GridWorldCell(ExternalCell):
             #sampling randomly from a distance across 0 and 1 
             #the probabilities of the reward depend on the distance 
             probabilities = np.array([0.5 - ((20 - distance_to_reward_location)/20)/2, 0.5 + ((20 - distance_to_reward_location)/20)/2])
+
+            #TODO can be a new parameter to make this a non-linear probability distribution 
+            
             print(f"Probabilities for external agent action sampling: {probabilities}")
             signal = np.random.choice([0,1], p=probabilities)
             print(f"Environmental signal : {signal}")
