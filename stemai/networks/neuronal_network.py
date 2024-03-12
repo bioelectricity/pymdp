@@ -26,6 +26,10 @@ class NeuronalNetwork:
         self.connectivity = connectivity
 
         self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+        for node in self.network.nodes:
+            if len(list(networkx.neighbors(self.network, node))) == 0:
+                random_node = np.random.choice(list(self.network.nodes))
+                self.network.add_edge(node, random_node)
 
         self.network = networkx.relabel_nodes(
             self.network, dict(zip(self.network.nodes, node_labels))

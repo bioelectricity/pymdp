@@ -122,6 +122,11 @@ class NeuronalCell(Agent):
         self.neighbors.remove(self.neighbors[neighbor_idx])
         print(f"New beta zeta: {len(self.beta_zeta_prior)}")
 
+
+    def connect_to(self):
+        pass 
+    
+
     def act(self, obs, distance_to_reward=None):
         """
         For a neuronal cell, the observation is a 0 or 1 signal
