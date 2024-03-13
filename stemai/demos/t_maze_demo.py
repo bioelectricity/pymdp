@@ -1,5 +1,6 @@
-#%%
+# %%
 import os
+
 os.chdir("../")
 from networks.internal_network import InternalNetwork
 from stemai.networks import SensoryNetwork, ActiveNetwork
@@ -7,16 +8,17 @@ from utils import draw_network
 import networkx
 import matplotlib.pyplot as plt
 from networks.tmaze_network import TMazeNetwork, TMazeSystem
+
 reward_conditions = ["Right", "Left"]
-location_observations = ['CENTER','RIGHT A-RM','LEFT ARM','CUE LOCATION']
-reward_observations = ['No reward','Reward!','Loss!']
-cue_observations = ['Cue Right','Cue Left']
+location_observations = ["CENTER", "RIGHT A-RM", "LEFT ARM", "CUE LOCATION"]
+reward_observations = ["No reward", "Reward!", "Loss!"]
+cue_observations = ["Cue Right", "Cue Left"]
 
-num_internal_cells = 4 #arbitrary choice 
+num_internal_cells = 4  # arbitrary choice
 
-num_active_cells = 2 #four possible actions: 00,01,10,11
-num_sensory_cells = 4 #Two cells per location, two cells per cue 
-num_external_cells = 1 #externall cell act function is just the tmaze step function given the action from the active cells 
+num_active_cells = 2  # four possible actions: 00,01,10,11
+num_sensory_cells = 4  # Two cells per location, two cells per cue
+num_external_cells = 1  # externall cell act function is just the tmaze step function given the action from the active cells
 
 internal_cells = [f"i{i}" for i in range(num_internal_cells)]
 
@@ -93,7 +95,7 @@ for trial in range(num_trials):
         else:
             rewards_in_trial.append(0)
 
-        print(f'In consistent interval: {system.in_consistent_interval}')
+        print(f"In consistent interval: {system.in_consistent_interval}")
         print(f"Reward: {reward_observations[reward]}")
         print(f"Location: {location_observations[location]}")
         print(f"Cue: {cue_observations[cue]}")
@@ -119,7 +121,7 @@ for trial in range(num_trials):
     plt.plot(rewards_in_trial)
     plt.title(f"Rewards in trial {trial}, total reward: {sum(rewards_in_trial)}")
     plt.ylabel("Reward")
-    plt.xlabel("Time")  
+    plt.xlabel("Time")
     plt.show()
 
 

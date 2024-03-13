@@ -41,7 +41,9 @@ class Network:
 
         self.states = [x[::-1] for x in generate_binary_numbers(self.num_cells, 2**self.num_cells)]
 
-    def create_agents(self, incoming_cells, outgoing_cells, global_states, seed_node=None, cell_type = None):
+    def create_agents(
+        self, incoming_cells, outgoing_cells, global_states, seed_node=None, cell_type=None
+    ):
         """Creates active inference agents for each node in the network
 
         incoming_cells: list of indices of cells that send signals to the current cell
@@ -61,4 +63,3 @@ class Network:
                 self.create_agent(node, incoming_cells, outgoing_cells, global_states)
 
         return self.network
-

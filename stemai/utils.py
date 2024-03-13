@@ -58,7 +58,15 @@ def stemness(B):
 
 
 def draw_network(
-    network, colors, title=None, pos=None, t=None, _draw_neighboring_pairs=False, save=False, show = False, temp_file_name=None
+    network,
+    colors,
+    title=None,
+    pos=None,
+    t=None,
+    _draw_neighboring_pairs=False,
+    save=False,
+    show=False,
+    temp_file_name=None,
 ):
     """
     Draw a network using networkx and matplotlib.
@@ -66,7 +74,7 @@ def draw_network(
     Parameters:
     - network: networkx.Graph. The network to draw.
     """
-    #fig = plt.figure(figsize=(12, 6))
+    # fig = plt.figure(figsize=(12, 6))
 
     node_colors = [colors[node] for node in network.nodes]
     # shift position a little bit

@@ -55,7 +55,7 @@ class BlanketCell(Cell):
     def build_D(self):
         return self.build_uniform_D()
 
-    def act(self, obs: int, update = True, accumulate = True) -> str:
+    def act(self, obs: int, update=True, accumulate=True) -> str:
         """Here we overwrite the abstract act() class
         for blanket cells, because blanket cells
         will update their transition likelihoods after every state inference"""
@@ -65,8 +65,8 @@ class BlanketCell(Cell):
             if accumulate:
                 self.qs_over_time.append(self.qs)
 
-        #the first entry in self.qs_over_time will be the second state inferred 
-        #which is the qs_previous for the first action 
+        # the first entry in self.qs_over_time will be the second state inferred
+        # which is the qs_previous for the first action
         self.infer_states([obs])
 
         self.infer_policies()
@@ -74,8 +74,8 @@ class BlanketCell(Cell):
         if accumulate:
             self.actions_over_time.append(self.action)
 
-        #the first entry in self.actions_over_time will be the first action inferred
-        #when qs_prev is None and qs is not None
+        # the first entry in self.actions_over_time will be the first action inferred
+        # when qs_prev is None and qs is not None
         self.action_string = self.action_names[self.action_signal]
 
         if update:
@@ -83,7 +83,6 @@ class BlanketCell(Cell):
                 self.update_B(self.qs_prev)
 
         return self.action_string
-    
 
     def _reset(self):
         self.qs_over_time = []
@@ -96,13 +95,15 @@ class BlanketCell(Cell):
             qB = learning.update_state_likelihood_dirichlet_interactions(
                 self.pB,
                 self.B,
-                self.actions_over_time[t+1],
-                self.qs_over_time[t+1],
+                self.actions_over_time[t + 1],
+                self.qs_over_time[t + 1],
                 self.qs_over_time[t],
                 self.B_factor_list,
                 self.lr_pB,
-                self.factors_to_learn
+                self.factors_to_learn,
             )
 
-            self.pB = qB # set new prior to posterior
-            self.B = utils.norm_dist_obj_arr(qB)  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
+            self.pB = qB  # set new prior to posterior
+            self.B = utils.norm_dist_obj_arr(
+                qB
+            )  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
