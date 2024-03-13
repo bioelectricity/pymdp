@@ -280,8 +280,8 @@ class Runner:
             if trial == self.num_trials - 1:
                 self.write_data()
 
-                self.plot_time_to_reward()
-                self.plot_distances_over_time()
+                # self.plot_time_to_reward()
+                # self.plot_distances_over_time()
                 #self.generate_gifs()
                 return
 

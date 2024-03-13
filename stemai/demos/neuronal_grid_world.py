@@ -34,7 +34,7 @@ default_sensory_connectivity_proportion = 0.4
 default_action_time_threshold = 10
 default_precision_threshold = 0.4
 default_precision_update_frequency =10
-defaults = {'num_trials': default_num_trials, 'num_internal_cells':default_num_internal_cells, 'num_sensory_cells': default_num_sensory_cells, 'internal_connectivity':default_internal_connectivity, 'sensory_connectivity':default_sensory_connectivity, 'active_connectivity_proportion':default_active_connectivity_proportion, 'sensory_connectivity_proportion': default_sensory_connectivity_proportion, 'action_time_threshold': default_action_time_threshold, 'precision_threshold': default_precision_threshold, 'precision_update_frequency':default_precision_update_frequency,'num_external_cells': default_num_external_cells, 'num_active_cells': default_num_active_cells, 'external_connectivity': default_external_connectivity, 'reward_location': default_reward_location, 'agent_location': default_agent_location, 'grid_size': default_grid_size}
+defaults = {'logging': False, 'num_trials': default_num_trials, 'num_internal_cells':default_num_internal_cells, 'num_sensory_cells': default_num_sensory_cells, 'internal_connectivity':default_internal_connectivity, 'sensory_connectivity':default_sensory_connectivity, 'active_connectivity_proportion':default_active_connectivity_proportion, 'sensory_connectivity_proportion': default_sensory_connectivity_proportion, 'action_time_threshold': default_action_time_threshold, 'precision_threshold': default_precision_threshold, 'precision_update_frequency':default_precision_update_frequency,'num_external_cells': default_num_external_cells, 'num_active_cells': default_num_active_cells, 'external_connectivity': default_external_connectivity, 'reward_location': default_reward_location, 'agent_location': default_agent_location, 'grid_size': default_grid_size}
 
 all_parameter_combinations = []
 for name, sweep_params in params_to_sweep.items():
@@ -48,11 +48,20 @@ import concurrent.futures
 
 # Start Generation Here
 import concurrent.futures
-
+import shutil 
 def run_simulation(index, param):
-    if not os.path.exists(f'out/{index}/0/networks'): 
-        os.makedirs(f'out/{index}/0/networks')
-        os.makedirs(f'out/{index}/0/grids')
+
+    if os.path.exists(f'out/{index}/connectivities.txt'):
+        print(f"Simulation {index} already exists")
+        return
+    elif os.path.exists(f'out/{index}'):
+        print(f"Simulation {index} already exists but not complete, removing")
+        shutil.rmtree(f'out/{index}')
+
+    os.makedirs(f'out/{index}/0/networks')
+    os.makedirs(f'out/{index}/0/grids')
+
+
 
     print(f"Running simulation {index}")
     runner = Runner(**param, index=index)
