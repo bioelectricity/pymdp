@@ -129,7 +129,7 @@ class NeuronalCell(Agent):
         self.base_A = new_base_A        
         self.beta_zeta_prior = new_beta_zeta_prior
         self.beta_zeta = new_beta_zeta
-        self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
         self.neighbors.remove(self.neighbors[neighbor_idx])
         if self.logging: print(f"New beta zeta: {len(self.beta_zeta_prior)}")
 
@@ -155,7 +155,7 @@ class NeuronalCell(Agent):
         self.base_A = new_base_A
         self.beta_zeta_prior = new_beta_zeta_prior
         self.beta_zeta = new_beta_zeta
-        self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
         self.neighbors.append(neighbor_node)
 
 
