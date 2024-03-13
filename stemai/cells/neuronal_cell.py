@@ -145,13 +145,13 @@ class NeuronalCell(Agent):
         new_base_A = utils.obj_array(self.num_modalities)
         new_beta_zeta = utils.obj_array(self.num_modalities)
         new_beta_zeta_prior = utils.obj_array(self.num_modalities)
-        for m in range(self.num_modalities - 1):
+        for m in range(1, self.num_modalities):
             new_base_A[m] = old_base_A[m]
             new_beta_zeta[m] = old_beta_zeta[m]
             new_beta_zeta_prior[m] = old_beta_zeta_prior[m]
-        new_base_A[-1] = np.eye(self.num_states[0])
-        new_beta_zeta[-1] = 0.1
-        new_beta_zeta_prior[-1] = 0.1
+        new_base_A[0] = np.eye(self.num_states[0])
+        new_beta_zeta[0] = 0.1
+        new_beta_zeta_prior[0] = 0.1
         self.base_A = new_base_A
         self.beta_zeta_prior = new_beta_zeta_prior
         self.beta_zeta = new_beta_zeta
