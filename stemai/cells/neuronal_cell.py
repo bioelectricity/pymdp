@@ -37,6 +37,7 @@ class NeuronalCell(Agent):
         self.actions_sent = {}
         self.num_obs = [2] * self.num_modalities
         self.num_states = [2]
+        self.logging = False
 
         if self.logging: print(f"Gamma A: {self.gamma_A}")
         if self.logging: print(f"Gamma B: {self.gamma_B}")

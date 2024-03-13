@@ -32,6 +32,8 @@ class Runner:
         action_time_threshold,
         precision_threshold,
         precision_update_frequency,
+        prune_connections, 
+        add_connections,
         index,
         logging=False,
     ):
@@ -58,6 +60,8 @@ class Runner:
         self.precision_update_frequency = precision_update_frequency
         self.logging = logging
         self.index = index
+        self.prune_connections = prune_connections
+        self.add_connections = add_connections
 
         import yaml
 
@@ -78,6 +82,8 @@ class Runner:
             "action_time_threshold": self.action_time_threshold,
             "precision_threshold": self.precision_threshold,
             "precision_update_frequency": self.precision_update_frequency,
+            "prune_connections": self.prune_connections,
+            "add_connections": self.add_connections,
             "logging": self.logging,
         }
 
@@ -136,6 +142,8 @@ class Runner:
             sensory_connectivity_proportion=self.sensory_connectivity_proportion,
             action_time_horizon=self.action_time_threshold,
             precision_threshold=self.precision_threshold,
+            prune_connections=self.prune_connections,
+            add_connections=self.add_connections,
         )
 
         # set the reward states of external cells
