@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import networkx 
 import os 
 import imageio
+import pickle
 
 class Runner:
 
@@ -125,6 +126,10 @@ class Runner:
         self.all_agent_locations = [self.agent_location] * self.num_trials
         self.system.update_grid_locations(self.all_reward_locations[0], self.all_agent_locations[0])
 
+    def save_network(self, trial, t):
+        pickle.dump(self.system.system, open(f'out/{self.index}/{trial}/networks/{t}.pickle', 'wb'))
+
+
     def draw(self, trial, t):
         title=f"Trial: {trial}, timestep :{t}, distance_to_reward: {self.system.distance_to_reward}, signal: {self.system.external_signal}, probabilities: {(round(self.system.probabilities[0],2), round(self.system.probabilities[1],2))}",
 
@@ -141,6 +146,9 @@ class Runner:
         )
         plt.title(title, color='black')
         plt.clf()
+
+    def save_grids_for_trial(self, trial):
+        np.save(f"out/{self.index}/{trial}/grids.npy", self.grids_over_time)
 
     def plot_grids_for_trial(self, trial):
 
@@ -243,7 +251,7 @@ class Runner:
 
             if agent_location == self.system.reward_location or self.system.t > 2000:
                 self.time_to_reward_per_trial.append(self.system.t)
-                self.plot_grids_for_trial(trial)
+                self.save_grids_for_trial(trial)
 
                 self.system._reset()
 
@@ -267,14 +275,14 @@ class Runner:
 
             
         
-            self.draw(trial, self.system.t)
+            self.save_network(trial, self.system.t)
 
             if trial == self.num_trials - 1:
                 self.write_data()
 
                 self.plot_time_to_reward()
                 self.plot_distances_over_time()
-                self.generate_gifs()
+                #self.generate_gifs()
                 return
 
 

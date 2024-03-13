@@ -66,7 +66,7 @@ def draw_network(
     Parameters:
     - network: networkx.Graph. The network to draw.
     """
-    fig = plt.figure(figsize=(12, 6))
+    #fig = plt.figure(figsize=(12, 6))
 
     node_colors = [colors[node] for node in network.nodes]
     # shift position a little bit
