@@ -538,6 +538,10 @@ class System(Network):
                 self.internal_network.nodes[new_node]["agent"].connect_to(node)
                 self.internal_network.network.add_edge(node, new_node)
                 self.system.add_edge(node, new_node)
+                self.internal_network.incoming_nodes[node].append(new_node)
+                self.internal_network.outgoing_nodes[node].append(new_node)
+                self.internal_network.incoming_nodes[new_node].append(node)
+                self.internal_network.outgoing_nodes[new_node].append(node)
 
 
 
@@ -550,7 +554,6 @@ class System(Network):
             node = nodes[node_idx]
             agent = self.internal_network.nodes[node]["agent"]
             neighbors = list(networkx.neighbors(self.internal_network.network, node))
-            neighbor_idx = 0
 
             internal_neighbors = [n for n in neighbors if "i" in n]
 
@@ -583,3 +586,11 @@ class System(Network):
                 if neighbor in node_neighbors:
                     self.internal_network.network.remove_edge(node, neighbor)
                     self.system.remove_edge(node, neighbor)
+                if neighbor in self.internal_network.incoming_nodes[node]:
+                    self.internal_network.incoming_nodes[node].remove(neighbor)
+                if neighbor in self.internal_network.outgoing_nodes[node]:
+                    self.internal_network.outgoing_nodes[node].remove(neighbor)
+                if node in self.internal_network.incoming_nodes[neighbor]:
+                    self.internal_network.incoming_nodes[neighbor].remove(node)
+                if node in self.internal_network.outgoing_nodes[neighbor]:
+                    self.internal_network.outgoing_nodes[neighbor].remove(node)
