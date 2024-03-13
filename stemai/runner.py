@@ -33,7 +33,7 @@ class Runner:
         precision_threshold,
         precision_update_frequency,
         index,
-        logging=True,
+        logging=False,
     ):
 
         if not os.path.exists(f"out/{index}/0/networks"):
@@ -103,7 +103,7 @@ class Runner:
             color="mediumseagreen",
         )
 
-        print("Created internal network")
+        if self.logging: print("Created internal network")
 
         self.active_network = NeuronalNetwork(
             self.num_active_cells,
@@ -125,8 +125,6 @@ class Runner:
             external_node_labels,
             celltype=GridWorldCell,
         )
-
-        print("Created all networks")
         # now connect them together
         # compose all the networks into one system network
         self.system = System(
@@ -336,7 +334,10 @@ class Runner:
 
                 self.system.renormalize_precisions()
 
-                self.system.prune()
+                if self.system.prune_connections:
+                    self.system.prune()
+                if self.system.add_connections:
+                    self.system.add_new_connections()
                 trial += 1
 
                 self.grids_over_time = []

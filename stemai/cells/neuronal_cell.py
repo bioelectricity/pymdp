@@ -38,8 +38,8 @@ class NeuronalCell(Agent):
         self.num_obs = [2] * self.num_modalities
         self.num_states = [2]
 
-        print(f"Gamma A: {self.gamma_A}")
-        print(f"Gamma B: {self.gamma_B}")
+        if self.logging: print(f"Gamma A: {self.gamma_A}")
+        if self.logging: print(f"Gamma B: {self.gamma_B}")
 
         C = self.build_uniform_C()
         D = self.build_uniform_D()
@@ -90,21 +90,21 @@ class NeuronalCell(Agent):
         self.num_neighbors -= 1
         self.num_modalities -= 1
 
-        print(f"Neighbor node: {neighbor_node}")
-        print(f"Neighbors: {self.neighbors}")
+        if self.logging: print(f"Neighbor node: {neighbor_node}")
+        if self.logging: print(f"Neighbors: {self.neighbors}")
 
         neighbor_idx = list(self.neighbors).index(neighbor_node)
 
-        print(f"Neighbor idx: {neighbor_idx}")
+        if self.logging: print(f"Neighbor idx: {neighbor_idx}")
 
         self.num_obs.remove(self.num_obs[neighbor_idx])
-        old_A = np.copy(self.A)
         old_base_A = np.copy(self.base_A)
+        old_beta_zeta = np.copy(self.beta_zeta)
         old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
 
-        print(f"Old beta zeta: {len(old_beta_zeta_prior)}")
+        if self.logging: print(f"Old beta zeta: {len(old_beta_zeta_prior)}")
         self.build_B()
-        mapping = {}
+        mapping = {} #mapping from old modality to new modality 
         neighbor_idx = list(self.neighbors).index(neighbor_node)
         for o in range(self.num_neighbors + 1):
             if o == neighbor_idx:
@@ -113,26 +113,50 @@ class NeuronalCell(Agent):
                 mapping[o] = o
             else:
                 mapping[o] = o - 1
-        new_A = utils.obj_array(self.num_modalities)
         new_base_A = utils.obj_array(self.num_modalities)
+        new_beta_zeta = utils.obj_array(self.num_modalities)
         new_beta_zeta_prior = utils.obj_array(self.num_modalities)
         for old_m in range(self.num_neighbors + 1):
             if old_m not in mapping:
                 continue
             new_m = mapping[old_m]
             new_base_A[new_m] = old_base_A[old_m]
+            new_beta_zeta[new_m] = old_beta_zeta[old_m]
 
-            new_A[new_m] = old_A[old_m]
             new_beta_zeta_prior[new_m] = old_beta_zeta_prior[old_m]
-        self.A = new_A
+        
+        self.base_A = new_base_A        
+        self.beta_zeta_prior = new_beta_zeta_prior
+        self.beta_zeta = new_beta_zeta
+        self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.neighbors.remove(self.neighbors[neighbor_idx])
+        if self.logging: print(f"New beta zeta: {len(self.beta_zeta_prior)}")
+
+    def connect_to(self, neighbor_node):
+        self.num_neighbors += 1
+        self.num_modalities += 1
+        self.num_obs.append(2)
+        old_base_A = np.copy(self.base_A)
+        old_beta_zeta = np.copy(self.beta_zeta)
+        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
+        self.build_B()
+
+        new_base_A = utils.obj_array(self.num_modalities)
+        new_beta_zeta = utils.obj_array(self.num_modalities)
+        new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        for m in range(self.num_modalities - 1):
+            new_base_A[m] = old_base_A[m]
+            new_beta_zeta[m] = old_beta_zeta[m]
+            new_beta_zeta_prior[m] = old_beta_zeta_prior[m]
+        new_base_A[-1] = np.eye(self.num_states[0])
+        new_beta_zeta[-1] = 0.1
+        new_beta_zeta_prior[-1] = 0.1
         self.base_A = new_base_A
         self.beta_zeta_prior = new_beta_zeta_prior
-        self.beta_zeta = new_beta_zeta_prior
-        self.neighbors.remove(self.neighbors[neighbor_idx])
-        print(f"New beta zeta: {len(self.beta_zeta_prior)}")
+        self.beta_zeta = new_beta_zeta
+        self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.neighbors.append(neighbor_node)
 
-    def connect_to(self):
-        pass
 
     def act(self, obs, distance_to_reward=None):
         """

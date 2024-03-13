@@ -15,6 +15,8 @@ all_sensory_connectivity_proportion = [0.2, 0.4, 0.6]
 all_action_time_threshold = [5, 10, 15]
 all_precision_threshold = [0.1, 0.3, 0.5]
 all_precision_update_frequency = [10, 20, 30]
+all_add_connections = [True, False] #need to rerun with True
+all_prune_connections = [True, False] #need to rerun with False 
 
 params_to_sweep = {
     "num_internal_cells": all_num_internal_cells,
@@ -26,6 +28,9 @@ params_to_sweep = {
     "action_time_threshold": all_action_time_threshold,
     "precision_threshold": all_precision_threshold,
     "precision_update_frequency": all_precision_update_frequency,
+    "add_connections": all_add_connections,
+    "prune_connections": all_prune_connections,
+
 }
 
 default_num_trials = 30
@@ -45,6 +50,8 @@ default_sensory_connectivity_proportion = 0.4
 default_action_time_threshold = 10
 default_precision_threshold = 0.4
 default_precision_update_frequency = 10
+default_add_connections = False 
+default_prune_connections = True
 defaults = {
     "logging": False,
     "num_trials": default_num_trials,
@@ -63,6 +70,8 @@ defaults = {
     "reward_location": default_reward_location,
     "agent_location": default_agent_location,
     "grid_size": default_grid_size,
+    "add_connections": default_add_connections,
+    "prune_connections": default_prune_connections,
 }
 
 all_parameter_combinations = []
