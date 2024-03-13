@@ -108,7 +108,7 @@ def run_simulation(index, param):
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
     executor.map(
-        run_simulation, range(1, len(all_parameter_combinations)), all_parameter_combinations[1:]
+        run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations
     )
 
 
