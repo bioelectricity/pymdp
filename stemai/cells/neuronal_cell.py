@@ -88,6 +88,9 @@ class NeuronalCell(Agent):
         self.B = B
 
     def disconnect_from(self, neighbor_node):
+        if self.num_modalities == 1:
+            return
+
         self.num_neighbors -= 1
         self.num_modalities -= 1
 
