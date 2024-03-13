@@ -1,104 +1,217 @@
 from pymdp.agent import Agent
 from pymdp import utils
+from pymdp import maths
 import numpy as np
+import tqdm
+
+# with and without sliding window
 
 
-class Cell(Agent):
+class NeuronalCell(Agent):
     """A class that inherits from pymdp agent that represents an abstract cell in a network"""
 
-    def __init__(self, node_idx):
+    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar=0.01):
         """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
 
-        self.num_modalities = 1  # currently we only have one observation modality
         self.num_factors = 1  # currently we only have one state factor
+        self.neighbors = neighbors
+        self.num_neighbors = len(neighbors)
+        self.num_modalities = len(neighbors)  # currently we only have one observation modality
 
-    def setup(self, states_and_actions, hidden_state_indices, control_state_indices):
-        """
-        Sets up the state and action names given
-        the entire state and action space of the cell.
+        gamma_B = utils.obj_array(self.num_factors)
 
-        states_and_actions: a list of all possible states and actions in the entire network
-        hidden_state_indices: the indices of the states in the states_and_actions list that correspond to hidden states of this cell
-        control_state_indices: the indices of the states in the states_and_actions list that correspond to control states of this cell
-        """
+        for f in range(self.num_factors):
+            gamma_B[f] = np.array(
+                [
+                    gamma_B_scalar + np.random.uniform(0, 0.1),
+                    gamma_B_scalar + np.random.uniform(0, 0.1),
+                ]
+            )
+        self.gamma_A = gamma_A
+        self.gamma_B = gamma_B
+        self.observation_history = []
+        self.qs_over_time = []
+        self.actions_received = {}
+        self.actions_sent = {}
+        self.num_obs = [2] * self.num_modalities
+        self.num_states = [2]
 
-        print(f"Hidden state indices: {hidden_state_indices}")
-        print(f"Control state indices: {control_state_indices}")
+        if self.logging: print(f"Gamma A: {self.gamma_A}")
+        if self.logging: print(f"Gamma B: {self.gamma_B}")
 
-        self.num_states = [2 ** len(hidden_state_indices)]
-        self.num_obs = [2 ** len(hidden_state_indices)]
-        self.num_actions = [2 ** len(control_state_indices)]
+        C = self.build_uniform_C()
+        D = self.build_uniform_D()
 
-        state_names = []
+        self.setup(self.num_neighbors)
 
-        for state in states_and_actions:  # hidden state space is the internal states of the network
-            values = [int(state[index]) for index in hidden_state_indices]
-            state_name = "".join(map(str, values))
-            if state_name not in state_names:
-                state_names.append(state_name)
+        super().__init__(
+            A=self.A,
+            B=self.B,
+            pA=self.A,
+            A_factor_list=self.A_factor_list,
+            C=C,
+            D=D,
+            beta_zeta_prior=self.gamma_A,
+            beta_omega_prior=self.gamma_B,
+        )
 
-        self.state_names = state_names
+    def setup(self, num_neighbors):
 
-        print(f"State names: {self.state_names}")
+        self.num_states = [2, 10] #binary state of the world, battery state
+        self.num_obs = [2] * num_neighbors + [10] #binary observation of the world, battery level
+        self.num_actions_for_state = 2 #fire / don't fire
+        self.num_actions_for_battery = 2 #increase / decrease
+        # actions: take the posterior distribution and a
 
-        assert (
-            len(self.state_names) == self.num_states[0]
-        ), "Number of states does not match the number of state names"
+        self.build_A()
+        self.build_B()
 
-        action_names = []
+    def build_A(self):
 
-        for (
-            action
-        ) in states_and_actions:  # hidden state space is the internal states of the network
-            values = [int(action[index]) for index in control_state_indices]
-            action_name = "".join(map(str, values))
-            if action_name not in action_names:
-                action_names.append(action_name)
-
-        self.action_names = action_names
-
-        assert (
-            len(self.action_names) == self.num_actions[0]
-        ), f"Number of actions {len(self.action_names)} does not match the number of action names {self.num_actions[0]}"
-
-    def build_identity_A(self):
-        """Builds an observation likelihood for each observation modality
-        that is a direct identity mapping between states and observations"""
         A = utils.obj_array(self.num_modalities)
 
-        for m in range(self.num_modalities):
-            A[m] = np.eye(self.num_obs[m])
+        for neighbor in range(self.num_modalities -1):
+            A[neighbor] = np.eye(self.num_states[0])
+        A[-1] = np.eye(self.num_states[1])
 
-        return A
+        self.A_factor_list = [0]*(self.num_modalities-1) + [1]
 
-    def build_uniform_B(self):
+        self.A = A
+
+        assert utils.is_normalized(
+            self.A
+        ), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
+
+    def build_B(self):
         B = utils.obj_array(self.num_factors)
 
-        for i in range(self.num_factors):  # generate a randomized (deterministic) B
 
-            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
-            for action in range(self.num_actions[i]):
-                B_i[:, :, action] = np.full(
-                    (self.num_states[i], self.num_states[i]), 1 / self.num_states[i]
+        #uniform B matrix for the world state
+        B[0] = np.zeros(self.num_states[0], self.num_states[0], self.num_actions_for_state)
+        B[0][:, :, 0] = np.full(self.num_states[0], self.num_states[0], 1 / self.num_states[0])
+        B[0][:, :, 1] = np.full(self.num_states[0], self.num_states[0], 1 / self.num_states[0])
+
+        #uniform B matrix for the battery state
+        B[1] = np.zeros(self.num_states[1], self.num_states[1], self.num_actions_for_battery)
+        B[1][:, :, 0] = np.full(self.num_states[1], self.num_states[1], 1 / self.num_states[1])
+        B[1][:, :, 1] = np.full(self.num_states[1], self.num_states[1], 1 / self.num_states[1])
+
+        self.B = B
+
+    def disconnect_from(self, neighbor_node):
+        self.num_neighbors -= 1
+        self.num_modalities -= 1
+
+        if self.logging: print(f"Neighbor node: {neighbor_node}")
+        if self.logging: print(f"Neighbors: {self.neighbors}")
+
+        neighbor_idx = list(self.neighbors).index(neighbor_node)
+
+        if self.logging: print(f"Neighbor idx: {neighbor_idx}")
+
+        self.num_obs.remove(self.num_obs[neighbor_idx])
+        old_base_A = np.copy(self.base_A)
+        old_beta_zeta = np.copy(self.beta_zeta)
+        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
+
+        if self.logging: print(f"Old beta zeta: {len(old_beta_zeta_prior)}")
+        self.build_B()
+        mapping = {} #mapping from old modality to new modality 
+        neighbor_idx = list(self.neighbors).index(neighbor_node)
+        for o in range(self.num_neighbors + 1):
+            if o == neighbor_idx:
+                continue
+            elif o < neighbor_idx:
+                mapping[o] = o
+            else:
+                mapping[o] = o - 1
+        new_base_A = utils.obj_array(self.num_modalities)
+        new_beta_zeta = utils.obj_array(self.num_modalities)
+        new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        for old_m in range(self.num_neighbors + 1):
+            if old_m not in mapping:
+                continue
+            new_m = mapping[old_m]
+            new_base_A[new_m] = old_base_A[old_m]
+            new_beta_zeta[new_m] = old_beta_zeta[old_m]
+
+            new_beta_zeta_prior[new_m] = old_beta_zeta_prior[old_m]
+        
+        self.base_A = new_base_A        
+        self.beta_zeta_prior = new_beta_zeta_prior
+        self.beta_zeta = new_beta_zeta
+        self.A = utils.scale_A_with_zeta(self.A, self.beta_zeta)
+        self.neighbors.remove(self.neighbors[neighbor_idx])
+        if self.logging: print(f"New beta zeta: {len(self.beta_zeta_prior)}")
+
+    def connect_to(self, neighbor_node):
+        self.num_neighbors += 1
+        self.num_modalities += 1
+        self.num_obs.append(2)
+        old_base_A = np.copy(self.base_A)
+        old_beta_zeta = np.copy(self.beta_zeta)
+        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
+        self.build_B()
+
+        new_base_A = utils.obj_array(self.num_modalities)
+        new_beta_zeta = utils.obj_array(self.num_modalities)
+        new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        for m in range(1, self.num_modalities):
+            new_base_A[m] = old_base_A[m]
+            new_beta_zeta[m] = old_beta_zeta[m]
+            new_beta_zeta_prior[m] = old_beta_zeta_prior[m]
+        new_base_A[0] = np.eye(self.num_states[0])
+        new_beta_zeta[0] = 0.1
+        new_beta_zeta_prior[0] = 0.1
+        self.base_A = new_base_A
+        self.beta_zeta_prior = new_beta_zeta_prior
+        self.beta_zeta = new_beta_zeta
+        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
+        self.neighbors.append(neighbor_node)
+
+
+    def act(self, obs, distance_to_reward=None):
+        """
+        For a neuronal cell, the observation is a 0 or 1 signal
+        for each neighbor, and then the agent performs state inference
+        and the action it performs is sampled directly from the posterior over states"""
+
+        self.observation_history.append(obs)
+
+        qs = self.infer_states(obs)
+        # self.D = self.qs
+        self.infer_policies()
+        action = self.sample_action()
+        battery_action = action[1]
+        if battery_action == 0: #decrease policy length
+           self.policy_length = min(1, self.policy_length - 1)
+        elif battery_action == 1: #increase policy length
+            self.policy_length = min(10, self.policy_length + 1)
+
+        self.neuronal_action = action[0]
+
+        self.update_B(self.qs_over_time[-1])
+        self.qs_over_time.append(qs)
+
+        return action
+
+    def update_after_trial(self, modalities_to_omit):
+        # update gamma_A
+        for t in range(len(self.observation_history)):
+            if self.cell_type == "internal":
+                modalities = list(range(self.num_modalities - modalities_to_omit))
+                self.update_zeta(
+                    self.observation_history[t], self.qs_over_time[t], modalities=modalities
                 )
-            B[i] = B_i
+            else:
+                self.update_zeta(self.observation_history[t], self.qs_over_time[t])
+            # self.update_A(self.observation_history[t])
 
-        return B
-
-    def build_fixed_random_B(self):
-        B = utils.obj_array(self.num_factors)
-
-        for i in range(self.num_factors):  # generate a randomized (deterministic) B
-
-            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
-            for action in range(self.num_actions[i]):
-                for state in range(self.num_states[i]):
-                    random_state = np.random.choice(list(range(self.num_states[i])))
-                    B_i[random_state, state, action] = 1
-            B[i] = B_i
-        return B
+        # overwrite the sensory ones
+        self.observation_history = []
+        self.qs_over_time = []
 
     def build_uniform_C(self):
         """Construts a uniform C vector, meaning the cell has
@@ -116,76 +229,3 @@ class Cell(Agent):
             D[f] = np.random.uniform(0, 1, size=self.num_states[f])
             D[f] /= D[0].sum()
         return D
-
-    def build_A(self):
-        """All cells currently have identity A matrices"""
-        return self.build_identity_A()
-
-    def build_B(self, num_states, action_zero_states, action_one_states):
-        """This will depend on what kind of cell this is"""
-        pass
-
-    def build_C(self):
-        """Abstract method to be called in build_generative_model for constructing
-        the observation preferences"""
-        pass
-
-    def build_D(self):
-        """Abstract method to be called in build_generative_model for constructing
-        the prior over states"""
-        pass
-
-    def build_generative_model(self):
-        """Build the generative model of this cell
-        and then initalize the pymdp Agent"""
-
-        A = self.build_A()
-
-        pB = self.build_B()
-        B = utils.norm_dist_obj_arr(pB)
-
-        C = self.build_C()
-
-        D = self.build_D()
-
-        super().__init__(A=A, pB=pB, B=B, C=C, D=D)
-
-    def state_signal_to_index(self, signals: list) -> int:
-        """
-        Convert a list of signals from each observable neighbor
-        into an index into the state space of the network
-
-        signals: a list of signals from each observable neighbor
-
-        returns: an index into the state space of the network"""
-
-        state = "".join(map(str, signals))
-
-        return self.state_names.index(state)
-
-    def action_signal_to_index(self, signals: list) -> int:
-        """
-        Convert a list of signals to each outgoing actionable neighbor
-        into an index into the local action space of this cell
-
-        signals: a list of signals to each actionable neighbor
-
-        returns: an index into the action space of the network"""
-
-        action = "".join(map(str, signals))
-
-        return self.action_names.index(action)
-
-    def act(self, obs: int, in_consistent_interval=None) -> str:
-        """Perform state and action inference, return the action string
-        which includes the action signal for each actionable neighbor
-        of this cell
-
-        obs: the observation signal index from the observable neighbors
-        """
-        self.infer_states([obs])
-        self.infer_policies()
-        self.action_signal = int(self.sample_action()[0])
-        self.action_string = self.action_names[self.action_signal]
-
-        return self.action_string
