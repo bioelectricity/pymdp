@@ -47,25 +47,41 @@ for name, sweep_params in params_to_sweep.items():
 import concurrent.futures
 
 # Start Generation Here
-import asyncio
-import os
+import concurrent.futures
 
-async def run_simulation(index, param):
+def run_simulation(index, param):
     if not os.path.exists(f'out/{index}/0/networks'): 
         os.makedirs(f'out/{index}/0/networks')
         os.makedirs(f'out/{index}/0/grids')
 
     print(f"Running simulation {index}")
     runner = Runner(**param, index=index)
-    await runner.run()
-
+    runner.run()
     print(f"Finished simulation {index}")
 
-async def main():
-    tasks = [asyncio.create_task(run_simulation(index, param)) for index, param in enumerate(all_parameter_combinations)]
-    await asyncio.gather(*tasks)
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    executor.map(run_simulation, range(1, len(all_parameter_combinations)), all_parameter_combinations[1:])
 
-asyncio.run(main())
+
+# import asyncio
+# import os
+
+# async def run_simulation(index, param):
+#     if not os.path.exists(f'out/{index}/0/networks'): 
+#         os.makedirs(f'out/{index}/0/networks')
+#         os.makedirs(f'out/{index}/0/grids')
+
+#     print(f"Running simulation {index}")
+#     runner = Runner(**param, index=index)
+#     await runner.run()
+
+#     print(f"Finished simulation {index}")
+
+# async def main():
+#     tasks = [asyncio.create_task(run_simulation(index, param)) for index, param in enumerate(all_parameter_combinations)]
+#     await asyncio.gather(*tasks)
+
+# asyncio.run(main())
 
 # index = 0
 # for param in all_parameter_combinations:
