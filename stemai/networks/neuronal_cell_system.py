@@ -328,8 +328,12 @@ class System(Network):
         internal_agent = self.internal_network.network.nodes[node]["agent"]
 
         signals = [internal_agent.actions_received[i] for i in incoming_nodes]
+        if len(signals) == 0:
+            return 
         signals_dict = {n: internal_agent.actions_received[n] for n in incoming_nodes}
         if logging: print(f"Signal to internal agent: {signals_dict}")
+
+        assert len(signals) == internal_agent.num_modalities, f"Signals: {signals} don't match num_modalities : {internal_agent.num_modalities} for node {node}"
 
         action = internal_agent.act(signals, self.distance_to_reward)
 
