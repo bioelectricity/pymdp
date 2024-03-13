@@ -1,8 +1,9 @@
 # %%
-import os 
-import matplotlib.pyplot as plt 
+import os
+import matplotlib.pyplot as plt
 import imageio
-os.chdir('/Users/daphne/Desktop/stemai/pymdp')
+
+os.chdir("/Users/daphne/Desktop/stemai/pymdp")
 
 from stemai.networks.markovian_system import MarkovianSystem
 from stemai.networks.internal_network import InternalNetwork
@@ -16,15 +17,14 @@ from stemai.utils import draw_network
 import networkx
 import numpy as np
 
-num_internal_cells = 5 #lars thinks 20, start fuly connected 
+num_internal_cells = 5  # lars thinks 20, start fuly connected
 
-#CONNECTIVITY FOR NEURONAL CELLS 
-#likelihood precision updating
-#then you prune connections 
+# CONNECTIVITY FOR NEURONAL CELLS
+# likelihood precision updating
+# then you prune connections
 
-#CONNECTIVITY FOR STEM CELLS 
-#start with fewer cells (3 or 4, fully connected)
-
+# CONNECTIVITY FOR STEM CELLS
+# start with fewer cells (3 or 4, fully connected)
 
 
 num_external_cells = 1
@@ -32,10 +32,10 @@ num_external_cells = 1
 num_active_cells = 2
 num_sensory_cells = 1
 
-#Define the grid world with a desired location 
+# Define the grid world with a desired location
 
-REWARD_LOCATION = (0,0)
-AGENT_LOCATION = (4,4)
+REWARD_LOCATION = (0, 0)
+AGENT_LOCATION = (4, 4)
 GRID_SIZE = 10
 
 internal_cells = [f"i{i}" for i in range(num_internal_cells)]
@@ -68,7 +68,9 @@ sensory_network = SensoryNetwork(
 
 active_network = ActiveNetwork(num_active_cells, 1, active_cells)
 
-external_network = ExternalNetwork(num_external_cells, 1, external_node_labels, celltype = GridWorldCell)
+external_network = ExternalNetwork(
+    num_external_cells, 1, external_node_labels, celltype=GridWorldCell
+)
 system = StemCellSystem(internal_network, external_network, sensory_network, active_network)
 
 for node in external_network.network.nodes:
@@ -88,6 +90,7 @@ for network in [internal_network, sensory_network, active_network, external_netw
 
 num_trials = 10
 import numpy as np
+
 grid = np.zeros((GRID_SIZE, GRID_SIZE))
 grid[REWARD_LOCATION] = 1
 grid[AGENT_LOCATION] = 2
@@ -97,7 +100,6 @@ agent_location = AGENT_LOCATION
 plt.imshow(grid)
 plt.title("Initial Grid")
 plt.show()
-
 
 
 grid_images = []
@@ -110,10 +112,10 @@ time_to_reward = []
 overall_t = 0
 pos = networkx.spring_layout(system.system)
 
-all_reward_locations = [(0,0),(9,9),(0,9),(9,0)]
+all_reward_locations = [(0, 0), (9, 9), (0, 9), (9, 0)]
 num_trials = len(all_reward_locations)
 
-system.distance_to_reward=1
+system.distance_to_reward = 1
 
 while agent_location != REWARD_LOCATION and trial < num_trials:
     print(f"Trial {trial}, T :{system.t}")
@@ -127,9 +129,11 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     grid[system.agent_location] = 2
     system.update_reward_location(REWARD_LOCATION)
 
-
-    #fig = plt.figure(figsize = (6,6))
-    plt.title(f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}", color='black')
+    # fig = plt.figure(figsize = (6,6))
+    plt.title(
+        f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}",
+        color="black",
+    )
     # if system.t % 10 == 0:
     #     print(f"Updating gamma_A")
     #     system.update_gamma_A()
@@ -138,35 +142,36 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
 
     fn = f"STEM_grid_at_{trial}_{system.t}.png"
 
-    plt.savefig(fn, facecolor='w')
+    plt.savefig(fn, facecolor="w")
     image = imageio.imread(fn)
     if system.t > 0:
         grid_images.append(image)
         grid_filenames.append(fn)
-        #plt.show()
+        # plt.show()
     plt.clf()
-
 
     if agent_location == REWARD_LOCATION or system.t > 300:
         time_to_reward.append(system.t)
         system.t = 0
-        system.agent_location = (0,0)
+        system.agent_location = (0, 0)
         system._reset()
         trial += 1
-        agent_location = (0,0)
-
+        agent_location = (0, 0)
 
     temp_file_name = draw_network(
-    system.system,
-    colors,
-    t=f"STEM_{trial}_{system.t}",
-    title=f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}",
-    pos=pos,
-    _draw_neighboring_pairs=True,
-    save=True,
-    show=False
+        system.system,
+        colors,
+        t=f"STEM_{trial}_{system.t}",
+        title=f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}",
+        pos=pos,
+        _draw_neighboring_pairs=True,
+        save=True,
+        show=False,
     )
-    plt.title(f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}", color='black')
+    plt.title(
+        f"Trial: {trial}, timestep :{system.t}, distance_to_reward: {system.distance_to_reward}, signal: {system.external_signal}, probabilities: {(round(system.probabilities[0],2), round(system.probabilities[1],2))}",
+        color="black",
+    )
     plt.clf()
     network_images.append(imageio.imread(temp_file_name))
     network_filenames.append(temp_file_name)
@@ -174,9 +179,6 @@ while agent_location != REWARD_LOCATION and trial < num_trials:
     # if overall_t % 100 == 0:
     #     print(f"Pruning")
     #     system.prune()
-
-
-
 
 
 print(f"Generating GIFS")

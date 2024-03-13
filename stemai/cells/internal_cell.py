@@ -44,8 +44,6 @@ class InternalCell(Cell):
         active_cell_indices: the indices of the active cells in the network
         states: the global states of the network"""
 
-        
-        
         super().__init__(node_idx)
 
         self.num_internal_neighbors = len(internal_neighbors)
@@ -64,7 +62,6 @@ class InternalCell(Cell):
 
         self.qs_over_time = []
         self.actions_over_time = []
-
 
         # initialize the actions received from other internal neighbors
         self.actions_received = {
@@ -107,7 +104,7 @@ class InternalCell(Cell):
         """Internal cells have uniform priors over states"""
         return self.build_uniform_D()
 
-    def act(self, obs: int, update=True, accumulate = True) -> str:
+    def act(self, obs: int, update=True, accumulate=True) -> str:
         """Here we overwrite the abstract act() class
         for internal cells, because internal cells
         will update their transition likelihoods after every state inference"""
@@ -117,8 +114,8 @@ class InternalCell(Cell):
             if accumulate:
                 self.qs_over_time.append(self.qs)
 
-        #the first entry in self.qs_over_time will be the second state inferred 
-        #which is the qs_previous for the first action 
+        # the first entry in self.qs_over_time will be the second state inferred
+        # which is the qs_previous for the first action
         self.infer_states([obs])
 
         self.infer_policies()
@@ -126,8 +123,8 @@ class InternalCell(Cell):
         if accumulate:
             self.actions_over_time.append(self.action)
 
-        #the first entry in self.actions_over_time will be the first action inferred
-        #when qs_prev is None and qs is not None
+        # the first entry in self.actions_over_time will be the first action inferred
+        # when qs_prev is None and qs is not None
         self.action_string = self.action_names[self.action_signal]
 
         # # update B
@@ -136,23 +133,25 @@ class InternalCell(Cell):
                 self.update_B(self.qs_prev)
 
         return self.action_string
-    
+
     def update_B_after_trial(self):
         # update B
         for t in range(len(self.qs_over_time) - 1):
             qB = learning.update_state_likelihood_dirichlet_interactions(
                 self.pB,
                 self.B,
-                self.actions_over_time[t+1],
-                self.qs_over_time[t+1],
+                self.actions_over_time[t + 1],
+                self.qs_over_time[t + 1],
                 self.qs_over_time[t],
                 self.B_factor_list,
                 self.lr_pB,
-                self.factors_to_learn
+                self.factors_to_learn,
             )
 
-            self.pB = qB # set new prior to posterior
-            self.B = utils.norm_dist_obj_arr(qB)  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
+            self.pB = qB  # set new prior to posterior
+            self.B = utils.norm_dist_obj_arr(
+                qB
+            )  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
 
     def disconnect_from(self, neighbor):
         """Disconnect this cell from the given neighbor

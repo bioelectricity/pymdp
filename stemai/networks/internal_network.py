@@ -28,15 +28,15 @@ class InternalNetwork(Network):
         self.color = "mediumseagreen"
         super().__init__(num_internal_cells, connectivity, cells, celltype)
 
-    
-    
     def create_agent(
         self, node, sensory_cell_indices, active_cell_indices, global_states
     ) -> InternalCell:
         """Creates an active inference agent for a given node in the network"""
 
         internal_neighbors = list(networkx.neighbors(self.network, node))
-        internal_neighbor_indices = [list(self.network.nodes).index(neighbor) for neighbor in internal_neighbors]
+        internal_neighbor_indices = [
+            list(self.network.nodes).index(neighbor) for neighbor in internal_neighbors
+        ]
 
         agent = self.celltype(
             node,
