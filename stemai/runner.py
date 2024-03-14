@@ -224,31 +224,6 @@ class Runner:
         self.grids_over_time = []
         self.gamma_update_times = []
 
-    def plot_time_to_reward(self):
-        plt.plot(self.time_to_reward_per_trial)
-        plt.xlabel("Trials")
-        plt.ylabel("Number of timesteps to reward")
-        plt.title(f"Number of timesteps to reward over trials")
-        plt.savefig(f"out/{self.index}/time_to_reward.png")
-        plt.clf()
-
-    def plot_distances_over_time(self):
-        average = []
-        for trial, distances in self.distances_over_time.items():
-            plt.plot(distances)
-            average.append(np.mean(distances))
-            plt.xlabel("Timesteps")
-            plt.ylabel("Distance to reward")
-            plt.title(f"Distance to reward over time, trial: {trial}")
-            plt.savefig(f"out/{self.index}/{trial}/distances_over_time.png")
-            plt.clf()
-        plt.plot(average)
-        plt.xlabel("Trials")
-        plt.ylabel("Average distance to reward")
-        plt.title(f"Average distance to reward over trials")
-        plt.savefig(f"out/{self.index}/average_distance_to_reward.png")
-        plt.clf()
-
     def write_data(self):
         with open(f"out/{self.index}/time_to_reward.txt", "w") as file:
             for time in self.time_to_reward_per_trial:

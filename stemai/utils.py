@@ -59,7 +59,7 @@ def stemness(B):
 
 def draw_network(
     network,
-    colors,
+    node_colors = None,
     title=None,
     pos=None,
     t=None,
@@ -75,18 +75,27 @@ def draw_network(
     - network: networkx.Graph. The network to draw.
     """
     # fig = plt.figure(figsize=(12, 6))
-
-    node_colors = [colors[node] for node in network.nodes]
     # shift position a little bit
     shift = [-0.05, -0.05]
     shifted_pos = {node: node_pos + shift for node, node_pos in pos.items()}
 
     GS_labels = {}
+    node_colors = {}
     for node in network.nodes:
         if hasattr(network.nodes[node]["agent"], "G"):
             G = network.nodes[node]["agent"].G.sum().round(2) * -1
             S = stemness(network.nodes[node]["agent"].B).round(2)
             GS_labels[node] = f"G: {G}, S: {S}"
+        if 'i' in node:
+            node_colors[node] = 'mediumseagreen'
+        elif 'e' in node:
+            node_colors[node] = 'lightblue'
+        elif 'a' in node:
+            node_colors[node] = 'indianred'
+        elif 's' in node:
+            node_colors[node] = 'lightgrey'
+    print(f"Node colors: {node_colors}")
+    node_colors = [node_colors[node] for node in network.nodes]
     if _draw_neighboring_pairs:
 
         networkx.draw(
