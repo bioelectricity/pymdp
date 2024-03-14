@@ -360,11 +360,11 @@ class Runner:
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
-
+                
             self.save_network(trial, self.system.t)
-
+            self.write_data()
             if trial == self.num_trials - 1:
-                self.write_data()
+                #self.write_data()
 
                 # self.plot_time_to_reward()
                 # self.plot_distances_over_time()
