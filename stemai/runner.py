@@ -311,7 +311,7 @@ class Runner:
 
             if agent_location == self.system.reward_location or self.system.t > 2000:
                 self.time_to_reward_per_trial.append(self.system.t)
-                self.save_grids_for_trial(trial)
+               # self.save_grids_for_trial(trial)
 
                 self.system._reset()
 
@@ -336,7 +336,7 @@ class Runner:
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
                 
-            self.save_network(trial, self.system.t)
+            #self.save_network(trial, self.system.t)
             self.write_data()
             if trial == self.num_trials - 1:
                 #self.write_data()
