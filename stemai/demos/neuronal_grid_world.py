@@ -6,13 +6,13 @@ import os
 # comment these
 
 
-all_num_internal_cells = [50, 100, 150]
-all_num_sensory_cells = [4, 6, 8, 10]
+all_num_internal_cells = [50, 100]
+all_num_sensory_cells = [2, 4, 6]
 all_internal_connectivity = [0.1, 0.3, 0.5]
 all_sensory_connectivity = [0.3, 0.5, 0.7]
 all_active_connectivity_proportion = [0.3, 0.6, 0.8]
 all_sensory_connectivity_proportion = [0.2, 0.4, 0.6]
-all_action_time_threshold = [5, 10, 15]
+all_action_time_threshold = [1, 5, 10]
 all_precision_threshold = [0.1, 0.3, 0.5]
 all_precision_update_frequency = [10, 20, 30]
 all_add_connections = [True, False] #need to rerun with True
@@ -33,7 +33,7 @@ params_to_sweep = {
 
 }
 
-default_num_trials = 30
+default_num_trials = 15
 default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4
