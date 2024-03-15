@@ -281,14 +281,13 @@ for param_to_sweep, index_mapping in param_to_index_mapping.items():
         full_times.append(times_per_param)
 
 
-    distance_avg = [np.nanmean(d, axis = 0) for d in full_distances]
-    connectivity_avg = [np.nanmean(c, axis = 0) for c in full_connectivities]
-    avg_times = [np.nanmean(t, axis = 0) for t in full_times]
+    distance_avg = [np.mean(d, axis = 0) for d in full_distances]
+    connectivity_avg = [np.mean(c, axis = 0) for c in full_connectivities]
+    avg_times = [np.mean(t, axis = 0) for t in full_times]
 
-    distance_std = [  np.nanstd(d, axis = 0) for d in full_distances]
-    connectivity_std = [np.nanstd(c, axis = 0) for c in full_connectivities]
-    avg_times_std = [np.nanstd(t, axis = 0) for t in full_times]
-
+    distance_std = [  np.std(d, axis = 0) for d in full_distances]
+    connectivity_std = [np.std(c, axis = 0) for c in full_connectivities]
+    avg_times_std = [np.std(t, axis = 0) for t in full_times]
 
 
     plt.bar(np.arange(len(param_values)), avg_avg, 0.4, yerr=np.std(all_average_times, axis=0), capsize=5, label="Average time to reach reward")
@@ -302,7 +301,7 @@ for param_to_sweep, index_mapping in param_to_index_mapping.items():
     plt.clf()
 
     for param_idx, param in enumerate(param_values):
-        plt.plot(distance_avg[param_idx], label=f"Average distance to reward: {param_to_sweep} = {param}")
+        plt.plot(distance_avg[param_idx], label=f"{param_to_sweep} = {param}")
         plt.fill_between(np.arange(len(distance_avg[param_idx])), distance_avg[param_idx] - distance_std[param_idx], distance_avg[param_idx] + distance_std[param_idx], alpha=0.2)
         
     plt.ylabel("Distance to reward")
@@ -310,19 +309,19 @@ for param_to_sweep, index_mapping in param_to_index_mapping.items():
 
     # plt.xticks(np.arange(len(distance_avg[param_idx])),distance_avg[param_idx])
     plt.legend()
-    plt.title(f"Average connections by time for {param_to_sweep}")
+    plt.title(f"Distance to reward {param_to_sweep}")
     plt.savefig(f"out/{param_to_sweep}_connections.png")
     plt.show()
     plt.clf()
 
     for param_idx, param in enumerate(param_values):
-        plt.plot(avg_times[param_idx], label=f"Average time to reach reward: {param_to_sweep} = {param}")
+        plt.plot(avg_times[param_idx], label=f"{param_to_sweep} = {param}")
         plt.fill_between(np.arange(len(avg_times[param_idx])), avg_times[param_idx] - avg_times_std[param_idx], avg_times[param_idx] + avg_times_std[param_idx], alpha=0.2)
     plt.ylabel("Time to reach reward")
     plt.xlabel("Trials")
  #   plt.xticks(np.arange(len(avg_times[param_idx])), avg_times[param_idx])
     plt.legend()
-    plt.title(f"Average time to reach reward for {param_to_sweep}")
+    plt.title(f"Time to reach reward for {param_to_sweep}")
     plt.savefig(f"out/{param_to_sweep}_average_time.png")
     plt.show()
     plt.clf()

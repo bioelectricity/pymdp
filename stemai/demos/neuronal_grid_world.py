@@ -13,7 +13,7 @@ import concurrent.futures
 import shutil 
 def run_simulation(index, param):
 
-    if os.path.exists(f'out/{index}/connectivities.txt'):
+    if os.path.exists(f'out/{index}/14'):
         print(f"Simulation {index} already exists")
         return
     elif os.path.exists(f'out/{index}'):
