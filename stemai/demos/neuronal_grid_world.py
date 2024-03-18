@@ -23,8 +23,6 @@ def run_simulation(index, param, dir  = 'out'):
     if not os.path.exists(f'{dir}/{index}'):
         os.makedirs(f'{dir}/{index}')
 
-
-
     print(f"Running simulation {index}")
     runner = Runner(**param, index=index, dir = dir)
     runner.run()
@@ -32,7 +30,7 @@ def run_simulation(index, param, dir  = 'out'):
 
 idx = 0
 while True:
-    dir = f"out-{idx}"
+    dir = [f"out-{idx}"] * len(all_parameter_combinations)
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.map(
@@ -40,6 +38,7 @@ while True:
         )
     print(f"Finished batch for dir {dir}")
 
+run_simulation(19, all_parameter_combinations[19], dir = "out-0")
 
 # import asyncio
 # import os
