@@ -35,7 +35,7 @@ while True:
 
     dir = [f"out-{dir_idx}"] * len(all_parameter_combinations)
     for param in tqdm.tqdm(all_parameter_combinations):
-        run_simulation(idx, all_parameter_combinations[idx], dir = "out-0")
+        run_simulation(idx, all_parameter_combinations[idx], dir =dir)
         idx += 1
     
     print(f"Finished batch for dir {dir}")
