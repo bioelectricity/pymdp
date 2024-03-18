@@ -54,5 +54,5 @@ def run_default():
     run_simulation(param)
 
 if __name__ == "__main__":
-    #run_default()
-    sweep()
+    run_default()
+    #sweep()
