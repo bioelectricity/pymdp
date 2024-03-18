@@ -35,7 +35,7 @@ def run_simulation(param):
 
 while True:
 
-    for param in tqdm.tqdm(all_parameter_combinations[19:]):
+    for param in tqdm.tqdm(all_parameter_combinations[1:]):
         run_simulation(param)
     
     # with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -46,38 +46,4 @@ while True:
     #         future.result()
 
     print(f"Finished batch for dir {dir}")
-
-# run_simulation(19, all_parameter_combinations[19], dir = "out-0")
-
-# import asyncio
-# import os
-
-# async def run_simulation(index, param):
-#     if not os.path.exists(f'out/{index}/0/networks'):
-#         os.makedirs(f'out/{index}/0/networks')
-#         os.makedirs(f'out/{index}/0/grids')
-
-#     print(f"Running simulation {index}")
-#     runner = Runner(**param, index=index)
-#     await runner.run()
-
-#     print(f"Finished simulation {index}")
-
-# async def main():
-#     tasks = [asyncio.create_task(run_simulation(index, param)) for index, param in enumerate(all_parameter_combinations)]
-#     await asyncio.gather(*tasks)
-
-# asyncio.run(main())
-
-# index = 0
-# for param in all_parameter_combinations:
-#     if not os.path.exists(f'out/{index}/0/networks'):
-#         os.makedirs(f'out/{index}/0/networks')
-#         os.makedirs(f'out/{index}/0/grids')
-
-#     print(f"Running simulation {index}")
-#     runner = Runner(**param, index=index)
-#     runner.run()
-#     index += 1
-#     print(f"Finished simulation {index}")
-# %%
+ 
