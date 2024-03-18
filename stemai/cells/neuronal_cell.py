@@ -91,8 +91,6 @@ class NeuronalCell(Agent):
         self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
 
     def disconnect_from(self, neighbor_node):
-        if self.num_modalities == 1:
-            return
 
         self.num_neighbors -= 1
         self.num_modalities -= 1
@@ -143,9 +141,20 @@ class NeuronalCell(Agent):
         self.qs_over_time = []
         self.observation_history = []
 
+        return True
+    
+    def check_connect_to(self, neighbor_node):
+        if neighbor_node in self.neighbors:
+            return False
+        return True
+
+    def check_disconnect_from(self, neighbor_node):
+        if self.num_modalities == 1 or neighbor_node not in self.neighbors:            
+            return False
+        return True
+
         
     def connect_to(self, neighbor_node):
-        print(f"Connecting node to neighbor node: {neighbor_node}")
         self.num_neighbors += 1
         self.num_modalities += 1
         self.num_obs.append(2)
@@ -170,7 +179,9 @@ class NeuronalCell(Agent):
         self.beta_zeta_prior = new_beta_zeta_prior
         self.beta_zeta = new_beta_zeta
         self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
-        self.neighbors.append(neighbor_node)
+        # print(f"Neighbors: {self.neighbors}")
+        self.neighbors = [neighbor_node] + self.neighbors
+        # print(f"New neighbors: {self.neighbors}")
         
         self.rebuild_A_factor_list()
  

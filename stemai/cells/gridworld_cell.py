@@ -123,15 +123,15 @@ class GridWorldCell(ExternalCell):
         """
         obs = np.random.choice(np.flatnonzero(qs_obs == np.array(qs_obs).max()))
 
-        print(f"Action: {self.action_names[obs]}")
+        # print(f"Action: {self.action_names[obs]}")
 
         self.observation_history.append(obs)
 
-        print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
+        # print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
 
         obs = int(stats.mode(self.observation_history[-self.action_time_horizon :])[0])
 
-        print(f"Averaged observation: {obs}")
+        # print(f"Averaged observation: {obs}")
 
         if obs == 0:
             if self.agent_location[1] < self.grid_size - 1:
@@ -151,8 +151,8 @@ class GridWorldCell(ExternalCell):
             self.agent_location[1] - self.reward_location[1]
         )
 
-        print(f"Agent location: {self.agent_location}")
-        print(f"Distance to reward location: {distance_to_reward_location}")
+        # print(f"Agent location: {self.agent_location}")
+        # print(f"Distance to reward location: {distance_to_reward_location}")
         probabilities = [0.5, 0.5]
 
         if distance_to_reward_location == 0:  # on the point

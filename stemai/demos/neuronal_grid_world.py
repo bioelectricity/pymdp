@@ -11,31 +11,36 @@ import concurrent.futures
 # Start Generation Here
 import concurrent.futures
 import shutil 
-def run_simulation(index, param):
+def run_simulation(index, param, dir  = 'out'):
 
-    if os.path.exists(f'out/{index}/14'):
+    if os.path.exists(f'{dir}/{index}/14'):
         print(f"Simulation {index} already exists")
         return
-    elif os.path.exists(f'out/{index}'):
+    elif os.path.exists(f'{dir}/{index}'):
         print(f"Simulation {index} already exists but not complete, removing")
-        shutil.rmtree(f'out/{index}')
+        shutil.rmtree(f'{dir}/{index}')
 
-    os.makedirs(f'out/{index}/0/networks')
-    os.makedirs(f'out/{index}/0/grids')
+    if not os.path.exists(f'{dir}/{index}'):
+        os.makedirs(f'{dir}/{index}')
 
 
 
     print(f"Running simulation {index}")
-    runner = Runner(**param, index=index)
+    runner = Runner(**param, index=index, dir = dir)
     runner.run()
     print(f"Finished simulation {index}")
 
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    executor.map(
-        run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations
-    )
+idx = 0
+# while True:
+#     dir = f"out-{idx}"
+    
+#     with concurrent.futures.ThreadPoolExecutor() as executor:
+#         executor.map(
+#             run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations, dir
+#         )
+#     print(f"Finished batch for dir {dir}")
 
-# run_simulation(26, all_parameter_combinations[26])
+run_simulation(19, all_parameter_combinations[19], dir = "out-0")
 
 # import asyncio
 # import os

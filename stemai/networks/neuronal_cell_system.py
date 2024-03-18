@@ -311,10 +311,20 @@ class System(Network):
     def internal_act(self, node, update=True, accumulate=True, logging=False):
         if logging: print(f"INTERNAL ACT FOR NODE {node}")
         if logging: print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].beta_zeta}")
+        internal_agent = self.internal_network.network.nodes[node]["agent"]
+
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
         # nodes that send signals to the internal cells
         incoming_nodes = internal_neighbors + self.internal_network.incoming_nodes[node]
+
+        if len(incoming_nodes) != internal_agent.num_modalities:
+            print(f"Node: {node}")
+            print("incoming nodes not equal to num modalities")
+            print(f"Non internal incoming nodes: {self.internal_network.incoming_nodes[node]}")
+            print(f"Internal neighbors: {internal_neighbors}")
+            print(f"Num modalities: {internal_agent.num_modalities}")
+            raise
         # nodes that receive signals from the internal cells
 
         if logging: print(f"Incoming nodes for internal agent: {incoming_nodes}")
@@ -324,8 +334,6 @@ class System(Network):
             self.active_network.network.nodes[node]
             for node in self.internal_network.outgoing_nodes[node]
         ]
-
-        internal_agent = self.internal_network.network.nodes[node]["agent"]
 
         signals = [internal_agent.actions_received[i] for i in incoming_nodes]
         if len(signals) == 0:
@@ -531,18 +539,26 @@ class System(Network):
             list(self.internal_network.nodes), int(self.new_connection_probability * len(self.internal_network.nodes))
         )
 
+
         for node in nodes_to_add_new_connections_for:
+            agent = self.internal_network.nodes[node]["agent"]
+
             neighbors = list(networkx.neighbors(self.internal_network.network, node))
-            nodes_that_arent_neighbors = [n for n in nodes if n not in neighbors]
+            nodes_that_arent_neighbors = [n for n in nodes if n not in neighbors and n!=node]
             nodes_to_connect_to = np.random.choice(
                 nodes_that_arent_neighbors, int(self.new_connection_node_percentage * len(nodes_that_arent_neighbors))
             )
             for new_node in nodes_to_connect_to:
-                self.internal_network.nodes[node]["agent"].connect_to(new_node)
-                self.internal_network.nodes[new_node]["agent"].connect_to(node)
-                self.internal_network.network.add_edge(node, new_node)
+                new_agent = self.internal_network.nodes[new_node]["agent"]
+                if not new_agent.check_connect_to(node) or not agent.check_connect_to(new_node):
+                    continue
+
+                agent.connect_to(new_node)
+                new_agent.connect_to(node)
                 self.system.add_edge(node, new_node)
-                self.internal_network.network.add_edge(new_node, node)
+                self.internal_network.network.add_edge(node, new_node)
+                assert node in list(networkx.neighbors(self.internal_network.network, new_node))
+                assert new_node in list(networkx.neighbors(self.internal_network.network, node))
 
 
     def prune(self):
@@ -551,7 +567,9 @@ class System(Network):
 
         for node_idx in range(len(nodes)):
             node = nodes[node_idx]
+
             agent = self.internal_network.nodes[node]["agent"]
+
             neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
             internal_neighbors = [n for n in neighbors if "i" in n]
@@ -579,17 +597,12 @@ class System(Network):
                 #     f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precisions[minimum_precision_neighbor]} and A value {agent.A[neighbor_idx]}"
                 # )
                 # prune this connection
-                self.internal_network.nodes[node]["agent"].disconnect_from(neighbor)
-                self.internal_network.nodes[neighbor]["agent"].disconnect_from(node)
+                new_agent = self.internal_network.nodes[neighbor]["agent"]
+                if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
+                    continue
+                agent.disconnect_from(neighbor)
+                new_agent.disconnect_from(node)
                 node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
                 if neighbor in node_neighbors:
                     self.internal_network.network.remove_edge(node, neighbor)
                     self.system.remove_edge(node, neighbor)
-                if neighbor in self.internal_network.incoming_nodes[node]:
-                    self.internal_network.incoming_nodes[node].remove(neighbor)
-                if neighbor in self.internal_network.outgoing_nodes[node]:
-                    self.internal_network.outgoing_nodes[node].remove(neighbor)
-                if node in self.internal_network.incoming_nodes[neighbor]:
-                    self.internal_network.incoming_nodes[neighbor].remove(node)
-                if node in self.internal_network.outgoing_nodes[neighbor]:
-                    self.internal_network.outgoing_nodes[neighbor].remove(node)
