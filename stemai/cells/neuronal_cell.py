@@ -87,6 +87,9 @@ class NeuronalCell(Agent):
             B[f] = np.eye(self.num_states[0]).reshape((self.num_states[0], self.num_states[0], 1))
         self.B = B
 
+    def rebuild_A_factor_list(self):
+        self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
+
     def disconnect_from(self, neighbor_node):
         if self.num_modalities == 1:
             return
@@ -135,23 +138,31 @@ class NeuronalCell(Agent):
         self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
         self.neighbors.remove(self.neighbors[neighbor_idx])
         if self.logging: print(f"New beta zeta: {len(self.beta_zeta_prior)}")
+        self.actions_received.pop(neighbor_node)
+        self.rebuild_A_factor_list()
+        self.qs_over_time = []
+        self.observation_history = []
 
+        
     def connect_to(self, neighbor_node):
+        print(f"Connecting node to neighbor node: {neighbor_node}")
         self.num_neighbors += 1
         self.num_modalities += 1
         self.num_obs.append(2)
         old_base_A = np.copy(self.base_A)
         old_beta_zeta = np.copy(self.beta_zeta)
         old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
+
         self.build_B()
 
         new_base_A = utils.obj_array(self.num_modalities)
         new_beta_zeta = utils.obj_array(self.num_modalities)
         new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        
         for m in range(1, self.num_modalities):
-            new_base_A[m] = old_base_A[m]
-            new_beta_zeta[m] = old_beta_zeta[m]
-            new_beta_zeta_prior[m] = old_beta_zeta_prior[m]
+            new_base_A[m] = old_base_A[m-1]
+            new_beta_zeta[m] = old_beta_zeta[m-1]
+            new_beta_zeta_prior[m] = old_beta_zeta_prior[m-1]
         new_base_A[0] = np.eye(self.num_states[0])
         new_beta_zeta[0] = 0.1
         new_beta_zeta_prior[0] = 0.1
@@ -160,6 +171,13 @@ class NeuronalCell(Agent):
         self.beta_zeta = new_beta_zeta
         self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
         self.neighbors.append(neighbor_node)
+        
+        self.rebuild_A_factor_list()
+ 
+
+        self.qs_over_time = []
+        self.observation_history = []
+        self.actions_received[neighbor_node] = np.random.choice([0, 1])
 
 
     def act(self, obs, distance_to_reward=None):

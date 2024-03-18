@@ -542,12 +542,7 @@ class System(Network):
                 self.internal_network.nodes[new_node]["agent"].connect_to(node)
                 self.internal_network.network.add_edge(node, new_node)
                 self.system.add_edge(node, new_node)
-                self.internal_network.incoming_nodes[node].append(new_node)
-                self.internal_network.outgoing_nodes[node].append(new_node)
-                self.internal_network.incoming_nodes[new_node].append(node)
-                self.internal_network.outgoing_nodes[new_node].append(node)
-
-
+                self.internal_network.network.add_edge(new_node, node)
 
 
     def prune(self):
