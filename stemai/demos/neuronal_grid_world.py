@@ -31,14 +31,21 @@ def run_simulation(index, param, dir  = 'out'):
 dir_idx = 0
 
 while True:
-    idx = 0
 
     dir = [f"out-{dir_idx}"] * len(all_parameter_combinations)
-    for param in tqdm.tqdm(all_parameter_combinations):
-        run_simulation(idx, all_parameter_combinations[idx], dir = "out-0")
-        idx += 1
+    # for param in tqdm.tqdm(all_parameter_combinations):
+    #     run_simulation(idx, all_parameter_combinations[idx], dir = dir)
+    #     idx += 1
     
     print(f"Finished batch for dir {dir}")
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for idx, param in enumerate(all_parameter_combinations):
+            futures.append(executor.submit(run_simulation, idx, param, dir=dir))
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+
 
 # run_simulation(19, all_parameter_combinations[19], dir = "out-0")
 
