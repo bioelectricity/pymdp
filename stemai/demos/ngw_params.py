@@ -49,7 +49,7 @@ params_to_sweep = {
 
 }
 
-default_num_trials = 15
+default_num_trials = 21
 default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4

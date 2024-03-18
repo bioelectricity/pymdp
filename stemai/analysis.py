@@ -208,7 +208,7 @@ class TrialAnalysis:
 
 
 
-run_dirs = ["out", "out-1", "out-2", "out-3"]
+run_dirs = [d for d in os.listdir('.') if 'out' in d]
 
 param_results = {}
 
