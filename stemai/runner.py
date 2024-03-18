@@ -34,7 +34,6 @@ class Runner:
         precision_update_frequency,
         prune_connections, 
         add_connections,
-        index,
         logging=False,
         dir="out"
     ):
@@ -58,7 +57,7 @@ class Runner:
         self.precision_threshold = precision_threshold
         self.precision_update_frequency = precision_update_frequency
         self.logging = logging
-        self.index = index
+
         self.prune_connections = prune_connections
         self.add_connections = add_connections
 
@@ -87,9 +86,9 @@ class Runner:
             "add_connections": self.add_connections,
             "logging": self.logging,
         }
-
-        with open(f"{self.dir}/{self.index}/params.yaml", "w") as file:
-            yaml.dump(params, file)
+        if not os.path.exists(f"{self.dir}/params.yaml"):
+            with open(f"{self.dir}/params.yaml", "w") as file:
+                yaml.dump(params, file)
 
         self.construct_system()
         self.set_locations()
@@ -188,7 +187,7 @@ class Runner:
         self.system.update_grid_locations(self.all_reward_locations[0], self.all_agent_locations[0])
 
     def save_network(self, trial, t):
-        pickle.dump(self.system.system, open(f"{self.dir}/{self.index}/{trial}/networks/{t}.pickle", "wb"))
+        pickle.dump(self.system.system, open(f"{self.dir}/{trial}/networks/{t}.pickle", "wb"))
 
     def draw(self, trial, t):
         title = (
@@ -204,13 +203,13 @@ class Runner:
             _draw_neighboring_pairs=True,
             save=True,
             show=False,
-            temp_file_name=f"{self.dir}/{self.index}/{trial}/networks/{t}.png",
+            temp_file_name=f"{self.dir}/{trial}/networks/{t}.png",
         )
         plt.title(title, color="black")
         plt.clf()
 
     def save_grids_for_trial(self, trial):
-        np.save(f"{self.dir}/{self.index}/{trial}/grids.npy", self.grids_over_time)
+        np.save(f"{self.dir}/{trial}/grids.npy", self.grids_over_time)
 
     def plot_grids_for_trial(self, trial):
 
@@ -219,22 +218,22 @@ class Runner:
             title = f"Trial: {trial}, timestep :{t}, distance_to_reward: {self.distances_over_time[trial][t]}, signal: {self.signals_over_time[trial][t]}"
             if t in self.gamma_update_times:
                 plt.text(0, 0, "Gamma update", color="white")
-            plt.savefig(f"{self.dir}/{self.index}/{trial}/grids/{t}.png", facecolor="w")
+            plt.savefig(f"{self.dir}/{trial}/grids/{t}.png", facecolor="w")
             plt.title(title, color="black")
             plt.clf()
         self.grids_over_time = []
         self.gamma_update_times = []
 
     def write_data(self):
-        with open(f"{self.dir}/{self.index}/time_to_reward.txt", "w") as file:
+        with open(f"{self.dir}/time_to_reward.txt", "w") as file:
             for time in self.time_to_reward_per_trial:
                 file.write(f"{time}\n")
 
-        with open(f"{self.dir}/{self.index}/distances_over_time.txt", "w") as file:
+        with open(f"{self.dir}/distances_over_time.txt", "w") as file:
             for trial, distances in self.distances_over_time.items():
                 file.write(f"{trial}: {distances}\n")
 
-        with open(f"{self.dir}/{self.index}/connectivities.txt", "w") as file:
+        with open(f"{self.dir}/connectivities.txt", "w") as file:
             for trial, connectivity in self.connectivities.items():
                 file.write(f"{trial}: {connectivity}\n")
 
@@ -243,13 +242,13 @@ class Runner:
         grid_images = []
         for i in range(self.num_trials):
             network_fns = [
-                f"{self.dir}/{self.index}/{i}/networks/{j}.png"
+                f"{self.dir}/{i}/networks/{j}.png"
                 for j in range(
                     1,
                     len(
                         [
                             x
-                            for x in os.listdir(f"{self.dir}/{self.index}/{i}/networks/")
+                            for x in os.listdir(f"{self.dir}/{i}/networks/")
                             if x.endswith(".png")
                         ]
                     ),
@@ -257,24 +256,24 @@ class Runner:
             ]
             network_images += [imageio.imread(f) for f in network_fns]
             grid_fns = [
-                f"{self.dir}/{self.index}/{i}/grids/{j}.png"
+                f"{self.dir}/{i}/grids/{j}.png"
                 for j in range(
                     1,
                     len(
                         [
                             x
-                            for x in os.listdir(f"{self.dir}/{self.index}/{i}/grids/")
+                            for x in os.listdir(f"{self.dir}/{i}/grids/")
                             if x.endswith(".png")
                         ]
                     ),
                 )
             ]
             grid_images += [imageio.imread(f) for f in grid_fns]
-        gif_path = f"{self.dir}/{self.index}/network-simulation.gif"
+        gif_path = f"{self.dir}/network-simulation.gif"
         imageio.mimsave(gif_path, network_images, fps=5)
         # for temp_file in network_fns:
         #     os.remove(temp_file)
-        gif_path = f"{self.dir}/{self.index}/grid-simulation.gif"
+        gif_path = f"{self.dir}/grid-simulation.gif"
         imageio.mimsave(gif_path, grid_images, fps=5)
         # for temp_file in grid_fns:
         #     os.remove(temp_file)

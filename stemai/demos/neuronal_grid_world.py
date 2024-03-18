@@ -6,38 +6,45 @@ import tqdm
 # %%
 # comment these
 
-import concurrent.futures
+import yaml
 
 # Start Generation Here
 import concurrent.futures
 import shutil 
-def run_simulation(index, param, dir  = 'out'):
+def run_simulation(param):
 
-    if os.path.exists(f'{dir}/{index}/14'):
-        print(f"Simulation {index} already exists")
-        return
-    elif os.path.exists(f'{dir}/{index}'):
-        print(f"Simulation {index} already exists but not complete, removing")
-        shutil.rmtree(f'{dir}/{index}')
+    dirs_to_search = os.listdir('output')
+    new_dir = None
+    print(f"Searching directories: {dirs_to_search} for this parameter combination")
+    for d in dirs_to_search:
+        if os.path.exists(f"output/{d}/params.yaml"):
+            print(f"Checking directory {d} for params.yaml file")
+            file = open(f"output/{d}/params.yaml", "r")
+            if file.read() == yaml.dump(param):
+                print(f"Found directory for this parameter combination: {d}")
+                new_dir_idx = max([int(f) for f in os.listdir(f'output/{d}') if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
+                new_dir = f'output/{d}/{new_dir_idx}'
+    assert new_dir is not None
 
-    if not os.path.exists(f'{dir}/{index}'):
-        os.makedirs(f'{dir}/{index}')
+    print(f"Will save results to : {new_dir}")
+    os.makedirs(new_dir)
 
-    print(f"Running simulation {index}")
-    runner = Runner(**param, index=index, dir = dir)
+    runner = Runner(**param, dir = new_dir)
     runner.run()
-    print(f"Finished simulation {index}")
 
-dir_idx = 0
 
 while True:
-    idx = 0
 
-    dir = [f"out-{dir_idx}"] * len(all_parameter_combinations)
-    for param in tqdm.tqdm(all_parameter_combinations):
-        run_simulation(idx, all_parameter_combinations[idx], dir =dir)
-        idx += 1
+    for param in tqdm.tqdm(all_parameter_combinations[19:]):
+        run_simulation(param)
     
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     futures = []
+    #     for idx, param in enumerate(all_parameter_combinations):
+    #         futures.append(executor.submit(run_simulation, idx, param, dir=dir))
+    #     for future in concurrent.futures.as_completed(futures):
+    #         future.result()
+
     print(f"Finished batch for dir {dir}")
 
 # run_simulation(19, all_parameter_combinations[19], dir = "out-0")
