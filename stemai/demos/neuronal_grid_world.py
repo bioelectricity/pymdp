@@ -2,7 +2,7 @@
 from stemai.runner import Runner
 import os
 from stemai.demos.ngw_params import all_parameter_combinations
-
+import tqdm 
 # %%
 # comment these
 
@@ -28,17 +28,19 @@ def run_simulation(index, param, dir  = 'out'):
     runner.run()
     print(f"Finished simulation {index}")
 
-idx = 0
+dir_idx = 0
+
 while True:
-    dir = [f"out-{idx}"] * len(all_parameter_combinations)
+    idx = 0
+
+    dir = [f"out-{dir_idx}"] * len(all_parameter_combinations)
+    for param in tqdm.tqdm(all_parameter_combinations):
+        run_simulation(idx, all_parameter_combinations[idx], dir = "out-0")
+        idx += 1
     
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(
-            run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations, dir
-        )
     print(f"Finished batch for dir {dir}")
 
-run_simulation(19, all_parameter_combinations[19], dir = "out-0")
+# run_simulation(19, all_parameter_combinations[19], dir = "out-0")
 
 # import asyncio
 # import os
