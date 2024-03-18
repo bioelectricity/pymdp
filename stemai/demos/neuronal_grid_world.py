@@ -31,16 +31,15 @@ def run_simulation(index, param, dir  = 'out'):
     print(f"Finished simulation {index}")
 
 idx = 0
-# while True:
-#     dir = f"out-{idx}"
+while True:
+    dir = f"out-{idx}"
     
-#     with concurrent.futures.ThreadPoolExecutor() as executor:
-#         executor.map(
-#             run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations, dir
-#         )
-#     print(f"Finished batch for dir {dir}")
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(
+            run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations, dir
+        )
+    print(f"Finished batch for dir {dir}")
 
-run_simulation(19, all_parameter_combinations[19], dir = "out-0")
 
 # import asyncio
 # import os
