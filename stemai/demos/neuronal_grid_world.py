@@ -32,18 +32,27 @@ def run_simulation(param):
     runner = Runner(**param, dir = new_dir)
     runner.run()
 
+def sweep():
 
-while True:
+    while True:
 
-    for param in tqdm.tqdm(all_parameter_combinations[1:]):
-        run_simulation(param)
-    
-    # with concurrent.futures.ThreadPoolExecutor() as executor:
-    #     futures = []
-    #     for idx, param in enumerate(all_parameter_combinations):
-    #         futures.append(executor.submit(run_simulation, idx, param, dir=dir))
-    #     for future in concurrent.futures.as_completed(futures):
-    #         future.result()
+        for param in tqdm.tqdm(all_parameter_combinations[1:]):
+            run_simulation(param)
+        
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        #     futures = []
+        #     for idx, param in enumerate(all_parameter_combinations):
+        #         futures.append(executor.submit(run_simulation, idx, param, dir=dir))
+        #     for future in concurrent.futures.as_completed(futures):
+        #         future.result()
 
-    print(f"Finished batch for dir {dir}")
+        print(f"Finished batch for dir {dir}")
  
+
+def run_default():
+    param = all_parameter_combinations[0]
+    run_simulation(param)
+
+if __name__ == "__main__":
+    #run_default()
+    sweep()
