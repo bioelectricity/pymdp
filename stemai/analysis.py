@@ -8,7 +8,7 @@ import imageio
 import networkx
 os.chdir('../')
 #plots to make 
-from stemai.demos.ngw_params import all_parameter_combinations, params_to_sweep
+from stemai.demos.ngw_params import all_parameter_combinations, params_to_sweep, param_to_index_mapping
 from stemai.utils import draw_network
 
 
@@ -195,17 +195,20 @@ class TrialAnalysis:
 
 #%%
 
-idx = 0
-param_to_index_mapping = {}
-for param_to_sweep, values in params_to_sweep.items():
-    param_to_index_mapping[param_to_sweep] = {}
-    for v in values:
-        param_to_index_mapping[param_to_sweep][idx] = v 
-        idx += 1
+# idx = 0
+# param_to_index_mapping = {}
+# for param_to_sweep, values in params_to_sweep.items():
+#     param_to_index_mapping[param_to_sweep] = {}
+#     for v in values:
+#         param_to_index_mapping[param_to_sweep][idx] = v 
+#         idx += 1
+
+# param_to_index_mapping = {'add_connections': {26: True, 27: False},
+#  'prune_connections': {28: True, 29: False}}
 
 
 
-run_dirs = ["out", "out-1", "out-2"]
+run_dirs = ["out", "out-1", "out-2", "out-3"]
 
 param_results = {}
 
@@ -252,11 +255,7 @@ for param_to_sweep, index_mapping in param_to_index_mapping.items():
         all_connectivities.append(connectivities)
         all_times.append(_times)
     
-    try:
-        avg_avg = np.mean(all_average_times, axis = 0)
-    except:
-        print(f"Could not plot for {param_to_sweep}")
-        continue
+    avg_avg = np.mean(all_average_times, axis = 0)
     last_avg = np.mean(all_last_times, axis = 0)
 
     full_distances = []

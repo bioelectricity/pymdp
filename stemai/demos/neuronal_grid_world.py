@@ -30,12 +30,12 @@ def run_simulation(index, param):
     runner.run()
     print(f"Finished simulation {index}")
 
-with concurrent.futures.ThreadPoolExecutor() as executor:
-    executor.map(
-        run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations
-    )
+# with concurrent.futures.ThreadPoolExecutor() as executor:
+#     executor.map(
+#         run_simulation, range(len(all_parameter_combinations)), all_parameter_combinations
+#     )
 
-# run_simulation(1, all_parameter_combinations[1])
+run_simulation(1, all_parameter_combinations[1])
 
 # import asyncio
 # import os

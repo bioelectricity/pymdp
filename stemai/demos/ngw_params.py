@@ -42,6 +42,7 @@ params_to_sweep = {
     "sensory_connectivity_proportion": all_sensory_connectivity_proportion,
     "action_time_threshold": all_action_time_threshold,
     "precision_threshold": all_precision_threshold,
+
     "precision_update_frequency": all_precision_update_frequency,
     "add_connections": all_add_connections,
     "prune_connections": all_prune_connections,
@@ -88,11 +89,23 @@ defaults = {
     "add_connections": default_add_connections,
     "prune_connections": default_prune_connections,
 }
-
+did_default=False
 all_parameter_combinations = []
+idx = 0
+param_to_index_mapping = {}
+
 for name, sweep_params in params_to_sweep.items():
+    param_to_index_mapping[name] = {}
     for param in sweep_params:
         parameters = defaults.copy()
+        if parameters[name] == param and did_default is True:
+            param_to_index_mapping[name][default_index] = param
+            continue
+        elif parameters[name] == param:
+            did_default = True
+            default_index = idx
         parameters[name] = param
 
         all_parameter_combinations.append(parameters)  # %%
+        param_to_index_mapping[name][idx] = param
+        idx += 1
