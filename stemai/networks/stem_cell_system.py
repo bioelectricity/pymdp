@@ -137,31 +137,40 @@ class StemCellSystem(Network):
         for idx, neighbor in enumerate(neighbors):
             neighbor["agent"].actions_received[node] = int(action_string[idx])
 
-    def update_observations_external(self, node, action, neighbors, qs = None):
+    def update_observations_external(self, node, action, neighbors, qs=None):
 
         for idx, neighbor in enumerate(neighbors):
             neighbor["agent"].actions_received[node] = int(action)
+
     def update_reward_location(self, reward_location):
         self.reward_location = reward_location
         for node in self.external_network.network.nodes:
-            self.external_network.network.nodes[node]["agent"].reward_location = self.reward_location
+            self.external_network.network.nodes[node][
+                "agent"
+            ].reward_location = self.reward_location
 
-    def sensory_act(self, node, update = True, accumulate = True, logging=False):
+    def sensory_act(self, node, update=True, accumulate=True, logging=False):
 
         sensory_neighbors = list(networkx.neighbors(self.sensory_network.network, node))
 
         # nodes that send signals to the sensory cells
-        incoming_nodes_names = sensory_neighbors + list(self.external_network.network.nodes) + list(
-            self.active_network.network.nodes
+        incoming_nodes_names = (
+            sensory_neighbors
+            + list(self.external_network.network.nodes)
+            + list(self.active_network.network.nodes)
         )
         # nodes that receive signals from the sensory cells
-        outgoing_node_names = sensory_neighbors + list(self.internal_network.network.nodes) + list(
-            self.active_network.network.nodes
+        outgoing_node_names = (
+            sensory_neighbors
+            + list(self.internal_network.network.nodes)
+            + list(self.active_network.network.nodes)
         )
 
-        outgoing_nodes = [self.sensory_network.nodes[node] for node in sensory_neighbors] + [
-            self.internal_network.nodes[node] for node in self.internal_network.nodes
-        ] + [self.active_network.nodes[node] for node in self.active_network.nodes]
+        outgoing_nodes = (
+            [self.sensory_network.nodes[node] for node in sensory_neighbors]
+            + [self.internal_network.nodes[node] for node in self.internal_network.nodes]
+            + [self.active_network.nodes[node] for node in self.active_network.nodes]
+        )
 
         # print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
         # print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
@@ -169,9 +178,13 @@ class StemCellSystem(Network):
         sensory_agent = self.sensory_network.nodes[node]["agent"]
 
         if self.t == 0:
-            sensory_agent.actions_received = {n: np.random.choice([0,1]) for n in incoming_nodes_names}
-            sensory_agent.actions_sent = {n: np.random.choice([0,1]) for n in outgoing_node_names}
-            signals = [np.random.choice([0,1]) for i in range(len(incoming_nodes_names))]  # a list of signals from each external node
+            sensory_agent.actions_received = {
+                n: np.random.choice([0, 1]) for n in incoming_nodes_names
+            }
+            sensory_agent.actions_sent = {n: np.random.choice([0, 1]) for n in outgoing_node_names}
+            signals = [
+                np.random.choice([0, 1]) for i in range(len(incoming_nodes_names))
+            ]  # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
         if logging:
@@ -180,14 +193,14 @@ class StemCellSystem(Network):
         if logging:
             print(f"Sensory observation: {sensory_obs}")
 
-        action_string = sensory_agent.act(sensory_obs, update = update,accumulate=accumulate)
+        action_string = sensory_agent.act(sensory_obs, update=update, accumulate=accumulate)
 
         if logging:
             print(f"Sensory action: {action_string}")
 
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def internal_act(self, node, update=True, accumulate = True, logging=False):
+    def internal_act(self, node, update=True, accumulate=True, logging=False):
 
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
@@ -206,22 +219,26 @@ class StemCellSystem(Network):
         internal_obs = internal_agent.state_signal_to_index(signals)
         if logging:
             print(f"Internal agent {node} observation: {internal_obs}")
-        action_string = internal_agent.act(internal_obs, update=update,accumulate=accumulate)
+        action_string = internal_agent.act(internal_obs, update=update, accumulate=accumulate)
         if logging:
             print(f"Internal agent {node} action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
-    def active_act(self, node, update=True, accumulate = True, logging=False):
+    def active_act(self, node, update=True, accumulate=True, logging=False):
 
         active_neighbors = list(networkx.neighbors(self.active_network.network, node))
 
         # nodes that send signals to the active cells
-        incoming_nodes = active_neighbors + list(self.internal_network.nodes) + list(self.sensory_network.nodes)
+        incoming_nodes = (
+            active_neighbors + list(self.internal_network.nodes) + list(self.sensory_network.nodes)
+        )
 
         # nodes that receive signals from the active cells
-        outgoing_nodes = [self.active_network.nodes[node] for node in active_neighbors] + [
-            self.external_network.nodes[node] for node in self.external_network.nodes
-        ] + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
+        outgoing_nodes = (
+            [self.active_network.nodes[node] for node in active_neighbors]
+            + [self.external_network.nodes[node] for node in self.external_network.nodes]
+            + [self.sensory_network.nodes[node] for node in self.sensory_network.nodes]
+        )
 
         active_agent = self.active_network.nodes[node]["agent"]
 
@@ -235,13 +252,12 @@ class StemCellSystem(Network):
         active_obs = active_agent.state_signal_to_index(incoming_signals)
         if logging:
             print(f"Active observation: {active_obs}")
-        action_string = active_agent.act(active_obs, update=update, accumulate = accumulate)
+        action_string = active_agent.act(active_obs, update=update, accumulate=accumulate)
         if logging:
             print(f"Active action: {action_string}")
         self.update_observations(node, action_string, outgoing_nodes)
 
         return action_string
-
 
     def external_act(self, node, logging=False):
         print(f"EXTERNAL ACT FOR NODE {node}")
@@ -259,16 +275,15 @@ class StemCellSystem(Network):
         if logging:
             print(f"Signal to external agent: {signals}")
 
-        action, self.agent_location, self.distance_to_reward, self.probabilities = external_agent.act(signals)
-        
-        self.external_signal = action
+        action, self.agent_location, self.distance_to_reward, self.probabilities = (
+            external_agent.act(signals)
+        )
 
+        self.external_signal = action
 
         self.update_observations_external(node, action, outgoing_nodes)
 
         return action, self.agent_location, self.distance_to_reward, self.probabilities
-
-
 
     def step(self, logging=False):
 
@@ -280,7 +295,7 @@ class StemCellSystem(Network):
 
         # then, the internal cells act
         for internal_node in self.internal_network.nodes:
-            self.internal_act(internal_node, update = True, logging=logging)
+            self.internal_act(internal_node, update=True, logging=logging)
 
         # then, the active cells act
         for active_node in self.active_network.nodes:
@@ -288,12 +303,13 @@ class StemCellSystem(Network):
 
         # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            action, agent_location, distance, probabilities = self.external_act(external_node, logging=logging)
+            action, agent_location, distance, probabilities = self.external_act(
+                external_node, logging=logging
+            )
 
-        self.t += 1 
+        self.t += 1
 
         return action, agent_location, distance, probabilities
-    
 
     def _reset(self):
         for node in self.internal_network.nodes:
@@ -310,14 +326,14 @@ class StemCellSystem(Network):
     def update_gamma_A(self):
         for node in self.internal_network.nodes:
             self.internal_network.nodes[node]["agent"].update_after_trial()
-            #self.internal_network.nodes[node]["agent"].curr_timestep = 0
+            # self.internal_network.nodes[node]["agent"].curr_timestep = 0
         for node in self.sensory_network.nodes:
             self.sensory_network.nodes[node]["agent"].update_after_trial()
-            #self.sensory_network.nodes[node]["agent"].curr_timestep = 0
+            # self.sensory_network.nodes[node]["agent"].curr_timestep = 0
 
         for node in self.active_network.nodes:
             self.active_network.nodes[node]["agent"].update_after_trial()
-            #self.active_network.nodes[node]["agent"].curr_timestep = 0
+            # self.active_network.nodes[node]["agent"].curr_timestep = 0
 
     def prune(self):
         for node in self.internal_network.nodes:
@@ -325,17 +341,19 @@ class StemCellSystem(Network):
             neighbors = list(networkx.neighbors(self.internal_network.network, node))
             neighbor_idx = 0
             for neighbor in neighbors:
-                if 'i' not in neighbor:
+                if "i" not in neighbor:
                     neighbor_idx += 1
                     continue
 
-                #neighbor_node = self.internal_network.nodes[neighbors[neighbor_idx]]
-                gamma_A_m = agent.beta_zeta[neighbor_idx] 
+                # neighbor_node = self.internal_network.nodes[neighbors[neighbor_idx]]
+                gamma_A_m = agent.beta_zeta[neighbor_idx]
                 print(f"Gamma: {gamma_A_m}")
                 print(f"Checking if I should prune: {1 / gamma_A_m[1]}")
-                if 1/ gamma_A_m[1] < 0.2:
-                    print(f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {1 / gamma_A_m} and A value {agent.A[neighbor_idx]}")
-                    #prune this connection 
+                if 1 / gamma_A_m[1] < 0.2:
+                    print(
+                        f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {1 / gamma_A_m} and A value {agent.A[neighbor_idx]}"
+                    )
+                    # prune this connection
                     self.internal_network.nodes[node]["agent"].disconnect_from(neighbor)
                     self.internal_network.nodes[neighbor]["agent"].disconnect_from(node)
 
@@ -345,7 +363,6 @@ class StemCellSystem(Network):
                     # Update neighbor index after pruning
                     neighbor_idx -= 1
                 neighbor_idx += 1
-
 
     def update_after_trial(self):
         print("Updating transition matrices")

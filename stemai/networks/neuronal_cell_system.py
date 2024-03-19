@@ -3,13 +3,15 @@ import pathlib
 import sys
 import os
 from stemai.networks.network import Network
-import time 
+import time
+
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
 sys.path.append(module_path)
 import networkx
 import numpy as np
-import pymdp
+from pymdp import utils
+
 
 class System(Network):
     """A class representing a system of interacting networks
@@ -20,9 +22,17 @@ class System(Network):
         self,
         internal_network: Network,
         external_network: Network,
-        sensory_network: Network, 
-        active_network: Network, 
-        connectivity_proportion = 0.6
+        sensory_network: Network,
+        active_network: Network,
+        active_connectivity_proportion=0.6,
+        sensory_connectivity_proportion=0.3,
+        action_time_horizon=10,
+        precision_threshold=0.5,
+        add_connections = False, 
+        prune_connections = True,
+        new_connection_node_percentage = 0.1, 
+        new_connection_probability = 0.1,
+        logging = False
     ):
         """
         internal_network: a Network of internal cells
@@ -42,14 +52,22 @@ class System(Network):
         self.sensory_network = sensory_network
         self.active_network = active_network
         self.external_act_over_time = True
+        self.action_time_horizon = action_time_horizon
+        self.precision_threshold = precision_threshold
 
         self.num_internal_cells = internal_network.num_cells
         self.num_external_cells = external_network.num_cells
         self.num_sensory_cells = sensory_network.num_cells
         self.num_active_cells = active_network.num_cells
-        self.connectivity_proportion = connectivity_proportion
+        self.active_connectivity_proportion = active_connectivity_proportion
+        self.sensory_connectivity_proportion = sensory_connectivity_proportion
+
+        self.internal_correlation_matrix = np.zeros(
+            (self.num_internal_cells, self.num_internal_cells)
+        )
 
         self.action_names = ["RIGHT", "LEFT", "DOWN", "UP"]
+        self.action_time_horizon = action_time_horizon
 
         self.num_cells = (
             self.num_internal_cells
@@ -78,7 +96,13 @@ class System(Network):
         self.active_cells = list(self.active_network.nodes)
         self.internal_cells = list(self.internal_network.nodes)
         self.external_cells = list(self.external_network.nodes)
-        
+
+        self.add_connections = add_connections
+        self.prune_connections = prune_connections
+        self.new_connection_node_percentage = new_connection_node_percentage
+        self.new_connection_probability = new_connection_probability
+        self.logging = logging
+
         self.compose()
 
         self.configure()
@@ -87,10 +111,7 @@ class System(Network):
 
         self.t = 0
 
-
-
         # also need to add edges between sensory and active nodes
-
 
     def compose(self):
         # compose all the networks into one system network
@@ -107,22 +128,39 @@ class System(Network):
             self.system.nodes[node]["agent"] = self.active_network.nodes[node]["agent"]
         for node in self.external_network.nodes:
             self.system.nodes[node]["agent"] = self.external_network.nodes[node]["agent"]
+            self.system.nodes[node]["agent"].action_time_horizon = self.action_time_horizon
 
-
-        #different subsets of internal and active cells 
+            self.system.nodes[node]["agent"].action_time_horizon = self.action_time_horizon
+        # different subsets of internal and active cells
 
     def configure(self):
-        first_half_of_internal = list(self.internal_network.network.nodes)[:int(len(self.internal_cells)/2)]
-        second_half_of_internal = list(self.internal_network.network.nodes)[int(len(self.internal_cells)/2):]
+        first_half_of_internal = list(self.internal_network.network.nodes)[
+            : int(len(self.internal_cells) / 2)
+        ]
+        second_half_of_internal = list(self.internal_network.network.nodes)[
+            int(len(self.internal_cells) / 2) :
+        ]
 
-        self.internal_network.incoming_nodes = {internal_node : [] for internal_node in self.internal_network.network.nodes}
-        self.internal_network.outgoing_nodes = {internal_node: [] for internal_node in self.internal_network.network.nodes}
+        self.internal_network.incoming_nodes = {
+            internal_node: [] for internal_node in self.internal_network.network.nodes
+        }
+        self.internal_network.outgoing_nodes = {
+            internal_node: [] for internal_node in self.internal_network.network.nodes
+        }
 
-        self.active_network.incoming_nodes = {active_node : [] for active_node in self.active_network.network.nodes}
-        self.active_network.outgoing_nodes = {active_node: self.external_cells for active_node in self.active_network.network.nodes}
+        self.active_network.incoming_nodes = {
+            active_node: [] for active_node in self.active_network.network.nodes
+        }
+        self.active_network.outgoing_nodes = {
+            active_node: self.external_cells for active_node in self.active_network.network.nodes
+        }
 
-        self.sensory_network.outgoing_nodes = {sensory_node: [] for sensory_node in self.sensory_network.network.nodes}
-        self.sensory_network.incoming_nodes = {sensory_node: self.external_cells for sensory_node in self.sensory_network.network.nodes}
+        self.sensory_network.outgoing_nodes = {
+            sensory_node: [] for sensory_node in self.sensory_network.network.nodes
+        }
+        self.sensory_network.incoming_nodes = {
+            sensory_node: self.external_cells for sensory_node in self.sensory_network.network.nodes
+        }
 
         # external_incoming = {external_node: self.active_cells for external_node in self.external_network.network.nodes}
         # external_outgoing = {external_node: self.sensory_cells for external_node in self.external_network.network.nodes}
@@ -130,22 +168,27 @@ class System(Network):
         # modify the code to randomly sample internal nodes and sensory nodes to connect to active nodes
 
         for active_node in self.active_network.network.nodes:
-            internal_nodes_to_connect_to_active = np.random.choice(first_half_of_internal, size=int(len(first_half_of_internal)*self.connectivity_proportion), replace=False)
+            internal_nodes_to_connect_to_active = np.random.choice(
+                first_half_of_internal,
+                size=int(len(first_half_of_internal) * self.active_connectivity_proportion),
+                replace=False,
+            )
             for internal_node in internal_nodes_to_connect_to_active:
                 self.system.add_edge(internal_node, active_node)
                 self.internal_network.outgoing_nodes[internal_node].append(active_node)
                 self.active_network.incoming_nodes[active_node].append(internal_node)
 
-        
-        
         for sensory_node in self.sensory_network.network.nodes:
-            internal_nodes_to_connect_to_sensory = np.random.choice(second_half_of_internal, size=int(len(second_half_of_internal)*self.connectivity_proportion), replace=False)
+            internal_nodes_to_connect_to_sensory = np.random.choice(
+                second_half_of_internal,
+                size=int(len(second_half_of_internal) * self.sensory_connectivity_proportion),
+                replace=False,
+            )
 
             for internal_node in internal_nodes_to_connect_to_sensory:
                 self.system.add_edge(sensory_node, internal_node)
                 self.internal_network.incoming_nodes[internal_node].append(sensory_node)
-                self.sensory_network.outgoing_nodes[sensory_node].append(internal_node)   
-
+                self.sensory_network.outgoing_nodes[sensory_node].append(internal_node)
 
         for external_node in self.external_network.network.nodes:
             # add edges between all external nodes and active nodes
@@ -155,7 +198,7 @@ class System(Network):
             # add edges between all external nodes and sensory nodes
             for sensory_node in self.sensory_network.network.nodes:
                 self.system.add_edge(external_node, sensory_node)
-        
+
         if self.connect_sensory_to_active:
             for sensory_node in self.sensory_network.network.nodes:
                 for active_node in self.active_network.network.nodes:
@@ -164,8 +207,7 @@ class System(Network):
         self.internal_network.create_agents(
             incoming_cells=self.internal_network.incoming_nodes,
             outgoing_cells=self.internal_network.outgoing_nodes,
-            cell_type = "internal"
-
+            cell_type="internal",
         )
 
         if self.connect_sensory_to_active:
@@ -177,19 +219,16 @@ class System(Network):
                 self.sensory_network.outgoing_nodes[sensory_cell] += self.active_cells
                 self.sensory_network.incoming_nodes[sensory_cell] += self.active_cells
 
-
         self.active_network.create_agents(
-            incoming_cells=self.active_network.incoming_nodes,# + self.sensory_cells,
-            outgoing_cells=self.active_network.outgoing_nodes,# + self.sensory_cells,
-            cell_type = "active"
-
+            incoming_cells=self.active_network.incoming_nodes,  # + self.sensory_cells,
+            outgoing_cells=self.active_network.outgoing_nodes,  # + self.sensory_cells,
+            cell_type="active",
         )
 
         self.sensory_network.create_agents(
-            incoming_cells=self.sensory_network.incoming_nodes,# + self.active_cells,
-            outgoing_cells=self.sensory_network.outgoing_nodes,# + self.active_cells,
-            cell_type = "sensory"
-
+            incoming_cells=self.sensory_network.incoming_nodes,  # + self.active_cells,
+            outgoing_cells=self.sensory_network.outgoing_nodes,  # + self.active_cells,
+            cell_type="sensory",
         )
         self.external_network.create_agents(
             incoming_cells=self.active_cells,
@@ -197,18 +236,21 @@ class System(Network):
             global_states=[],
         )
 
-
-
-
-
-
-    def update_reward_location(self, reward_location):
+    def update_grid_locations(self, reward_location, agent_location):
         self.reward_location = reward_location
+        self.agent_location = agent_location
         for node in self.external_network.network.nodes:
-            self.external_network.network.nodes[node]["agent"].reward_location = self.reward_location
+            self.external_network.network.nodes[node][
+                "agent"
+            ].reward_location = self.reward_location
+        for node in self.external_network.network.nodes:
+            self.external_network.network.nodes[node]["agent"].agent_location = self.agent_location
 
+        self.system.distance_to_reward = abs(
+            self.agent_location[0] - self.reward_location[0]
+        ) + abs(self.agent_location[1] - self.reward_location[1])
 
-    def update_observations(self, node, action, neighbors, qs = None):
+    def update_observations(self, node, action, neighbors, qs=None):
 
         for idx, neighbor in enumerate(neighbors):
             if qs is not None and neighbor["agent"].cell_type == "external":
@@ -216,23 +258,29 @@ class System(Network):
             else:
                 neighbor["agent"].actions_received[node] = int(action)
 
+    def update_sensory_observatinos(self, node, actions_per_cell, neighbors):
+
+        for idx, neighbor in enumerate(neighbors):
+            neighbor["agent"].actions_received[node] = int(actions_per_cell[idx])
+
     def sensory_act(self, node, logging=True):
-        print(F"SENSORY ACT FOR NODE {node}")
+        if logging:
+            print(f"SENSORY ACT FOR NODE {node}")
         sensory_neighbors = list(networkx.neighbors(self.sensory_network.network, node))
 
         # nodes that send signals to the sensory cells
         incoming_nodes_names = sensory_neighbors + self.sensory_network.incoming_nodes[node]
 
-        #print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
+        # print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
 
         # nodes that receive signals from the sensory cells
         outgoing_node_names = self.sensory_network.outgoing_nodes[node]
 
-        #print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
+        # print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
 
         outgoing_nodes = [self.sensory_network.nodes[node] for node in sensory_neighbors] + [
             self.internal_network.nodes[node] for node in outgoing_node_names
-        ]# + [self.active_network.nodes[node] for node in self.active_network.nodes]
+        ]  # + [self.active_network.nodes[node] for node in self.active_network.nodes]
 
         # print(f"Sensory agent incoming nodes: {incoming_nodes_names}")
         # print(f"Sensory agent outgoing nodes: {outgoing_node_names}")
@@ -240,83 +288,103 @@ class System(Network):
         sensory_agent = self.sensory_network.nodes[node]["agent"]
 
         if self.t == 0:
-            sensory_agent.actions_received = {n: np.random.choice([0,1]) for n in incoming_nodes_names}
-            sensory_agent.actions_sent = {n: np.random.choice([0,1]) for n in outgoing_node_names}
-            signals = [np.random.choice([0,1]) for i in range(len(incoming_nodes_names))]  # a list of signals from each external node
+            sensory_agent.actions_received = {
+                n: np.random.choice([0, 1]) for n in incoming_nodes_names
+            }
+            sensory_agent.actions_sent = {n: np.random.choice([0, 1]) for n in outgoing_node_names}
+            signals = [
+                np.random.choice([0, 1]) for i in range(len(incoming_nodes_names))
+            ]  # a list of signals from each external node
         else:
             signals = [sensory_agent.actions_received[i] for i in incoming_nodes_names]
 
         signals_dict = {n: sensory_agent.actions_received[n] for n in incoming_nodes_names}
-        print(f"Signal to sensory agent: {signals_dict}")
+        if logging:
+            print(f"Signal to sensory agent: {signals_dict}")
 
-        #here, the observation is the signal from each modality, each neighbor
-        #rather than the converted signal index into the space of all possible observations
+        # here, the observation is the signal from each modality, each neighbor
+        # rather than the converted signal index into the space of all possible observations
         action = sensory_agent.act(signals)
 
-        print(f"Sensory action {node}: {action}")
+        if logging: print(f"Sensory action {node}: {action}")
 
         self.update_observations(node, action, outgoing_nodes)
-    
-    
-    def internal_act(self, node, update=True, accumulate = True, logging=False):
-        print(f"INTERNAL ACT FOR NODE {node}")
-        print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].beta_zeta}")
+
+    def internal_act(self, node, update=True, accumulate=True, logging=False):
+        if logging: print(f"INTERNAL ACT FOR NODE {node}")
+        if logging: print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].beta_zeta}")
+        internal_agent = self.internal_network.network.nodes[node]["agent"]
+
         internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
 
         # nodes that send signals to the internal cells
         incoming_nodes = internal_neighbors + self.internal_network.incoming_nodes[node]
+
+        if len(incoming_nodes) != internal_agent.num_modalities:
+            print(f"Node: {node}")
+            print("incoming nodes not equal to num modalities")
+            print(f"Non internal incoming nodes: {self.internal_network.incoming_nodes[node]}")
+            print(f"Internal neighbors: {internal_neighbors}")
+            print(f"Num modalities: {internal_agent.num_modalities}")
+            raise
         # nodes that receive signals from the internal cells
 
-        print(f"Incoming nodes for internal agent: {incoming_nodes}")
+        if logging: print(f"Incoming nodes for internal agent: {incoming_nodes}")
         outgoing_nodes = [
             self.internal_network.network.nodes[node] for node in internal_neighbors
-        ] + [self.active_network.network.nodes[node] for node in self.internal_network.outgoing_nodes[node]]
-
-        internal_agent = self.internal_network.network.nodes[node]["agent"]
+        ] + [
+            self.active_network.network.nodes[node]
+            for node in self.internal_network.outgoing_nodes[node]
+        ]
 
         signals = [internal_agent.actions_received[i] for i in incoming_nodes]
+        if len(signals) == 0:
+            return 
         signals_dict = {n: internal_agent.actions_received[n] for n in incoming_nodes}
-        print(f"Signal to internal agent: {signals_dict}")
-        
+        if logging: print(f"Signal to internal agent: {signals_dict}")
+
+        assert len(signals) == internal_agent.num_modalities, f"Signals: {signals} don't match num_modalities : {internal_agent.num_modalities} for node {node}"
+
         action = internal_agent.act(signals, self.distance_to_reward)
 
-        print(f"Internal action {node}: {action}")
+        if logging: print(f"Internal action {node}: {action}")
         self.update_observations(node, action, outgoing_nodes)
 
-
     def active_act(self, node, logging=False):
-        print(f"ACTIVE ACT FOR NODE {node}")
-
+        if logging: print(f"ACTIVE ACT FOR NODE {node}")
 
         active_neighbors = list(networkx.neighbors(self.active_network.network, node))
 
         # nodes that send signals to the active cells
-        incoming_nodes = active_neighbors + self.active_network.incoming_nodes[node]# + list(self.sensory_network.nodes)
+        incoming_nodes = (
+            active_neighbors + self.active_network.incoming_nodes[node]
+        )  # + list(self.sensory_network.nodes)
 
         # nodes that receive signals from the active cells
-        outgoing_nodes =  [
-            self.active_network.nodes[node] for node in active_neighbors] + [self.external_network.nodes[node] for node in self.active_network.outgoing_nodes[node]] 
-        
+        outgoing_nodes = [self.active_network.nodes[node] for node in active_neighbors] + [
+            self.external_network.nodes[node] for node in self.active_network.outgoing_nodes[node]
+        ]
 
         active_agent = self.active_network.nodes[node]["agent"]
-        #print(f"Gamma_A active: {active_agent.beta_zeta}")
+        # print(f"Gamma_A active: {active_agent.beta_zeta}")
 
         #     active_agent.actions_sent = {n: 0 for n in list(self.external_network.nodes) + list(self.sensory_network.nodes)}
         incoming_signals = [active_agent.actions_received[i] for i in incoming_nodes]
         signals_dict = {n: active_agent.actions_received[n] for n in incoming_nodes}
-        print(f"Signal to active agent: {signals_dict}")
-        
-        action = active_agent.act(incoming_signals)
-        print(f"Active action {node}: {action}")
-        print(f"Active qs: {active_agent.qs}")
+        if logging: print(f"Signal to active agent: {signals_dict}")
 
-        self.update_observations(node, action, outgoing_nodes, [np.array([0,np.sum(incoming_signals)])])
+        action = active_agent.act(incoming_signals)
+        if logging: print(f"Active action {node}: {action}")
+        if logging: print(f"Active qs: {active_agent.qs}")
+
+        self.update_observations(
+            node, action, outgoing_nodes, [np.array([0, np.sum(incoming_signals)])]
+        )
 
         return action
 
-
     def external_act(self, node, logging=False):
-        print(f"EXTERNAL ACT FOR NODE {node}")
+        if logging: print(f"EXTERNAL ACT FOR NODE {node}")
         external_neighbors = list(networkx.neighbors(self.external_network.network, node))
         external_nodes = [self.external_network.network.nodes[node] for node in external_neighbors]
 
@@ -332,30 +400,49 @@ class System(Network):
             print(f"Signal to external agent: {signals}")
 
         if self.external_act_over_time:
-            action, self.agent_location, self.distance_to_reward, self.probabilities = external_agent.act_accumulated(signals)
+            (
+                each_sensory_cell_signal,
+                self.agent_location,
+                self.distance_to_reward,
+                self.probabilities,
+            ) = external_agent.act_accumulated(signals, outgoing_nodes)
         else:
 
-            action, self.agent_location, self.distance_to_reward, self.probabilities = external_agent.act(signals)
-        self.external_signal = action
-        self.update_observations(node, action, outgoing_nodes)
+            (
+                each_sensory_cell_signal,
+                self.agent_location,
+                self.distance_to_reward,
+                self.probabilities,
+            ) = external_agent.act(signals)
+        self.external_signal = each_sensory_cell_signal
+        # self.update_observations(node, action, outgoing_nodes)
 
-        return action, self.agent_location, self.distance_to_reward, self.probabilities
-    
+        self.update_sensory_observatinos(node, each_sensory_cell_signal, outgoing_nodes)
+
+        return (
+            each_sensory_cell_signal,
+            self.agent_location,
+            self.distance_to_reward,
+            self.probabilities,
+        )
 
     def renormalize_precisions(self):
         for node in self.internal_network.nodes:
             modalities_to_omit = len(self.internal_network.incoming_nodes[node])
-            print(f"Modalities to omit: {modalities_to_omit}")
+            if self.logging: print(f"Node : {node}")
+            if self.logging: print(f"Network incoming nodes: {self.internal_network.incoming_nodes}")
+            if self.logging: print(f"Node incoming: {self.internal_network.incoming_nodes[node]}")
+            if self.logging: print(f"Modalities to omit: {modalities_to_omit}")
 
             if len(self.internal_network.nodes[node]["agent"].beta_zeta) > modalities_to_omit + 1:
-                print(self.internal_network.nodes[node]["agent"].beta_zeta)
+                if self.logging:print(self.internal_network.nodes[node]["agent"].beta_zeta)
 
-                print(self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit])
+                if self.logging:print(self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit])
 
                 if modalities_to_omit > 0:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit]
+                    bz = self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit]
                 else:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta
+                    bz = self.internal_network.nodes[node]["agent"].gamma_A
                 max_distance = max(bz)
                 min_distance = min(bz)
 
@@ -364,21 +451,32 @@ class System(Network):
                 if spread == 0:
                     continue
 
-
                 old_beta_zeta = np.copy(self.internal_network.nodes[node]["agent"].beta_zeta)
-                normalized_beta_zeta = ((old_beta_zeta - min_distance) / (spread * 0.1)) + min_distance
+
+                normalized_beta_zeta = (
+                    (old_beta_zeta - min_distance) / (spread * 10)
+                ) + min_distance
                 if np.nan in normalized_beta_zeta:
                     normalized_beta_zeta = np.nan_to_num(normalized_beta_zeta) + 0.0001
 
                 if modalities_to_omit > 0:
-                    self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit] = normalized_beta_zeta[:-modalities_to_omit]
+                    self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit] = (
+                        normalized_beta_zeta[:-modalities_to_omit]
+                    )
+                    self.internal_network.nodes[node]["agent"].beta_zeta_prior[
+                        :-modalities_to_omit
+                    ] = normalized_beta_zeta[:-modalities_to_omit]
+
                 else:
                     self.internal_network.nodes[node]["agent"].beta_zeta = normalized_beta_zeta
+                    self.internal_network.nodes[node][
+                        "agent"
+                    ].beta_zeta_prior = normalized_beta_zeta
+                self.internal_network.nodes[node]["agent"].A = utils.scale_A_with_zeta(
+                    np.copy(self.internal_network.nodes[node]["agent"].base_A),
+                    self.internal_network.nodes[node]["agent"].beta_zeta,
+                )
 
-                print(f"old beta zeta: {old_beta_zeta}")
-
-                print(f"normalized beta zeta: {self.internal_network.nodes[node]['agent'].beta_zeta}")
-        
     def step(self, logging=False):
 
         # first : we take the external observation, and we pass it to the sensory network
@@ -398,13 +496,16 @@ class System(Network):
 
         # finally, the external nodes act
         for external_node in self.external_network.nodes:
-            action, agent_location, distance, probabilities = self.external_act(external_node, logging=logging)
+            action, agent_location, distance, probabilities = self.external_act(
+                external_node, logging=logging
+            )
 
-        self.t += 1 
+        self.t += 1
 
         return action, agent_location, distance, probabilities
-    
+
     def _reset(self):
+        self.t = 0
         for node in self.internal_network.nodes:
             self.internal_network.nodes[node]["agent"].curr_timestep = 0
         for node in self.sensory_network.nodes:
@@ -416,11 +517,12 @@ class System(Network):
             self.external_network.nodes[node]["agent"].agent_location = self.agent_location
             self.external_network.nodes[node]["agent"].reward_location = self.reward_location
 
-
     def update_gamma_A(self):
         for node in self.internal_network.nodes:
             if len(self.internal_network.nodes[node]["agent"].beta_zeta) > 2:
-                self.internal_network.nodes[node]["agent"].update_after_trial(len(self.internal_network.incoming_nodes[node]))
+                self.internal_network.nodes[node]["agent"].update_after_trial(
+                    len(self.internal_network.incoming_nodes[node])
+                )
             self.internal_network.nodes[node]["agent"].curr_timestep = 0
         # for node in self.sensory_network.nodes:
         #     if len(self.sensory_network.nodes[node]["agent"].beta_zeta) > 2:
@@ -432,51 +534,77 @@ class System(Network):
         #         self.active_network.nodes[node]["agent"].update_after_trial()
         #     #self.active_network.nodes[node]["agent"].curr_timestep = 0
 
+    def add_new_connections(self):
+        nodes = list(self.internal_network.nodes)
+
+        nodes_to_add_new_connections_for = np.random.choice(
+            list(self.internal_network.nodes), int(self.new_connection_probability * len(self.internal_network.nodes))
+        )
+
+
+        for node in nodes_to_add_new_connections_for:
+            agent = self.internal_network.nodes[node]["agent"]
+
+            neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            nodes_that_arent_neighbors = [n for n in nodes if n not in neighbors and n!=node]
+            nodes_to_connect_to = np.random.choice(
+                nodes_that_arent_neighbors, int(self.new_connection_node_percentage * len(nodes_that_arent_neighbors))
+            )
+            for new_node in nodes_to_connect_to:
+                new_agent = self.internal_network.nodes[new_node]["agent"]
+                if not new_agent.check_connect_to(node) or not agent.check_connect_to(new_node):
+                    continue
+
+                agent.connect_to(new_node)
+                new_agent.connect_to(node)
+                self.system.add_edge(node, new_node)
+                self.internal_network.network.add_edge(node, new_node)
+                assert node in list(networkx.neighbors(self.internal_network.network, new_node))
+                assert new_node in list(networkx.neighbors(self.internal_network.network, node))
+
+
     def prune(self):
         node_idx = 0
         nodes = list(self.internal_network.nodes)
 
         for node_idx in range(len(nodes)):
             node = nodes[node_idx]
-            agent = self.internal_network.nodes[node]["agent"]
-            neighbors = list(networkx.neighbors(self.internal_network.network, node))
-            neighbor_idx = 0
 
-            internal_neighbors = [n for n in neighbors if 'i' in n]
+            agent = self.internal_network.nodes[node]["agent"]
+
+            neighbors = list(networkx.neighbors(self.internal_network.network, node))
+
+            internal_neighbors = [n for n in neighbors if "i" in n]
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            precisions = [agent.beta_zeta[neighbor_idx] for neighbor_idx in internal_neighbor_indices]
-            
+            precisions = [
+                agent.beta_zeta[neighbor_idx] for neighbor_idx in internal_neighbor_indices
+            ]
+
             if np.nan in precisions:
                 raise
 
             if len(precisions) < 2:
                 continue
 
-            log_precisions = np.log(precisions)
-
-            minimum_precision_neighbor = np.argmin(log_precisions)
-
+            minimum_precision_neighbor = np.argmin(precisions)
 
             neighbor = internal_neighbors[minimum_precision_neighbor]
-            assert 'i' in neighbor
+            assert "i" in neighbor
 
-            if log_precisions[minimum_precision_neighbor]*10 < -0.7:
+            if precisions[minimum_precision_neighbor] * 10 < self.precision_threshold:
 
-                print(f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precisions[minimum_precision_neighbor]} and A value {agent.A[neighbor_idx]}")
-                #prune this connection 
-                self.internal_network.nodes[node]["agent"].disconnect_from(neighbor)
-                self.internal_network.nodes[neighbor]["agent"].disconnect_from(node)
-                #self.system.nodes[node]["agent"].disconnect_from(neighbor)
-                #self.system.nodes[neighbor]["agent"].disconnect_from(node)            
+                # print(
+                #     f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precisions[minimum_precision_neighbor]} and A value {agent.A[neighbor_idx]}"
+                # )
+                # prune this connection
+                new_agent = self.internal_network.nodes[neighbor]["agent"]
+                if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
+                    continue
+                agent.disconnect_from(neighbor)
+                new_agent.disconnect_from(node)
                 node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
                 if neighbor in node_neighbors:
                     self.internal_network.network.remove_edge(node, neighbor)
                     self.system.remove_edge(node, neighbor)
-
-                # if len(list(networkx.neighbors(self.internal_network.network, node))) == 0:
-                #     self.internal_network.network.remove_node(node)
-                #     self.system.remove_node(node)
-                #     node_idx -=1
-                                

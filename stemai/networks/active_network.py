@@ -14,7 +14,7 @@ from stemai.cells.active_cell import ActiveCell
 class ActiveNetwork(Network):
     """A network object representing a network of active cells"""
 
-    def __init__(self, num_active_cells, connectivity, cells, celltype = ActiveCell):
+    def __init__(self, num_active_cells, connectivity, cells, celltype=ActiveCell):
 
         self.color = "indianred"  # for plotting
 

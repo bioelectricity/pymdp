@@ -47,9 +47,9 @@ class Agent(object):
         control_fac_idx=None,
         policies=None,
         gamma=16.0,
-        beta_zeta = None, 
+        gamma_A = None,  #>0, inverse of the rate parameter beta
         beta_omega = None, 
-        beta_zeta_prior = None, 
+        gamma_A_prior = None,#>0, inverse of the rate parameter beta
         beta_omega_prior = None,
         alpha=16.0,
         use_utility=True,
@@ -102,35 +102,19 @@ class Agent(object):
 
         self.A = utils.to_obj_array(A)
 
-        if beta_zeta_prior is not None:
-            beta_zeta_prior *= 0.1
-            if beta_zeta is None:
-                beta_zeta = np.copy(beta_zeta_prior)
-        
-        
-        if beta_omega_prior is not None:
-            beta_omega_prior *= 0.1
+        if gamma_A is None:
+            gamma_A = np.copy(gamma_A_prior)
 
-        if beta_zeta is not None and beta_zeta_prior is None:
-            self.beta_zeta = beta_zeta * 0.1
-        elif beta_zeta is None:
-            self.beta_zeta = None
-        else:
-            self.beta_zeta = beta_zeta
+        self.gamma_A = gamma_A
+        self.gamma_A_prior = gamma_A_prior
 
-        print(f"Beta zeta prior: {beta_zeta_prior}")
-        print(f"Beta zeta: {self.beta_zeta}")   
-
-
-        if self.beta_zeta is not None:
-            print(f"Scaling base A {A} with beta_zeta: {self.beta_zeta}")
+        if self.gamma_A is not None:
+            print(f"Scaling base A {A} with gamma_A: {self.gamma_A}")
             self.base_A = np.copy(A)
             print(f"Base A: {self.base_A}")
-            self.A = utils.scale_A_with_zeta(A, self.beta_zeta)
+            self.A = utils.scale_A_with_zeta(self.base_A, self.gamma_A)
 
        
-        self.beta_zeta_prior = beta_zeta_prior
-
         assert utils.is_normalized(self.A), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
 
         # Determine number of observation modalities and their respective dimensions
@@ -540,6 +524,8 @@ class Agent(object):
                 )[0]
             else:
                 empirical_prior = self.D
+
+            # print(f"Empirical prior: {empirical_prior}")
             qs = inference.update_posterior_states_factorized(
                 self.A,
                 observation,
@@ -915,16 +901,17 @@ class Agent(object):
 
         return qB
     
-    def update_zeta(self, observation, qs, modalities = None):
-        self.beta_zeta, self.beta_zeta_prior = learning.update_beta_zeta(observation, np.copy(self.base_A), self.beta_zeta, qs, self.beta_zeta_prior, self.A_factor_list, update_prior = self.update_zeta_prior, modalities = modalities)
+    def update_gamma_A(self, observation, qs, modalities = None):
+        self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_zeta_prior, modalities = modalities)
 
-        # print(f"Old gamma_A: {self.beta_zeta_prior}")
-        # print(f"Base A: {self.base_A}")
-        self.A = utils.scale_A_with_zeta(np.copy(self.base_A), self.beta_zeta)
+        print(f"Old gamma_A: {self.gamma_A_prior}")
+        print(f"Base A: {self.base_A}")
+        print(f"New gamma_A: {self.gamma_A}")
+        self.A = utils.scale_A_with_zeta(np.copy(self.base_A), self.gamma_A)
 
         # print(f"Scaled A: {self.A}")
         
-        return self.beta_zeta, self.beta_zeta_prior
+        return self.gamma_A, self.gamma_A_prior
     
     def update_omega(self):
         self.beta_omega, self.beta_omega_prior = learning.update_beta_omega(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.beta_omega, self.beta_omega_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)

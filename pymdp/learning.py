@@ -461,10 +461,10 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
 
 
 
-def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_list, update_prior = False, modalities = None):
+def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None):
 
     """
-    beta_zeta can be:
+    gamma_A can be:
     - a scalar 
     - a vector of length num_modalities 
     - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
@@ -475,88 +475,99 @@ def update_beta_zeta(observation, A, beta_zeta, qs, beta_zeta_prior, A_factor_li
 
     #Do we want to do empirical bayes where we update pzeta? 
     if update_prior:
-        new_beta_zeta_prior = beta_zeta
+        new_gamma_A_prior = gamma_A
     else:
-        new_beta_zeta_prior = beta_zeta_prior
+        new_gamma_A_prior = gamma_A_prior
     
-    expected_A = utils.scale_A_with_zeta(A, beta_zeta)
+    expected_A = utils.scale_A_with_zeta(base_A, gamma_A)
 
 
-  #  beta_zeta = 1/ np.array(beta_zeta)
-   # beta_zeta_prior = 1/ np.array(beta_zeta_prior)
+  #  gamma_A = 1/ np.array(gamma_A)
+   # gamma_A_prior = 1/ np.array(gamma_A_prior)
 
     # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
     get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
     qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
-    # print(f"Expected a : {expected_A}")
+    print(f"Expected a : {expected_A}")
+    print(f"Qs relevant : {qs_relevant}")
     # print(f"Qs relevant : {qs_relevant}")
-    # print(f"Qs relevant : {qs_relevant}")
-    bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(A))])
+    bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
 
-    observation_array = utils.obj_array_from_list([utils.onehot(observation[m], A[m].shape[0]) for m in range(len(A))])
+    observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
 
-    # print(f"Observations under gamma_A: {bold_o_per_modality}")
-    # print(f"Observations: {observation_array}")
+    print(f"Observations under gamma_A: {bold_o_per_modality}")
+    print(f"Observations: {observation_array}")
 
-    prediction_errors = np.absolute(np.array(bold_o_per_modality) - np.array(observation_array))
+    prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
+    # prediction_errors = np.array(bold_o_per_modality) - 
 
-    # print(f"Beta zeta prior: {beta_zeta_prior}")
-    # print(f"Inverse beta zeta prior: {1/beta_zeta_prior}")
+    print(f"Gamma A prior: {gamma_A_prior}")
+    print(f"Beta A prior: {1/gamma_A_prior}")
 
 
-    #lnA = maths.spm_log_obj_array(A)
+    lnA = maths.spm_log_obj_array(base_A)
 
     # do checking here to make sure pzeta is broadcast-consistent
     
     if modalities is None:
-        modalities = range(len(A))
+        modalities = range(len(base_A))
 
-    beta_zeta_full = utils.obj_array(len(A))
+    gamma_A_full = utils.obj_array(len(base_A))
     
-    if np.isscalar(beta_zeta_prior):
-        beta_zeta_prior = np.array([beta_zeta_prior] * len(A))
+    if np.isscalar(gamma_A_prior):
+        gamma_A_prior = np.array([gamma_A_prior] * len(base_A))
 
-    #print(f"beta zeta prior :{beta_zeta_prior}")
+    #print(f"beta zeta prior :{gamma_A_prior}")
 
-    for m in range(len(A)):
+    for m in range(len(base_A)):
         if m not in modalities:
 
-            beta_zeta_full[m] =np.array([beta_zeta_prior[m]]*2)
+            gamma_A_full[m] =np.array([gamma_A_prior[m]]*2)
         else:
 
-            # print(f"MODALITY : {m}, prediction error: {prediction_errors[m]}")
-            prediction_errors_expanded = prediction_errors[m]
-            for _ in range(A[m].ndim - 1):
-                prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
-            #print(f"Zeta prior : {beta_zeta_prior[m]}")
+            beta_A_prior = 1/ gamma_A_prior[m]
 
-            # print(f"pred error times A[m]: {(prediction_errors_expanded * A[m]).sum(axis=0)}")
+            print(f"MODALITY : {m}, prediction error: {prediction_errors[m]}")
+            # prediction_errors_expanded = prediction_errors[m]
+            # for _ in range(base_A[m].ndim - 1):
+            #     prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
+            
 
-            #beta_zeta_full_m = (prediction_errors_expanded * lnA[m]).sum(axis=0) + (1/beta_zeta_prior[m])
-            beta_zeta_full_m = (prediction_errors_expanded * A[m]).sum(axis=0) + (1/beta_zeta_prior[m])
+            print(f"ln A: {lnA[m]}")
+            print(f"Prediction errors expanded: {prediction_errors[m]}")
 
-            # print(f"Beta zeta full m: { 1 / (np.array(beta_zeta_full_m) + 1e-16)}")
+            print(f"Dot product: { (prediction_errors[m] * lnA[m]).sum(axis=0) }")
+            beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-            beta_zeta_full[m] = 1 / (np.array(beta_zeta_full_m) + 1e-16)
+            print(f"beta update term: {beta_update_term}")
+            beta_A_full = beta_A_prior  + beta_update_term
+            for idx, s in enumerate(beta_A_full):
+                if s < 0.1:
+                    beta_A_full[idx] = 0.1 - 10**-5 #set this as a parameter
+                if s > 10:
+                    beta_A_full[idx] = 10 - 10**-5 #set this as a parameter
+            print(f"Beta A full m: {beta_A_full}")
 
-            # print(f"Beta zeta full m: {beta_zeta_full[m]}")
+            gamma_A_full[m] = 1 / np.array(beta_A_full) 
 
-       # beta_zeta_full[m] = np.array([np.minimum(x,100) for x in beta_zeta_full_m])
-    # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
-    #print(f"Beta zeta full: {beta_zeta_full}")
-    if np.isscalar(beta_zeta):
-        beta_zeta_posterior = sum([beta_zeta_m.sum() for beta_zeta_m in beta_zeta_full])
-    elif np.isscalar(beta_zeta[0]):
-        beta_zeta_posterior = np.array([beta_zeta_m.sum() / 2 for beta_zeta_m in beta_zeta_full])
-    # #     print(f"Gamma_A posterior : {beta_zeta_posterior}")
+            print(f"Gamma A full m: {gamma_A_full[m]}")
+
+       # gamma_A_full[m] = np.array([np.minimum(x,100) for x in gamma_A_full_m])
+    # how do we contract gamma_A_full in order to be consistent with the original shape of gamma_A and gamma_A_p
+    #print(f"Beta zeta full: {gamma_A_full}")
+    if np.isscalar(gamma_A):
+        gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    elif np.isscalar(gamma_A[0]):
+        gamma_A_posterior = np.array([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    # #     print(f"Gamma_A posterior : {gamma_A_posterior}")
     else:
-        beta_zeta_posterior = beta_zeta_full
+        gamma_A_posterior = gamma_A_full
 
-    if np.nan in beta_zeta_posterior:
-        beta_zeta_posterior = np.nan_to_num(beta_zeta_posterior) + 0.0001
+    # if np.nan in gamma_A_posterior:
+    #     gamma_A_posterior = np.nan_to_num(gamma_A_posterior) + 0.0001
 
         
-    return np.array(beta_zeta_posterior), np.array(new_beta_zeta_prior)
+    return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)
 
 
 # E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions
@@ -610,7 +621,7 @@ def update_beta_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_pr
 
     beta_omega_summed_over_policies = omega_per_policy.sum(axis=0)
 
-    # how do we contract beta_zeta_full in order to be consistent with the original shape of beta_zeta and beta_zeta_p
+    # how do we contract gamma_A_full in order to be consistent with the original shape of gamma_A and gamma_A_p
     if np.isscalar(beta_omega):
 
         beta_omega_posterior = sum([beta_omege_f.sum() for beta_omege_f in beta_omega_summed_over_policies])
