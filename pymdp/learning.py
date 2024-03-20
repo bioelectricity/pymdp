@@ -479,7 +479,7 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
     else:
         new_gamma_A_prior = gamma_A_prior
     
-    expected_A = utils.scale_A_with_zeta(base_A, gamma_A)
+    expected_A = utils.scale_A_with_gamma(base_A, gamma_A)
 
 
   #  gamma_A = 1/ np.array(gamma_A)
@@ -522,7 +522,7 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
     for m in range(len(base_A)):
         if m not in modalities:
 
-            gamma_A_full[m] =np.array([gamma_A_prior[m]]*2)
+            gamma_A_full[m] =gamma_A_prior[m]
         else:
 
             beta_A_prior = 1/ gamma_A_prior[m]
@@ -551,10 +551,8 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             gamma_A_full[m] = 1 / np.array(beta_A_full) 
 
             print(f"Gamma A full m: {gamma_A_full[m]}")
+    
 
-       # gamma_A_full[m] = np.array([np.minimum(x,100) for x in gamma_A_full_m])
-    # how do we contract gamma_A_full in order to be consistent with the original shape of gamma_A and gamma_A_p
-    #print(f"Beta zeta full: {gamma_A_full}")
     if np.isscalar(gamma_A):
         gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
     elif np.isscalar(gamma_A[0]):

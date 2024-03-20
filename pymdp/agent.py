@@ -48,9 +48,9 @@ class Agent(object):
         policies=None,
         gamma=16.0,
         gamma_A = None,  #>0, inverse of the rate parameter beta
-        beta_omega = None, 
+        gamma_B = None, 
         gamma_A_prior = None,#>0, inverse of the rate parameter beta
-        beta_omega_prior = None,
+        gamma_B_prior = None,
         alpha=16.0,
         use_utility=True,
         use_states_info_gain=True,
@@ -69,7 +69,7 @@ class Agent(object):
         save_belief_hist=False,
         A_factor_list=None,
         B_factor_list=None,
-        update_zeta_prior = True, 
+        update_gamma_prior = True, 
         update_omega_prior=False,
     ):
 
@@ -112,7 +112,9 @@ class Agent(object):
             print(f"Scaling base A {A} with gamma_A: {self.gamma_A}")
             self.base_A = np.copy(A)
             print(f"Base A: {self.base_A}")
-            self.A = utils.scale_A_with_zeta(self.base_A, self.gamma_A)
+            self.A = utils.scale_A_with_gamma(self.base_A, self.gamma_A)
+
+
 
        
         assert utils.is_normalized(self.A), "A matrix is not normalized (i.e. A[m].sum(axis = 0) must all equal 1.0 for all modalities)"
@@ -132,14 +134,14 @@ class Agent(object):
 
         self.B = utils.to_obj_array(B)
 
-        if beta_omega is None:
-            beta_omega = beta_omega_prior
-        self.beta_omega = beta_omega   
+        if gamma_B is None:
+            gamma_B = gamma_B_prior
+        self.gamma_B = gamma_B   
 
-        if self.beta_omega is not None:
+        if self.gamma_B is not None:
             self.base_B = np.copy(B)
-            self.B = utils.scale_B_with_omega(B, self.beta_omega)
-        self.beta_omega_prior = beta_omega_prior
+            self.B = utils.scale_B_with_omega(B, self.gamma_B)
+        self.gamma_B_prior = gamma_B_prior
 
         assert utils.is_normalized(self.B), "B matrix is not normalized (i.e. B[f].sum(axis = 0) must all equal 1.0 for all factors)"
 
@@ -327,7 +329,7 @@ class Agent(object):
         self.qs_pi_policy_previous = None
         self.qs_pi_policy = None
 
-        self.update_zeta_prior = update_zeta_prior
+        self.update_gamma_prior = update_gamma_prior
         self.update_omega_prior = update_omega_prior
 
     def _construct_C_prior(self):
@@ -902,21 +904,23 @@ class Agent(object):
         return qB
     
     def update_gamma_A(self, observation, qs, modalities = None):
-        self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_zeta_prior, modalities = modalities)
 
-        print(f"Old gamma_A: {self.gamma_A_prior}")
-        print(f"Base A: {self.base_A}")
-        print(f"New gamma_A: {self.gamma_A}")
-        self.A = utils.scale_A_with_zeta(np.copy(self.base_A), self.gamma_A)
+        print(f"Old gamma A :{self.gamma_A}")
+        self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
+
+        print(f"New gamma A :{self.gamma_A}")
+        if any([len(self.gamma_A[f].shape) > 1 for f in range(len(self.gamma_A))]):
+            raise
+        self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
 
         # print(f"Scaled A: {self.A}")
         
         return self.gamma_A, self.gamma_A_prior
     
     def update_omega(self):
-        self.beta_omega, self.beta_omega_prior = learning.update_beta_omega(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.beta_omega, self.beta_omega_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
-        self.B = utils.scale_B_with_omega(self.base_B, self.beta_omega)
-        return self.beta_omega, self.beta_omega_prior
+        self.gamma_B, self.gamma_B_prior = learning.update_gamma_B(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.gamma_B, self.gamma_B_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
+        self.B = utils.scale_B_with_omega(self.base_B, self.gamma_B)
+        return self.gamma_B, self.gamma_B_prior
 
     def update_gamma(self):
         self.gamma = learning.update_beta_gamma(self.G, self.gamma, self.q_pi, self.policies)
