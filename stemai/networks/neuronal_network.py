@@ -77,6 +77,8 @@ class NeuronalNetwork:
                 for m in range(len(neighbors)):
                     gamma_A[m] = np.array([1.0,1.0])
 
+
+
             print(f"Celltype: {cell_type}, gamma_A: {gamma_A}")
 
             agent = self.celltype(idx, neighbors, gamma_A, self.gamma_B)

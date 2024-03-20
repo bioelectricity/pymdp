@@ -42,10 +42,10 @@ class NeuronalCell(Agent):
         if self.logging: print(f"Gamma A: {self.gamma_A}")
         if self.logging: print(f"Gamma B: {self.gamma_B}")
 
-        C = self.build_uniform_C()
-        D = self.build_uniform_D()
-
         self.setup(self.num_neighbors)
+
+        print(f"Initial gamma A: {self.gamma_A}")
+        
 
         super().__init__(A = self.A, B = self.B, C = self.C, D = self.D, pA = self.A, gamma_A_prior = self.gamma_A, gamma_B_prior = self.gamma_B)
     def setup(self, num_neighbors):
@@ -98,6 +98,24 @@ class NeuronalCell(Agent):
             D[f] /= D[0].sum()
         return D
 
+    def build_uniform_C(self):
+        """Construts a uniform C vector, meaning the cell has
+        no preference for any particular observation."""
+        C = utils.obj_array(self.num_modalities)
+        for m in range(self.num_modalities):
+            C[m] = np.zeros(self.num_obs[m])
+        return C
+
+    def build_uniform_D(self):
+        """Constructs a uniform state prior"""
+        D = utils.obj_array(self.num_factors)
+        for f in range(self.num_factors):
+
+            D[f] = np.random.uniform(0, 1, size=self.num_states[f])
+            D[f] /= D[0].sum()
+        return D
+
+
 
     def rebuild_A_factor_list(self):
         self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
@@ -146,14 +164,11 @@ class NeuronalCell(Agent):
         self.neighbors.remove(self.neighbors[neighbor_idx])
     
         self.A = utils.scale_A_with_gamma(self.base_A, self.gamma_A)
-        self.neighbors.remove(self.neighbors[neighbor_idx])
 
         self.actions_received.pop(neighbor_node)
         self.rebuild_A_factor_list()
         self.qs_over_time = []
         self.observation_history = []
-
-        return True
     
     def check_connect_to(self, neighbor_node):
         if neighbor_node in self.neighbors:
@@ -210,7 +225,6 @@ class NeuronalCell(Agent):
         and the action it performs is sampled directly from the posterior over states"""
 
         self.observation_history.append(obs)
-
         qs = self.infer_states(obs)
         # self.D = self.qs
         self.qs_over_time.append(qs)
@@ -226,11 +240,11 @@ class NeuronalCell(Agent):
         for t in range(len(self.observation_history)):
             if self.cell_type == "internal":
                 modalities = list(range(self.num_modalities - modalities_to_omit))
-                self.update_gamma(
+                self.update_gamma_A(
                     self.observation_history[t], self.qs_over_time[t], modalities=modalities
                 )
             else:
-                self.update_gamma(self.observation_history[t], self.qs_over_time[t])
+                self.update_gamma_A(self.observation_history[t], self.qs_over_time[t])
             # self.update_A(self.observation_history[t])
 
         # overwrite the sensory ones

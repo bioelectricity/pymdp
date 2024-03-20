@@ -11,33 +11,41 @@ import yaml
 # Start Generation Here
 import concurrent.futures
 import shutil 
-def run_simulation(param):
+def run_simulation_and_save(param, dir):
 
-    dirs_to_search = os.listdir('output')
+    dirs_to_search = os.listdir(dir)
     new_dir = None
     print(f"Searching directories: {dirs_to_search} for this parameter combination")
     for d in dirs_to_search:
-        if os.path.exists(f"output/{d}/params.yaml"):
+        if os.path.exists(f"{dir}/{d}/params.yaml"):
             print(f"Checking directory {d} for params.yaml file")
-            file = open(f"output/{d}/params.yaml", "r")
+            file = open(f"{dir}/{d}/params.yaml", "r")
             if file.read() == yaml.dump(param):
                 print(f"Found directory for this parameter combination: {d}")
-                new_dir_idx = max([int(f) for f in os.listdir(f'output/{d}') if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
-                new_dir = f'output/{d}/{new_dir_idx}'
+                new_dir_idx = max([int(f) for f in os.listdir(f'{dir}/{d}') if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
+                new_dir = f'{dir}/{d}/{new_dir_idx}'
+                print(f"New dir: {new_dir}")
+    if new_dir is None:
+        d = max([int(f[-1]) for f in os.listdir(dir) if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
+        new_dir = f'{dir}/param_{d}/0'
     assert new_dir is not None
 
     print(f"Will save results to : {new_dir}")
     os.makedirs(new_dir)
 
-    runner = Runner(**param, dir = new_dir)
-    runner.run()
+    run_simulation(param, new_dir)
 
-def sweep():
+def run_simulation(param, dir, save_grids=False, save_networks=False):
+    runner = Runner(**param, dir = dir)
+    runner.run(save_grids=save_grids, save_networks=save_networks)
+
+
+def sweep(dir):
 
     while True:
 
-        for param in tqdm.tqdm(all_parameter_combinations[1:]):
-            run_simulation(param)
+        for param in tqdm.tqdm(all_parameter_combinations):
+            run_simulation_and_save(param, dir)
         
         # with concurrent.futures.ThreadPoolExecutor() as executor:
         #     futures = []
@@ -51,8 +59,9 @@ def sweep():
 
 def run_default():
     param = all_parameter_combinations[0]
-    run_simulation(param)
+    dir = 'default-run'
+    run_simulation(param, dir, save_grids=True, save_networks=True)
 
 if __name__ == "__main__":
     #run_default()
-    sweep()
+    sweep('new-gamma-update')

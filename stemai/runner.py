@@ -187,6 +187,8 @@ class Runner:
         self.system.update_grid_locations(self.all_reward_locations[0], self.all_agent_locations[0])
 
     def save_network(self, trial, t):
+        if not os.path.exists(f"{self.dir}/{trial}/networks"):
+            os.makedirs(f"{self.dir}/{trial}/networks")
         pickle.dump(self.system.system, open(f"{self.dir}/{trial}/networks/{t}.pickle", "wb"))
 
     def draw(self, trial, t):
@@ -237,48 +239,9 @@ class Runner:
             for trial, connectivity in self.connectivities.items():
                 file.write(f"{trial}: {connectivity}\n")
 
-    def generate_gifs(self):
-        network_images = []
-        grid_images = []
-        for i in range(self.num_trials):
-            network_fns = [
-                f"{self.dir}/{i}/networks/{j}.png"
-                for j in range(
-                    1,
-                    len(
-                        [
-                            x
-                            for x in os.listdir(f"{self.dir}/{i}/networks/")
-                            if x.endswith(".png")
-                        ]
-                    ),
-                )
-            ]
-            network_images += [imageio.imread(f) for f in network_fns]
-            grid_fns = [
-                f"{self.dir}/{i}/grids/{j}.png"
-                for j in range(
-                    1,
-                    len(
-                        [
-                            x
-                            for x in os.listdir(f"{self.dir}/{i}/grids/")
-                            if x.endswith(".png")
-                        ]
-                    ),
-                )
-            ]
-            grid_images += [imageio.imread(f) for f in grid_fns]
-        gif_path = f"{self.dir}/network-simulation.gif"
-        imageio.mimsave(gif_path, network_images, fps=5)
-        # for temp_file in network_fns:
-        #     os.remove(temp_file)
-        gif_path = f"{self.dir}/grid-simulation.gif"
-        imageio.mimsave(gif_path, grid_images, fps=5)
-        # for temp_file in grid_fns:
-        #     os.remove(temp_file)
 
-    def run(self):
+
+    def run(self, save_grids = False, save_networks = False):
         agent_location = self.system.agent_location
         trial = 0
 
@@ -314,11 +277,13 @@ class Runner:
 
             if agent_location == self.system.reward_location or self.system.t > 2000:
                 self.time_to_reward_per_trial.append(self.system.t)
-               # self.save_grids_for_trial(trial)
+
+                if save_grids:
+                    self.save_grids_for_trial(trial)
 
                 self.system._reset()
 
-                self.system.renormalize_precisions()
+               # self.system.renormalize_precisions()
 
                 if self.system.prune_connections:
                     self.system.prune()
@@ -339,13 +304,10 @@ class Runner:
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
-                
-            #self.save_network(trial, self.system.t)
+
+            if save_networks:
+                self.save_network(trial, self.system.t) 
             self.write_data()
             if trial == self.num_trials - 1:
-                #self.write_data()
 
-                # self.plot_time_to_reward()
-                # self.plot_distances_over_time()
-                # self.generate_gifs()
                 return
