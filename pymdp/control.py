@@ -150,6 +150,7 @@ def update_posterior_policies_full_factorized(
     I=None,
     gamma=16.0
 ):  
+    
     """
     Update posterior beliefs about policies by computing expected free energy of each policy and integrating that
     with the variational free energy of policies ``F`` and prior over policies ``E``. This is intended to be used in conjunction
@@ -250,9 +251,9 @@ def update_posterior_policies_full_factorized(
         
         if use_param_info_gain:
             if pA is not None:
-                G[idx] += calc_pA_info_gain_factorized(pA, qo_seq_pi[p_idx], qs_seq_pi[p_idx], A_factor_list)
+                G[p_idx] += calc_pA_info_gain_factorized(pA, qo_seq_pi[p_idx], qs_seq_pi[p_idx], A_factor_list)
             if pB is not None:
-                G[idx] += calc_pB_info_gain_interactions(pB, qs_seq_pi[p_idx], qs, B_factor_list, policy)
+                G[p_idx] += calc_pB_info_gain_interactions(pB, qs_seq_pi[p_idx], qs_seq_pi[p_idx], B_factor_list, policy)
         
         if I is not None:
             G[p_idx] += calc_inductive_cost(qs_bma, qs_seq_pi[p_idx], I)
@@ -436,6 +437,7 @@ def update_posterior_policies_factorized(
 
     n_policies = len(policies)
     G = np.zeros(n_policies)
+
     q_pi = np.zeros((n_policies, 1))
 
     if E is None:
@@ -464,6 +466,8 @@ def update_posterior_policies_factorized(
         
         if I is not None:
             G[idx] += calc_inductive_cost(qs, qs_pi, I)
+
+        
 
     q_pi = softmax(G * gamma + lnE)    
 

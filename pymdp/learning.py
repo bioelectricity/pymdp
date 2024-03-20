@@ -102,8 +102,11 @@ def update_obs_likelihood_dirichlet_factorized(pA, A, obs, qs, A_factor_list, lr
         modalities = list(range(num_modalities))
 
     qA = copy.deepcopy(pA)
+
+    qs = qs.mean(axis=0)[-1]
         
     for modality in modalities:
+        
         dfda = maths.spm_cross(obs[modality], qs[A_factor_list[modality]])
         dfda = dfda * (A[modality] > 0).astype("float")
         qA[modality] = qA[modality] + (lr * dfda)
@@ -636,10 +639,32 @@ def update_beta_omega( q_pi, qs_pi, qs_pi_previous, B, beta_omega, beta_omega_pr
 
 
 
-def update_beta_gamma(G, gamma, q_pi, policies):
-    pi_0 = maths.softmax(-gamma * G) #should we index into policies? 
+def update_gamma_G(G, gamma, q_pi, q_pi_bar, policies):
 
-    for idx  in range(len(policies)):
-        gamma += (q_pi[idx] - pi_0).dot(G)
+    affective_charge = 0
 
-    return gamma
+    print(f"Gamma: {gamma}")
+    print(f"Qpi: {q_pi}")
+    print(f"Qpi bar: {q_pi_bar}")
+    print(f"G: {G}")
+
+    affective_charge = (q_pi - q_pi_bar).dot(G)
+
+    print(f"Affective charge: {affective_charge}")
+
+    new_beta = (1/gamma) - affective_charge
+
+    print(f"New beta: {new_beta}")
+    print(f"New gamma: {1/new_beta}")
+    return 1 / new_beta
+
+def update_policies(pE, q_pi, lr):
+    num_policies = len(pE)
+
+    qE = copy.deepcopy(pE)
+
+    for idx in range(num_policies):
+        idx = pE[idx] > 0
+        qE[idx] += (lr * q_pi[idx])
+    
+    return qE

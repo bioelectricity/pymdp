@@ -57,7 +57,7 @@ class Agent(object):
         use_param_info_gain=False,
         action_selection="deterministic",
         sampling_mode = "marginal", # whether to sample from full posterior over policies ("full") or from marginal posterior over actions ("marginal")
-        inference_algo="VANILLA",
+        inference_algo="MMP",
         inference_params=None,
         modalities_to_learn="all",
         lr_pA=1.0,
@@ -102,7 +102,7 @@ class Agent(object):
 
         self.A = utils.to_obj_array(A)
 
-        if gamma_A is None:
+        if gamma_A is None and gamma_A_prior is not None:
             gamma_A = np.copy(gamma_A_prior)
 
         self.gamma_A = gamma_A
@@ -431,6 +431,7 @@ class Agent(object):
 
         if self.inference_algo == "MMP" and (self.curr_timestep - self.inference_horizon) >= 0:
             self.set_latest_beliefs()
+            
         
         return self.curr_timestep
     
@@ -452,7 +453,7 @@ class Agent(object):
             policies->factors, such that ``latest_belief[p_idx][f_idx]`` refers to the penultimate belief about marginal factor ``f_idx``
             under policy ``p_idx``.
         """
-
+        print(f"QS : {self.qs}")
         if last_belief is None:
             last_belief = utils.obj_array(len(self.policies))
             for p_i, _ in enumerate(self.policies):
@@ -460,12 +461,17 @@ class Agent(object):
 
         begin_horizon_step = self.curr_timestep - self.inference_horizon
         if self.edge_handling_params['use_BMA'] and (begin_horizon_step >= 0):
+            print("HERE")
             if hasattr(self, "q_pi_hist"):
+                print("one")
                 self.latest_belief = inference.average_states_over_policies(last_belief, self.q_pi_hist[begin_horizon_step]) # average the earliest marginals together using contemporaneous posterior over policies (`self.q_pi_hist[0]`)
             else:
+                print("two")
                 self.latest_belief = inference.average_states_over_policies(last_belief, self.q_pi) # average the earliest marginals together using posterior over policies (`self.q_pi`)
         else:
             self.latest_belief = last_belief
+        print(f"Latest belief: {self.latest_belief}")
+        
 
         return self.latest_belief
     
@@ -528,7 +534,7 @@ class Agent(object):
                 empirical_prior = self.D
 
             # print(f"Empirical prior: {empirical_prior}")
-            qs = inference.update_posterior_states_factorized(
+            qs, F = inference.update_posterior_states_factorized(
                 self.A,
                 observation,
                 self.num_obs,
@@ -537,6 +543,7 @@ class Agent(object):
                 empirical_prior,
                 **self.inference_params
             )
+            self.F = F
         elif self.inference_algo == "MMP":
 
             self.prev_obs.append(observation)
@@ -546,6 +553,8 @@ class Agent(object):
             else:
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
+            
+            print(f"Latest belief: {self.latest_belief}")
 
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
@@ -685,6 +694,20 @@ class Agent(object):
         self.q_pi = q_pi
         self.G = G
         return q_pi, G
+    
+    def calclulate_F_per_policy(self):
+        n_policies = len(self.policies)
+
+        F_per_policy = np.zeros(n_policies)
+
+        for idx, policy in enumerate(self.policies):
+            n_steps = policy.shape[0]
+
+            for t in range(1, n_steps):
+                qs_pi_t = self.qs_pi_policy[idx][t]
+                qs_pi_t_previous = self.qs_pi_policy_previous[idx][t-1]
+                expected_states = -0.5*np.log(qs_pi_t_previous) - 0.5*np.log(qs_pi_t)
+
     
     def infer_policies(self):
         """
@@ -923,7 +946,14 @@ class Agent(object):
         return self.gamma_B, self.gamma_B_prior
 
     def update_gamma(self):
-        self.gamma = learning.update_beta_gamma(self.G, self.gamma, self.q_pi, self.policies)
+
+        print(f"F: {self.F}")
+        print(f"E: {self.E}")
+        print(f"G: {self.G}")
+
+        q_pi = maths.softmax(-self.E - self.gamma*self.G)
+        q_pi_bar = maths.softmax(-self.E - self.gamma*self.G - self.F)
+        self.gamma = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
         return self.gamma
     
     def _update_B_old(self, qs_prev):
@@ -1028,3 +1058,19 @@ class Agent(object):
 
     
     
+    def update_E(self):
+        """
+        Update Dirichlet parameters of the policy prior distribution 
+        (prior beliefs about policies).
+
+        Returns
+        -----------
+        qE: ``numpy.ndarray`` of dtype object
+            Posterior Dirichlet parameters over policy prior (same shape as ``E``), after having updated it with observations.
+        """
+
+        qE = learning.update_policies(self.pE, self.q_pi, self.lr_pE)
+
+        self.pE = qE
+
+        return qE

@@ -233,7 +233,7 @@ def run_mmp_factorized(
                 if t < past_len:
                     for m in A_modality_list[f]:
                         lnA += spm_log_single(spm_dot(lh_seq[t][m], qs_seq[t][A_factor_list[m]], [A_factor_list[m].index(f)]))  
-                    print(f'Factorized version: lnA at time {t}: {lnA}')                
+                    #print(f'Factorized version: lnA at time {t}: {lnA}')                
                 
                 # past message
                 if t == 0:
@@ -248,6 +248,7 @@ def run_mmp_factorized(
                 else:
                     future_msg = spm_dot(trans_B[f][...,int(policy[t, f])], qs_seq[t+1][B_factor_list[f]])
                     lnB_future = spm_log_single(future_msg)
+                    print(f"Future message: {future_msg}")
                 
                 # inference
                 if grad_descent:

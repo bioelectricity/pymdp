@@ -66,6 +66,7 @@ def update_posterior_states_full(
    
     lh_seq = get_joint_likelihood_seq(A, prev_obs, num_states)
 
+
     if prev_actions is not None:
         prev_actions = np.stack(prev_actions,0)
 
@@ -73,7 +74,6 @@ def update_posterior_states_full(
     F = np.zeros(len(policies)) # variational free energy of policies
 
     for p_idx, policy in enumerate(policies):
-
             # get sequence and the free energy for policy
             qs_seq_pi[p_idx], F[p_idx] = run_mmp(
                 lh_seq,
@@ -83,6 +83,9 @@ def update_posterior_states_full(
                 prior= prior[p_idx] if policy_sep_prior else prior, 
                 **kwargs
             )
+            print(f"Posterior: {qs_seq_pi[p_idx]}")
+            print(f"Free energy: {F[p_idx]}")
+            print()
 
     return qs_seq_pi, F
 
@@ -141,29 +144,38 @@ def update_posterior_states_full_factorized(
     num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
     
     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
-   
+    
+    print(f"Previous observations: {prev_obs}")
+
     lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
+    print(f"Likelihood sequence: {lh_seq}")
 
     if prev_actions is not None:
         prev_actions = np.stack(prev_actions,0)
+    print(f"Previous actions: {prev_actions}")
 
     qs_seq_pi = utils.obj_array(len(policies))
     F = np.zeros(len(policies)) # variational free energy of policies
 
     for p_idx, policy in enumerate(policies):
+        print(f"Policy: {policy}")
+        print(policy_sep_prior)
+        print(f"Prior: {prior[p_idx] if policy_sep_prior else prior}")
 
-            # get sequence and the free energy for policy
-            qs_seq_pi[p_idx], F[p_idx] = run_mmp_factorized(
-                lh_seq,
-                mb_dict,
-                B,
-                B_factor_list,
-                policy,
-                prev_actions=prev_actions,
-                prior= prior[p_idx] if policy_sep_prior else prior, 
-                **kwargs
-            )
-
+        # get sequence and the free energy for policy
+        qs_seq_pi[p_idx], F[p_idx] = run_mmp_factorized(
+            lh_seq,
+            mb_dict,
+            B,
+            B_factor_list,
+            policy,
+            prev_actions=prev_actions,
+            prior= prior[p_idx] if policy_sep_prior else prior, 
+            **kwargs
+        )
+        print(f"Posterior: {qs_seq_pi[p_idx]}")
+        print(f"Free energy: {F[p_idx]}")
+        print()
     return qs_seq_pi, F
 
 def _update_posterior_states_full_test(
