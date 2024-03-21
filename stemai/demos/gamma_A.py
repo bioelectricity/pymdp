@@ -20,7 +20,7 @@ env = TMazeEnv(reward_probs = reward_probabilities)
 B_gp = env.get_transition_dist()
 A_gp = env.get_likelihood_dist()
 B_gm = copy.deepcopy(B_gp)
-
+A_gm = copy.deepcopy(A_gp)
 
 # %%
 import os
@@ -33,7 +33,18 @@ from pymdp.agent import Agent
 #generative model 
 
 num_modalities = 3 #location, reward, cue
-num_factors = 2 #location, context
+num_factors = 2 #location (4 locations: center, left, right, down), context (2 contexts: left, right)
+
+#actions: (center, left, right, down) -> change location state 
+
+#2 cues : can be ambiguous, left or right 
+
+#reward: 4, -6, 0
+
+
+
+#%%
+
 
 
 #%%

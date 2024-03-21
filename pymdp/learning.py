@@ -109,6 +109,13 @@ def update_obs_likelihood_dirichlet_factorized(pA, A, obs, qs, A_factor_list, lr
         
         dfda = maths.spm_cross(obs[modality], qs[A_factor_list[modality]])
         dfda = dfda * (A[modality] > 0).astype("float")
+        #dfda is of shape A[modality] and it has dfda in it wherever A[modality] > 0
+
+        """
+        A[modality] = [[0.5, 0.5, 0, 0]]
+        dfda = [dfda, dfda, 0, 0]
+        qA[modality] += lr*dfda
+        """
         qA[modality] = qA[modality] + (lr * dfda)
 
     return qA
@@ -250,6 +257,7 @@ def update_state_prior_dirichlet(
         qD[factor][idx] += (lr * qs[factor][idx])
        
     return qD
+
 
 def _prune_prior(prior, levels_to_remove, dirichlet = False):
     """
@@ -462,6 +470,39 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
     return reduced_B
 
 
+def update_preferences(pC, observation, lr, modalities = "all"):
+    num_modalities = len(pC)
+    num_observations = [pC[modality].shape[0] for modality in range(num_modalities)]
+
+    obs_processed = utils.process_observation(observation, num_modalities, num_observations)
+    obs = utils.to_obj_array(obs_processed)
+
+    #TODO
+    #we might want to be updating C based on         
+    # qo_seq_pi[p_idx] = get_expected_obs(qs_seq_pi[p_idx], A)
+    #rather than the actual observation
+
+    if modalities == "all":
+        modalities = list(range(num_modalities))
+    
+    qC = copy.deepcopy(pC)
+
+    for modality in modalities:
+        idx = pC[modality] > 0
+        qC[modality][idx] += (lr * obs[modality][idx])
+
+    return qC
+
+def update_policies(pE, q_pi, lr):
+    num_policies = len(pE)
+
+    qE = copy.deepcopy(pE)
+
+    for idx in range(num_policies):
+        idx = pE[idx] > 0
+        qE[idx] += (lr * q_pi[idx])
+    
+    return qE
 
 
 def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None):

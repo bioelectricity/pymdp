@@ -41,6 +41,8 @@ class Agent(object):
         pA=None,
         pB=None,
         pD=None,
+        pC=None, 
+        pE=None,
         num_controls=None,
         policy_len=1,
         inference_horizon=1,
@@ -64,6 +66,8 @@ class Agent(object):
         factors_to_learn="all",
         lr_pB=1.0,
         lr_pD=1.0,
+        lr_pC=1.0,
+        lr_pE=1.0,
         use_BMA = True,
         policy_sep_prior=False,
         save_belief_hist=False,
@@ -93,6 +97,8 @@ class Agent(object):
         self.lr_pD = lr_pD
         self.qs = None
         self.qs_prev = None
+        self.lr_pC = lr_pC
+        self.lr_pE = lr_pE
 
         # Initialise observation model (A matrices)
         if not isinstance(A, np.ndarray):
@@ -231,7 +237,7 @@ class Agent(object):
 
         # Construct prior preferences (uniform if not specified)
 
-        if C is not None:
+        if C is not None: #if C is not None
             if not isinstance(C, np.ndarray):
                 raise TypeError(
                     'C vector must be a numpy array'
@@ -243,7 +249,14 @@ class Agent(object):
             for modality, c_m in enumerate(self.C):
                 assert c_m.shape[0] == self.num_obs[modality], f"Check C vector: number of rows of C vector for modality {modality} should be equal to {self.num_obs[modality]}"
         else:
-            self.C = self._construct_C_prior()
+            
+            if pC is not None:
+                self.C = utils.to_obj_array(maths.softmax(pC)) #TODO: how to cast C in terms of pC ? utils.norm_dist_obj_arr(pC)
+            else:
+                self.C = self._construct_C_prior()
+        
+        # Assigning prior parameters on preferences (pC vectors)
+        self.pC = pC
 
         # Construct prior over hidden states (uniform if not specified)
     
@@ -277,11 +290,22 @@ class Agent(object):
                 )
             self.E = E
 
+            if pE is None:
+                self.pE = E
+
             assert len(self.E) == len(self.policies), f"Check E vector: length of E must be equal to number of policies: {len(self.policies)}"
 
         else:
-            self.E = self._construct_E_prior()
-        
+            if pE is not None:
+                self.E = utils.norm_dist_obj_arr(pE)
+                self.pE = pE
+    
+            else:
+                self.E = self._construct_E_prior()
+                self.pE = self.E
+
+        if self.pE is None:
+            self.pE = self.E
         # Construct I for backwards induction (if H specified)
         if H is not None:
             self.I = control.backwards_induction(H, B, B_factor_list, threshold=1/16, depth=5)
@@ -1037,6 +1061,52 @@ class Agent(object):
         self.D = utils.norm_dist_obj_arr(qD) # take expected value of posterior Dirichlet parameters to calculate posterior over D array
 
         return qD
+    
+    def update_C(self, observation):
+        """
+        Update Dirichlet parameters of the observation likelihood distribution 
+        (prior beliefs about observations).
+
+        Parameters
+        -----------
+        observation: ``list`` or ``tuple`` of ints
+            The observation input. Each entry ``observation[m]`` stores the index of the discrete
+            observation for modality ``m``.
+      
+        Returns
+        -----------
+        qC: ``numpy.ndarray`` of dtype object
+            Posterior Dirichlet parameters over observation likelihood (same shape as ``C``), after having updated it with observations.
+        """
+
+        qC = learning.update_preferences(self.pC, observation, self.lr_pC, modalities = self.modalities_to_learn)
+
+        self.pC = qC
+
+        return qC
+    
+    def update_E(self):
+        """
+        Update Dirichlet parameters of the policy prior distribution 
+        (prior beliefs about policies).
+
+        Returns
+        -----------
+        qE: ``numpy.ndarray`` of dtype object
+            Posterior Dirichlet parameters over policy prior (same shape as ``E``), after having updated it with observations.
+        """
+
+        qE = learning.update_policies(self.pE, self.q_pi, self.lr_pE)
+
+        print(f"QE : {qE}")
+        raise
+
+        self.pE = qE
+
+        self.E = utils.norm_dist_obj_arr(qE)
+
+        return qE
+
 
     def _get_default_params(self):
         method = self.inference_algo

@@ -257,8 +257,10 @@ def update_posterior_policies_full_factorized(
         
         if I is not None:
             G[p_idx] += calc_inductive_cost(qs_bma, qs_seq_pi[p_idx], I)
+
+    G = G * gamma - F + lnE
             
-    q_pi = softmax(G * gamma - F + lnE)
+    q_pi = softmax(G)
     
     return q_pi, G
 
