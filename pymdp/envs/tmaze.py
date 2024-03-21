@@ -226,9 +226,8 @@ class TMazeEnvNullOutcome(Env):
         if state is None:
             loc_state = utils.onehot(0, self.num_locations)
             
-            self._reward_condition = np.random.randint(self.num_reward_conditions) # randomly select a reward condition
+            self._reward_condition = 1#np.random.randint(self.num_reward_conditions) # randomly select a reward condition
             reward_condition = utils.onehot(self._reward_condition, self.num_reward_conditions)
-
             full_state = utils.obj_array(self.num_factors)
             full_state[LOCATION_FACTOR_ID] = loc_state
             full_state[TRIAL_FACTOR_ID] = reward_condition

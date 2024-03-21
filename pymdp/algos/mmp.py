@@ -248,7 +248,6 @@ def run_mmp_factorized(
                 else:
                     future_msg = spm_dot(trans_B[f][...,int(policy[t, f])], qs_seq[t+1][B_factor_list[f]])
                     lnB_future = spm_log_single(future_msg)
-                    print(f"Future message: {future_msg}")
                 
                 # inference
                 if grad_descent:

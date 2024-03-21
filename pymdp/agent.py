@@ -297,7 +297,7 @@ class Agent(object):
 
         else:
             if pE is not None:
-                self.E = utils.norm_dist_obj_arr(pE)
+                self.E = utils.norm_dist(pE)
                 self.pE = pE
     
             else:
@@ -477,7 +477,7 @@ class Agent(object):
             policies->factors, such that ``latest_belief[p_idx][f_idx]`` refers to the penultimate belief about marginal factor ``f_idx``
             under policy ``p_idx``.
         """
-        print(f"QS : {self.qs}")
+
         if last_belief is None:
             last_belief = utils.obj_array(len(self.policies))
             for p_i, _ in enumerate(self.policies):
@@ -485,16 +485,16 @@ class Agent(object):
 
         begin_horizon_step = self.curr_timestep - self.inference_horizon
         if self.edge_handling_params['use_BMA'] and (begin_horizon_step >= 0):
-            print("HERE")
+
             if hasattr(self, "q_pi_hist"):
-                print("one")
+
                 self.latest_belief = inference.average_states_over_policies(last_belief, self.q_pi_hist[begin_horizon_step]) # average the earliest marginals together using contemporaneous posterior over policies (`self.q_pi_hist[0]`)
             else:
-                print("two")
+
                 self.latest_belief = inference.average_states_over_policies(last_belief, self.q_pi) # average the earliest marginals together using posterior over policies (`self.q_pi`)
         else:
             self.latest_belief = last_belief
-        print(f"Latest belief: {self.latest_belief}")
+
         
 
         return self.latest_belief
@@ -578,8 +578,6 @@ class Agent(object):
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
             
-            print(f"Latest belief: {self.latest_belief}")
-
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
                 self.mb_dict,
@@ -975,9 +973,9 @@ class Agent(object):
         print(f"E: {self.E}")
         print(f"G: {self.G}")
 
-        q_pi = maths.softmax(-self.E - self.gamma*self.G)
-        q_pi_bar = maths.softmax(-self.E - self.gamma*self.G - self.F)
-        self.gamma = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
+        q_pi = maths.softmax(np.array(-1*self.E - self.gamma*self.G).astype(float))
+        q_pi_bar = maths.softmax(np.array(-1*self.E - self.gamma*self.G - self.F).astype(float))
+        self.gamma, self.affective_charge = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
         return self.gamma
     
     def _update_B_old(self, qs_prev):
@@ -1098,12 +1096,9 @@ class Agent(object):
 
         qE = learning.update_policies(self.pE, self.q_pi, self.lr_pE)
 
-        print(f"QE : {qE}")
-        raise
-
         self.pE = qE
 
-        self.E = utils.norm_dist_obj_arr(qE)
+        self.E = np.array(utils.norm_dist(qE)).astype(float)
 
         return qE
 
@@ -1126,21 +1121,3 @@ class Agent(object):
 
         return default_params
 
-    
-    
-    def update_E(self):
-        """
-        Update Dirichlet parameters of the policy prior distribution 
-        (prior beliefs about policies).
-
-        Returns
-        -----------
-        qE: ``numpy.ndarray`` of dtype object
-            Posterior Dirichlet parameters over policy prior (same shape as ``E``), after having updated it with observations.
-        """
-
-        qE = learning.update_policies(self.pE, self.q_pi, self.lr_pE)
-
-        self.pE = qE
-
-        return qE

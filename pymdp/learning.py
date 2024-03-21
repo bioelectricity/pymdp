@@ -501,7 +501,7 @@ def update_policies(pE, q_pi, lr):
     for idx in range(num_policies):
         idx = pE[idx] > 0
         qE[idx] += (lr * q_pi[idx])
-    
+
     return qE
 
 
@@ -697,15 +697,5 @@ def update_gamma_G(G, gamma, q_pi, q_pi_bar, policies):
 
     print(f"New beta: {new_beta}")
     print(f"New gamma: {1/new_beta}")
-    return 1 / new_beta
+    return 1 / new_beta, affective_charge
 
-def update_policies(pE, q_pi, lr):
-    num_policies = len(pE)
-
-    qE = copy.deepcopy(pE)
-
-    for idx in range(num_policies):
-        idx = pE[idx] > 0
-        qE[idx] += (lr * q_pi[idx])
-    
-    return qE

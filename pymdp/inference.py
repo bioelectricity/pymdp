@@ -148,20 +148,14 @@ def update_posterior_states_full_factorized(
     print(f"Previous observations: {prev_obs}")
 
     lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
-    print(f"Likelihood sequence: {lh_seq}")
 
     if prev_actions is not None:
         prev_actions = np.stack(prev_actions,0)
-    print(f"Previous actions: {prev_actions}")
 
     qs_seq_pi = utils.obj_array(len(policies))
     F = np.zeros(len(policies)) # variational free energy of policies
 
     for p_idx, policy in enumerate(policies):
-        print(f"Policy: {policy}")
-        print(policy_sep_prior)
-        print(f"Prior: {prior[p_idx] if policy_sep_prior else prior}")
-
         # get sequence and the free energy for policy
         qs_seq_pi[p_idx], F[p_idx] = run_mmp_factorized(
             lh_seq,
@@ -173,9 +167,6 @@ def update_posterior_states_full_factorized(
             prior= prior[p_idx] if policy_sep_prior else prior, 
             **kwargs
         )
-        print(f"Posterior: {qs_seq_pi[p_idx]}")
-        print(f"Free energy: {F[p_idx]}")
-        print()
     return qs_seq_pi, F
 
 def _update_posterior_states_full_test(
