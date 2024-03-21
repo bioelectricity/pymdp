@@ -145,8 +145,6 @@ def update_posterior_states_full_factorized(
     
     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
     
-    print(f"Previous observations: {prev_obs}")
-
     lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
 
     if prev_actions is not None:

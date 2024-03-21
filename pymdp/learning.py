@@ -254,7 +254,12 @@ def update_state_prior_dirichlet(
 
     for factor in factors:
         idx = pD[factor] > 0 # only update those state level indices that have some prior probability
-        qD[factor][idx] += (lr * qs[factor][idx])
+        print(f"Factor: {factor}, idx: {idx}")
+        print(f"Current qd[factor]: {qD[factor]}")
+        print(f"qs[factor]: {qs[factor]}")
+
+        qD[factor][idx] = (qD[factor][idx]*0.7)  + (lr * qs[factor][idx]) 
+        print(f"Updated qd[factor]: {qD[factor][idx]}")
        
     return qD
 

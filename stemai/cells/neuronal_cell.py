@@ -227,6 +227,7 @@ class NeuronalCell(Agent):
         self.observation_history.append(obs)
         qs = self.infer_states(obs)
         # self.D = self.qs
+        
         self.qs_over_time.append(qs)
 
         action = utils.sample(maths.softmax(3.0 * qs[0]))

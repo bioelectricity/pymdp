@@ -59,7 +59,7 @@ class Agent(object):
         use_param_info_gain=False,
         action_selection="deterministic",
         sampling_mode = "marginal", # whether to sample from full posterior over policies ("full") or from marginal posterior over actions ("marginal")
-        inference_algo="MMP",
+        inference_algo="VANILLA",
         inference_params=None,
         modalities_to_learn="all",
         lr_pA=1.0,
@@ -431,6 +431,9 @@ class Agent(object):
         
         if self.pB is not None:
             self.B = utils.norm_dist_obj_arr(self.pB)
+
+        self.latest_belief = [np.array(factor_belief) for factor_belief in self.latest_belief]
+       # self.latest_belief = np.array(self.latest_belief)
 
         return self.qs
 
@@ -1053,8 +1056,10 @@ class Agent(object):
             
                 qs_t0 = inference.average_states_over_policies(qs_pi_t0,q_pi_t0) # beliefs about hidden states at the first timestep of the inference horizon
         
+
+        print(f"qs_t0: {qs_t0}")
         qD = learning.update_state_prior_dirichlet(self.pD, qs_t0, self.lr_pD, factors = self.factors_to_learn)
-        
+        print(f"new qD: {qD}")
         self.pD = qD # set new prior to posterior
         self.D = utils.norm_dist_obj_arr(qD) # take expected value of posterior Dirichlet parameters to calculate posterior over D array
 

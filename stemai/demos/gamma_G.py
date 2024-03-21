@@ -93,17 +93,45 @@ pA[1][1:,1:3,:] = 1.0
 controllable_indices = [0] # this is a list of the indices of the hidden state factors that are controllable
 learnable_modalities = [1] # this is a list of the modalities that you want to be learn-able 
 
-pE = np.array([2.3]*16).astype(float)
-agent = Agent(A = A_gm,B = B_gm, gamma=gamma_G, pE = pE, modalities_to_learn=learnable_modalities,lr_pA = 0.25, use_param_info_gain=True, inference_algo="MMP", inference_horizon=2, policy_len=2, policy_sep_prior=True)
+pE = np.array([2.3]*10).astype(float)
+from numpy import array
+policies = [array([[0, 0],
+        [0, 0]]),
+ array([[0, 0],
+        [1, 0]]),
+ array([[0, 0],
+        [2, 0]]),
+ array([[0, 0],
+        [3, 0]]),
+ array([[1, 0],
+        [1, 0]]),
+ array([[2, 0],
+        [2, 0]]),
+ array([[3, 0],
+        [0, 0]]),
+ array([[3, 0],
+        [1, 0]]),
+ array([[3, 0],
+        [2, 0]]),
+ array([[3, 0],
+        [3, 0]])]
 
 
+pD = [np.array([0.976,0.008,0.008,0.008]), np.array([1,1]).astype(float)]
+agent = Agent(A = A_gm,B = B_gm, gamma=gamma_G, E = pE, pD = pD, modalities_to_learn=learnable_modalities,lr_pD = 0.9, use_param_info_gain=True, inference_algo="MMP", inference_horizon=3, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
+
+names = ['center', 'left', 'right', 'cue']
+policy_names = []
+for p in agent.policies:
+    p_loc = p[:,0]
+    name = [names[p_loc[0]], names[p_loc[1]]]
+    policy_names.append(name)
 agent.C[1][1] = 4.0
 agent.C[1][2] = -6.0
-agent.D[0] = [0.976,0.008,0.008,0.008]
-
+agent.D[0] = np.array([0.976,0.008,0.008,0.008])
+#%%
 T = 25 # number of timesteps
 
-initial_obs = env.reset() # reset the environment and get an initial observation
 
 # these are useful for displaying read-outs during the loop over time
 reward_conditions = ["Right", "Left"]
@@ -111,45 +139,83 @@ location_observations = ['CENTER','RIGHT ARM','LEFT ARM','CUE LOCATION']
 reward_observations = ['No reward','Reward!','Loss!']
 cue_observations = ['Cue Right','Cue Left']
 
-num_trials = 32
+num_trials = 64
 import time
-gamma_G_over_trials = [[]]*num_trials
+gamma_G_over_trials = [agent.gamma]
+affective_charge_over_trials = []
+affective_charge_per_timestep = []
+D_over_trials = []
 
-obs = initial_obs
-assert env.reward_condition == 1
+strongest_prior_belief_about_policies = []
+
+REWARD_CONDITION = 1
+
+
+obs = env.reset(reward_condition=REWARD_CONDITION) # reset the environment and get an initial observation
+
 for trial in range(num_trials):
-    reward_achieved = False
-    agent.qs = agent.D
-    agent.qs_prev = None
-    gamma_G_over_trials[trial] = []
-    wait_time = 0
-    while not reward_achieved:
+    timestep = 0
+
+    if trial == 32:
+        REWARD_CONDITION = 0
+
+    if trial != 0:
+        agent.update_gamma()
+        affective_charge_over_trials.append(agent.affective_charge)
+        gamma_G_over_trials.append(agent.gamma)
+        D_over_trials.append(agent.D[1])
+        strongest_prior_belief_about_policies.append(np.max(agent.q_pi))
+
+       #  new_D = copy.deepcopy(agent.D)
+
+       #  new_D[1] = agent.qs.mean(axis=0).mean(axis=0)[1]
+       # # agent.reset()
+       #  agent.D = new_D
+       #  agent.update_D()
+       #  agent.update_E()
+        agent.update_D()
+
+        print(f"Updated D: {agent.D}")
+        
+        obs = env.reset(reward_condition=REWARD_CONDITION)
+        # initial_qs = agent.D
+        # agent.qs = initial_qs 
+        # agent.qs_prev = None
+        # agent.action = None
+        # agent.curr_timestep = 0
+        agent.reset()
+        #
+
+       # agent.set_latest_beliefs(last_belief = agent.D)
+    # action = [0,0]
+    # env.step(action)
+
+    for timestep in range(3):
+        print()
+
+        print(f"trial: {trial}, timestep: {timestep}")
 
         print(f"observation: {obs}")
 
         qx = agent.infer_states(obs)
-
         q_pi, efe = agent.infer_policies()
 
         print(f"inferred policy: {q_pi}")
         print(f"efe: {efe}")
         action = agent.sample_action()
+       #  agent.update_gamma()
+       #  affective_charge_per_timestep.append(agent.affective_charge)
 
 
-        print("updating E")
+        #print("updating E")
         #agent.update_E()
-        policy = np.argmax(q_pi)
-        agent.pE[policy] += 1
-        agent.E = utils.norm_dist(agent.pE)
-        
+
         
 
         print(f"ACTION: {action}")
-        print(f"Update gamma")
-                
-        agent.update_gamma()
-        gamma_G_over_trials[trial].append(agent.affective_charge)
-
+        # print(f"Update gamma")
+        # agent.update_gamma()
+        # gamma_G_over_trials[trial].append(agent.affective_charge)
     #  msg = """[Step {}] Action: [Move to {}]"""
         #print(msg.format(t, location_observations[int(action[0])]))
 
@@ -158,19 +224,46 @@ for trial in range(num_trials):
         # msg = """[Step {}] Observation: [{},  {}, {}]"""
         # print(msg.format(t, location_observations[obs[0]], reward_observations[obs[1]], cue_observations[obs[2]]))
 
-        if obs[1] == 1:
-            if wait_time < 10:
-                wait_time +=1 
-            else:
-                print("Reward obtained!")
-                obs = env.reset()
+        # if obs[1] == 1:
+        #     if wait_time < 10:
+        #         wait_time +=1 
+        #     else:
+        #         print("Reward obtained!")
+        #         obs = env.reset()
 
-                reward_achieved = True
+        #         reward_achieved = True
 
 # %%
 
-flattened_gamma_G = [item for sublist in gamma_G_over_trials for item in sublist]
-plt.plot(flattened_gamma_G)
+plt.plot(gamma_G_over_trials)
+plt.ylabel("Gamma G")
+plt.title("Gamma G over trials")
+plt.xlabel("Trials")
+plt.show()
+plt.clf()
+
+plt.plot(affective_charge_over_trials)
 plt.ylabel("Affective charge")
-plt.title("Affective charge within time-steps of each trial")
-plt.xlabel("Time-step")
+plt.title("Affective charge over trials")
+plt.xlabel("Trials")
+plt.show()
+
+# plt.plot(affective_charge_per_timestep)
+# plt.ylabel("Affective charge")
+# plt.title("Affective charge per time-step")
+# plt.xlabel("Timestep")
+# plt.show()
+
+
+D_to_plot = [D[0] for D in D_over_trials]
+plt.plot(D_to_plot)
+plt.ylabel("D[0]")
+plt.title("D[0] over trials")
+plt.xlabel("Trials")
+plt.show()
+
+plt.plot(strongest_prior_belief_about_policies)
+plt.ylabel("Strongest prior belief about policies")
+plt.title("Strongest prior belief about policies over trials")
+plt.xlabel("Trials")
+plt.show()

@@ -222,11 +222,13 @@ class TMazeEnvNullOutcome(Env):
         self._reward_condition = None
         self._state = None
 
-    def reset(self, state=None):
+    def reset(self, state=None, reward_condition = None):
         if state is None:
             loc_state = utils.onehot(0, self.num_locations)
-            
-            self._reward_condition = 1#np.random.randint(self.num_reward_conditions) # randomly select a reward condition
+            if reward_condition is None:
+                self._reward_condition = np.random.randint(self.num_reward_conditions)
+            else:
+                self._reward_condition = reward_condition
             reward_condition = utils.onehot(self._reward_condition, self.num_reward_conditions)
             full_state = utils.obj_array(self.num_factors)
             full_state[LOCATION_FACTOR_ID] = loc_state

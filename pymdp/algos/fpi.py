@@ -239,6 +239,7 @@ def run_vanilla_fpi_factorized(A, obs, num_obs, num_states, mb_dict, prior=None,
         Initialize initial free energy
     """
     prev_vfe = calc_free_energy(qs, prior, n_factors)
+    vfe = None
 
     """
     =========== Step 4 ===========
