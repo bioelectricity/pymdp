@@ -246,12 +246,22 @@ def run_mmp_factorized(
                 if t >= future_cutoff:
                     lnB_future = qs_T[f]
                 else:
+                    if itr == num_iter - 1:
+                        print(f"Factor: {f}")
+                        print("Full policy: {}".format(policy))
+                        print(f"policy: {policy[t, f]}")
+                        print(f"qs_seq[t+1]: {qs_seq[t+1]}")
+                        # print(f"trans_B[f]: {np.round(trans_B[f],2)}")
+                    
                     future_msg = spm_dot(trans_B[f][...,int(policy[t, f])], qs_seq[t+1][B_factor_list[f]])
+                    if itr == num_iter - 1:
+
+                        print(f"future_msg: {future_msg}")
                     lnB_future = spm_log_single(future_msg)
                 
                 # inference
                 if grad_descent:
-                    sx = qs_seq[t][f] # save this as a separate variable so that it can be used in VFE computation
+                    sx = np.copy(qs_seq[t][f]) # save this as a separate variable so that it can be used in VFE computation
                     lnqs = spm_log_single(sx)
                     coeff = 1 if (t >= future_cutoff) else 2
                     err = (coeff * lnA + lnB_past + lnB_future) - coeff * lnqs

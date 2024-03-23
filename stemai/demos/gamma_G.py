@@ -66,6 +66,8 @@ B_gm[0][:,3,3] = [0,0,0,1]
 
 B_gm[1] = copy.deepcopy(B_gp[1])
 
+A_factor_list = []
+
 # %%
 import os
 
@@ -118,7 +120,7 @@ policies = [array([[0, 0],
 
 
 pD = [np.array([0.976,0.008,0.008,0.008]), np.array([1,1]).astype(float)]
-agent = Agent(A = A_gm,B = B_gm, gamma=gamma_G, E = pE, pD = pD, modalities_to_learn=learnable_modalities,lr_pD = 0.9, use_param_info_gain=True, inference_algo="MMP", inference_horizon=3, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
+agent = Agent(A = A_gm,B = B_gm, gamma=gamma_G, pE = pE, pD = pD, modalities_to_learn=learnable_modalities,lr_pD = 0.9, use_param_info_gain=True, inference_algo="MMP", inference_horizon=2, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
 
 names = ['center', 'left', 'right', 'cue']
 policy_names = []
@@ -142,11 +144,14 @@ cue_observations = ['Cue Right','Cue Left']
 num_trials = 64
 import time
 gamma_G_over_trials = [agent.gamma]
+gamma_G_over_timesteps = [agent.gamma]
 affective_charge_over_trials = []
 affective_charge_per_timestep = []
 D_over_trials = []
 
 strongest_prior_belief_about_policies = []
+
+q_pi_over_time = []
 
 REWARD_CONDITION = 1
 
@@ -160,7 +165,7 @@ for trial in range(num_trials):
         REWARD_CONDITION = 0
 
     if trial != 0:
-        agent.update_gamma()
+        #agent.update_gamma()
         affective_charge_over_trials.append(agent.affective_charge)
         gamma_G_over_trials.append(agent.gamma)
         D_over_trials.append(agent.D[1])
@@ -199,12 +204,14 @@ for trial in range(num_trials):
 
         qx = agent.infer_states(obs)
         q_pi, efe = agent.infer_policies()
+        q_pi_over_time.append(q_pi)
 
         print(f"inferred policy: {q_pi}")
         print(f"efe: {efe}")
         action = agent.sample_action()
-       #  agent.update_gamma()
-       #  affective_charge_per_timestep.append(agent.affective_charge)
+        agent.update_gamma()
+        gamma_G_over_timesteps.append(agent.gamma)
+        affective_charge_per_timestep.append(agent.affective_charge)
 
 
         #print("updating E")
@@ -248,11 +255,11 @@ plt.title("Affective charge over trials")
 plt.xlabel("Trials")
 plt.show()
 
-# plt.plot(affective_charge_per_timestep)
-# plt.ylabel("Affective charge")
-# plt.title("Affective charge per time-step")
-# plt.xlabel("Timestep")
-# plt.show()
+plt.plot(affective_charge_per_timestep)
+plt.ylabel("Affective charge")
+plt.title("Affective charge per time-step")
+plt.xlabel("Timestep")
+plt.show()
 
 
 D_to_plot = [D[0] for D in D_over_trials]

@@ -1,6 +1,8 @@
 # %%
-from stemai.runner import Runner
 import os
+os.chdir('/Users/daphne/Desktop/stemai/pymdp')
+from stemai.runner import Runner
+
 from stemai.demos.ngw_params import all_parameter_combinations
 import tqdm 
 # %%
@@ -26,15 +28,17 @@ def run_simulation_and_save(param, dir):
                 new_dir = f'{dir}/{d}/{new_dir_idx}'
                 print(f"New dir: {new_dir}")
     if new_dir is None:
-        d = max([int(f[-1]) for f in os.listdir(dir) if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
+        d = max([int(f.replace('param_','')) for f in os.listdir(dir) if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
         new_dir = f'{dir}/param_{d}/0'
         param_yaml = yaml.dump(param)
-        os.makedirs(new_dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
         with open(f"{dir}/param_{d}/params.yaml", "w") as file:
             file.write(param_yaml)
     assert new_dir is not None
 
     print(f"Will save results to : {new_dir}")
+    
     if not os.path.exists(new_dir):
         os.makedirs(new_dir)
 
@@ -49,7 +53,8 @@ def sweep(dir):
 
     while True:
 
-        for param in tqdm.tqdm(all_parameter_combinations[1:]):
+        for param in tqdm.tqdm(all_parameter_combinations[10:]):
+            print(f"Param: {param}")
             run_simulation_and_save(param, dir)
             
         

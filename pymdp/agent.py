@@ -432,7 +432,7 @@ class Agent(object):
         if self.pB is not None:
             self.B = utils.norm_dist_obj_arr(self.pB)
 
-        self.latest_belief = [np.array(factor_belief) for factor_belief in self.latest_belief]
+       # self.latest_belief = [np.array(factor_belief) for factor_belief in self.latest_belief]
        # self.latest_belief = np.array(self.latest_belief)
 
         return self.qs
