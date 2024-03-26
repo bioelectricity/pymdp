@@ -606,8 +606,8 @@ class System(Network):
 
             # precisions = agent.gamma_A
 
-            if len(internal_precisions) < 2:
-                continue
+            # if len(internal_precisions) < 4:
+            #     continue
 
             # log_precisions = np.log(precisions)
 
