@@ -960,8 +960,6 @@ class Agent(object):
         if any([len(self.gamma_A[f].shape) > 1 for f in range(len(self.gamma_A))]):
             raise
         self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
-
-        # print(f"Scaled A: {self.A}")
         
         return self.gamma_A, self.gamma_A_prior
     

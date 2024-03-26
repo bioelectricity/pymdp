@@ -520,6 +520,12 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
     m, n, k are the indices of the state factors that modality [m] depends on
     """
 
+
+    # print(f"Modalities: {modalities}")
+    # print(range(len(base_A)))
+
+    # print(f"Prior: {gamma_A_prior}")
+
     # print(f"Observation: {observation}")
 
     #Do we want to do empirical bayes where we update pzeta? 
@@ -544,8 +550,8 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
 
     observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
 
-    # print(f"Observations under gamma_A: {bold_o_per_modality}")
-    # print(f"Observations: {observation_array}")
+    print(f"Observations under gamma_A: {bold_o_per_modality}")
+    print(f"Observations: {observation_array}")
 
     prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
     # prediction_errors = np.array(bold_o_per_modality) - 
@@ -590,15 +596,20 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
 
             # print(f"beta update term: {beta_update_term}")
             beta_A_full = beta_A_prior  + beta_update_term
+
             for idx, s in enumerate(beta_A_full):
                 if s < 0.1:
                     beta_A_full[idx] = 0.1 - 10**-5 #set this as a parameter
                 if s > 10:
                     beta_A_full[idx] = 10 - 10**-5 #set this as a parameter
-            # print(f"Beta A full m: {beta_A_full}")
 
             gamma_A_full[m] = 1 / np.array(beta_A_full) 
-
+            # for idx, s in enumerate(gamma_A_full[m]):
+            #     if s < 0.01:
+            #         gamma_A_full[m][idx] = 0.01 - 10**-5 #set this as a parameter
+            #     if s > 2:
+            #         gamma_A_full[m][idx] = 2 - 10**-5 #set this as a parameter
+            # print(f"Beta A full m: {beta_A_full}")
             # print(f"Gamma A full m: {gamma_A_full[m]}")
     
 
@@ -612,6 +623,9 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
 
     # if np.nan in gamma_A_posterior:
     #     gamma_A_posterior = np.nan_to_num(gamma_A_posterior) + 0.0001
+
+    # print(f"Gamma A posterior: {gamma_A_posterior}")
+    # raise
 
         
     return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)

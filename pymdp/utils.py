@@ -673,25 +673,42 @@ def scale_A_with_gamma(A, gamma_A):
     - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
       m, n, k are the indices of the state factors that modality [m] depends on
     """
-
-    #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
-    #lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+    lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
     
     if np.isscalar(gamma_A):
         for m in range(len(A)):
-           A[m] =softmax_dim2(A[m]**gamma_A)
+           A[m] = maths.softmax(gamma_A[m]*lnA[m] )
 
-    elif np.isscalar(gamma_A[0]): #one precision per modality 
+    elif np.isscalar(gamma_A[0]): #one value per modality 
         for m in range(len(A)):
-            A[m] = softmax_dim2(A[m]**gamma_A[m])
-    else:  #one precision per modality and state
+            A[m] = maths.softmax(gamma_A[m]*lnA[m])
+    else: 
         for m in range(len(A)): 
-
-            A[m] = softmax_dim2(np.array(A[m]**gamma_A[m]).astype(float))#[None,...])
-            # print(f"Scaled A: {A[m]}")
-            # A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+            dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
+            A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
 
     return A
+
+    # print(f"Gamma A: {gamma_A}")
+
+    # #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
+    # #lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+    
+    # if np.isscalar(gamma_A):
+    #     for m in range(len(A)):
+    #        A[m] =softmax_dim2(A[m]**gamma_A)
+
+    # elif np.isscalar(gamma_A[0]): #one precision per modality 
+    #     for m in range(len(A)):
+    #         A[m] = softmax_dim2(A[m]**gamma_A[m])
+    # else:  #one precision per modality and state
+    #     for m in range(len(A)): 
+
+    #         A[m] = softmax_dim2(np.array(A[m]**gamma_A[m]).astype(float))#[None,...])
+    #         # print(f"Scaled A: {A[m]}")
+    #         # A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+
+    # return A
 
 def scale_B_with_omega(B, beta_omega):
     """
