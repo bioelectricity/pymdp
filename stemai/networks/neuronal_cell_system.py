@@ -574,6 +574,7 @@ class System(Network):
 
             internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
             all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
+
             # precisions = agent.gamma_A
 
             if len(internal_precisions) < 2:
