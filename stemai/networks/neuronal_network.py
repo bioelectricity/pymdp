@@ -22,8 +22,8 @@ class NeuronalNetwork:
         connectivity,
         node_labels,
         celltype=NeuronalCell,
-        gamma_A=1.0,
-        gamma_B=1.0,
+        gamma_A=0.1,
+        gamma_B=0.1,
         color=None,
     ):
         """
