@@ -299,7 +299,7 @@ class Runner:
 
                 self.system._reset()
 
-               # self.system.renormalize_precisions()
+                self.system.renormalize_precisions()
 
                 if self.system.prune_connections:
                     precisions_dict_per_timestep[self.system.t] = {}

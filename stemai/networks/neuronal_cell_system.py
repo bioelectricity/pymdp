@@ -432,41 +432,70 @@ class System(Network):
                 print(self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit])
 
                 if modalities_to_omit > 0:
-                    bz = self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit]
+                    gamma = self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit]
                 else:
-                    bz = self.internal_network.nodes[node]["agent"].gamma_A
-                max_distance = max(bz)
-                min_distance = min(bz)
+                    gamma = self.internal_network.nodes[node]["agent"].gamma_A
+                
+                #old_beta_zeta = np.copy(self.internal_network.nodes[node]["agent"].gamma_A)
 
-                spread = max_distance - min_distance
+                #print(f"old gamma A: {old_beta_zeta}")
 
-                if spread == 0:
-                    continue
+                normalized_beta_zeta = np.zeros((len(gamma), 2))
 
-                old_beta_zeta = np.copy(self.internal_network.nodes[node]["agent"].beta_zeta)
+                for state in range(2):
+                    gamma_per_state = np.array([g[state] for g in gamma])
 
-                normalized_beta_zeta = (
-                    (old_beta_zeta - min_distance) / (spread * 10)
-                ) + min_distance
+                    #print(f"To normalize: {gamma_per_state}")
+                    
+                    max_distance = max(gamma_per_state)
+                    min_distance = min(gamma_per_state)
+
+                    spread = max_distance - min_distance
+
+                    #print(f"Spread: {spread}")
+
+                    if spread == 0:
+                        continue
+
+
+                    normalized_beta_zeta_state = (
+                        (gamma_per_state - min_distance) / (spread * 10)
+                    ) + min_distance
+
+
+                    #print(f"normalized gamma a state {state}:   {normalized_beta_zeta_state}")
+
+                    normalized_beta_zeta[:,state] = normalized_beta_zeta_state             
+                
+                #print(f"normalized gamma a: {normalized_beta_zeta}")
+                
+                
                 if np.nan in normalized_beta_zeta:
                     normalized_beta_zeta = np.nan_to_num(normalized_beta_zeta) + 0.0001
 
+                normalized_beta_zeta = [x for x in normalized_beta_zeta]
+
+                #print(f"OLD GAMMA A : {self.internal_network.nodes[node]['agent'].gamma_A}")
+
                 if modalities_to_omit > 0:
-                    self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit] = (
-                        normalized_beta_zeta[:-modalities_to_omit]
+                    self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit] = (
+                        normalized_beta_zeta
                     )
-                    self.internal_network.nodes[node]["agent"].beta_zeta_prior[
+                    self.internal_network.nodes[node]["agent"].gamma_A_prior[
                         :-modalities_to_omit
-                    ] = normalized_beta_zeta[:-modalities_to_omit]
+                    ] = normalized_beta_zeta
 
                 else:
-                    self.internal_network.nodes[node]["agent"].beta_zeta = normalized_beta_zeta
+                    self.internal_network.nodes[node]["agent"].gamma_A = normalized_beta_zeta
                     self.internal_network.nodes[node][
                         "agent"
-                    ].beta_zeta_prior = normalized_beta_zeta
-                self.internal_network.nodes[node]["agent"].A = utils.scale_A_with_zeta(
+                    ].gamma_A_prior = normalized_beta_zeta
+
+                #print(f"NEW GAMMA A : {self.internal_network.nodes[node]['agent'].gamma_A}")
+
+                self.internal_network.nodes[node]["agent"].A = utils.scale_A_with_gamma(
                     np.copy(self.internal_network.nodes[node]["agent"].base_A),
-                    self.internal_network.nodes[node]["agent"].beta_zeta,
+                    self.internal_network.nodes[node]["agent"].gamma_A,
                 )
 
     def step(self, logging=False):
