@@ -35,7 +35,8 @@ class Runner:
         prune_connections, 
         add_connections,
         logging=False,
-        dir="out"
+        dir="out",
+        default = False
     ):
 
 
@@ -90,47 +91,57 @@ class Runner:
             with open(f"{self.dir}/params.yaml", "w") as file:
                 yaml.dump(params, file)
 
-        self.construct_system()
+        self.construct_system(default = default)
         self.set_locations()
 
-    def construct_system(self):
+    def construct_system(self, default = False):
 
-        internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
 
-        active_node_labels = [f"a{i}" for i in range(self.num_active_cells)]
-        sensory_node_labels = [f"s{i}" for i in range(self.num_sensory_cells)]
+        if default and os.path.exists("internal_network.gpickle"):
+            self.internal_network.network =  pickle.load("internal_network.gpickle")
+            self.sensory_network.network = pickle.load("sensory_network.gpickle")
+            self.active_network.network = pickle.load("active_network.gpickle")
+            self.external_network.network = pickle.load("external_network.gpickle")
 
-        external_node_labels = [f"e{i}" for i in range(self.num_external_cells)]
+        else:
+            internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
 
-        self.internal_network = NeuronalNetwork(
-            self.num_internal_cells,
-            self.internal_connectivity,
-            node_labels=internal_node_labels,
-            color="mediumseagreen",
-        )
+            active_node_labels = [f"a{i}" for i in range(self.num_active_cells)]
+            sensory_node_labels = [f"s{i}" for i in range(self.num_sensory_cells)]
 
-        if self.logging: print("Created internal network")
+            external_node_labels = [f"e{i}" for i in range(self.num_external_cells)]
 
-        self.active_network = NeuronalNetwork(
-            self.num_active_cells,
-            self.active_connectivity,
-            node_labels=active_node_labels,
-            color="indianred",
-        )
+            self.internal_network = NeuronalNetwork(
+                self.num_internal_cells,
+                self.internal_connectivity,
+                node_labels=internal_node_labels,
+                color="mediumseagreen",
+            )
 
-        self.sensory_network = NeuronalNetwork(
-            self.num_sensory_cells,
-            self.sensory_connectivity,
-            node_labels=sensory_node_labels,
-            color="lightgrey",
-        )
+            if self.logging: print("Created internal network")
 
-        self.external_network = ExternalNetwork(
-            self.num_external_cells,
-            self.external_connectivity,
-            external_node_labels,
-            celltype=GridWorldCell,
-        )
+            self.active_network = NeuronalNetwork(
+                self.num_active_cells,
+                self.active_connectivity,
+                node_labels=active_node_labels,
+                color="indianred",
+            )
+
+            self.sensory_network = NeuronalNetwork(
+                self.num_sensory_cells,
+                self.sensory_connectivity,
+                node_labels=sensory_node_labels,
+                color="lightgrey",
+            )
+
+            self.external_network = ExternalNetwork(
+                self.num_external_cells,
+                self.external_connectivity,
+                external_node_labels,
+                celltype=GridWorldCell,
+            )
+
+
         # now connect them together
         # compose all the networks into one system network
         self.system = System(
@@ -144,6 +155,7 @@ class Runner:
             precision_threshold=self.precision_threshold,
             prune_connections=self.prune_connections,
             add_connections=self.add_connections,
+            default = default
         )
 
         # set the reward states of external cells

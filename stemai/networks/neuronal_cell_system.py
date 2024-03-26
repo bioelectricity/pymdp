@@ -33,7 +33,8 @@ class System(Network):
         prune_connections = True,
         new_connection_node_percentage = 0.1, 
         new_connection_probability = 0.1,
-        logging = False
+        logging = False,
+        default = False
     ):
         """
         internal_network: a Network of internal cells
@@ -104,7 +105,7 @@ class System(Network):
         self.new_connection_probability = new_connection_probability
         self.logging = logging
 
-        self.compose()
+        self.compose(default = default)
 
         self.configure()
 
@@ -114,11 +115,17 @@ class System(Network):
 
         # also need to add edges between sensory and active nodes
 
-    def compose(self):
+    def compose(self, default = False):
         # compose all the networks into one system network
         system = networkx.compose(self.internal_network.network, self.sensory_network.network)
         system = networkx.compose(system, self.active_network.network)
         self.system = networkx.compose(system, self.external_network.network)
+        if default and not os.path.exists("default-run/internal_network.gpickle"):
+            import pickle
+            pickle.dump(self.internal_network.network, open("default-run/internal_network.gpickle", "wb"))
+            pickle.dump(self.sensory_network.network, open("default-run/sensory_network.gpickle", "wb"))
+            pickle.dump(self.active_network.network, open("default-run/active_network.gpickle", "wb"))
+
 
     def set_agents_in_system(self):
         for node in self.internal_network.nodes:

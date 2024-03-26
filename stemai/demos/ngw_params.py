@@ -50,7 +50,7 @@ params_to_sweep = {
 }
 
 default_num_trials = 40
-default_num_internal_cells = 100
+default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4
 default_num_sensory_cells = 6

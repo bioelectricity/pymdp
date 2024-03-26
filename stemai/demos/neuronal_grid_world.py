@@ -46,8 +46,8 @@ def run_simulation_and_save(param, dir):
 
     run_simulation(param, new_dir)
 
-def run_simulation(param, dir, save_grids=False, save_networks=False):
-    runner = Runner(**param, dir = dir)
+def run_simulation(param, dir, save_grids=False, save_networks=False, default = False):
+    runner = Runner(**param, dir = dir, default = default)
     runner.run(save_grids=save_grids, save_networks=save_networks)
 
 
@@ -75,7 +75,7 @@ def sweep(dir):
 def run_default():
     param = defaults
     dir = 'default-run'
-    run_simulation(param, dir, save_grids=True, save_networks=True)
+    run_simulation(param, dir, save_grids=True, save_networks=True, default=True)
 
 if __name__ == "__main__":
     run_default()
