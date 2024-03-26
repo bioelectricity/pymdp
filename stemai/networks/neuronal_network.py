@@ -43,7 +43,7 @@ class NeuronalNetwork:
 
         self.network = networkx.relabel_nodes(
             self.network, dict(zip(self.network.nodes, node_labels))
-        )
+        ) 
         self.nodes = self.network.nodes
         self.color = color
         self.actions = {n: np.random.choice([0, 1]) for n in node_labels}
@@ -72,10 +72,10 @@ class NeuronalNetwork:
                     if m >= len(neighbors) - len(incoming_cells[node]):
                         gamma_A[m] = np.array([10,10])
                     else:
-                        gamma_A[m] = np.array([1.0,1.0])
+                        gamma_A[m] = np.array([0.1,0.1])
             else:
                 for m in range(len(neighbors)):
-                    gamma_A[m] = np.array([1.0,1.0])
+                    gamma_A[m] = np.array([0.1,0.1])
 
 
 
