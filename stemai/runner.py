@@ -98,10 +98,10 @@ class Runner:
 
 
         if default and os.path.exists("internal_network.gpickle"):
-            self.internal_network.network =  pickle.load("internal_network.gpickle")
-            self.sensory_network.network = pickle.load("sensory_network.gpickle")
-            self.active_network.network = pickle.load("active_network.gpickle")
-            self.external_network.network = pickle.load("external_network.gpickle")
+            self.internal_network.network =  pickle.load("internal_network.pickle")
+            self.sensory_network.network = pickle.load("sensory_network.pickle")
+            self.active_network.network = pickle.load("active_network.pickle")
+            self.external_network.network = pickle.load("external_network.pickle")
 
         else:
             internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
