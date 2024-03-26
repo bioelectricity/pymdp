@@ -512,6 +512,7 @@ class System(Network):
     def update_gamma_A(self):
         for node in self.internal_network.nodes:
             if len(self.internal_network.nodes[node]["agent"].gamma_A) > 2:
+
                 self.internal_network.nodes[node]["agent"].update_after_trial(len(self.internal_network.incoming_nodes[node]))
             self.internal_network.nodes[node]["agent"].curr_timestep = 0
         # for node in self.sensory_network.nodes:
@@ -567,28 +568,34 @@ class System(Network):
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            all_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            other_neighbors = [n for n in neighbors if "i" not in n]
+
+            other_neighbor_indices = [neighbors.index(n) for n in other_neighbors]
+
+            internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
             # precisions = agent.gamma_A
 
-            if len(all_precisions) < 2:
+            if len(internal_precisions) < 2:
                 continue
 
             # log_precisions = np.log(precisions)
 
-            minimum_precision_neighbor = np.argmin(all_precisions)
-            precision = all_precisions[minimum_precision_neighbor]
+            minimum_precision_neighbor = np.argmin(internal_precisions)
+            precision = internal_precisions[minimum_precision_neighbor]
 
 
             neighbor = internal_neighbors[minimum_precision_neighbor]
             assert "i" in neighbor
 
             print(f"Precision: {precision}")
-            pdb.set_trace()
 
-            precisions_dict[self.t][node] = np.round(all_precisions,3)
+            all_precisions = np.round(all_precisions,3)
+
+            precisions_dict[self.t][node] = {n:p for n, p in zip(agent.neighbors, all_precisions)    }
 
 
-            gamma_dict[self.t][node] = [(g[0],g[1]) for g in agent.gamma_A]
+            gamma_dict[self.t][node] = {n: (g[0],g[1]) for n, g in zip(agent.neighbors, agent.gamma_A)}
 
             if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
                 new_agent = self.internal_network.nodes[neighbor]["agent"]
