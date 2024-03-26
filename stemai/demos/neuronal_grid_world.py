@@ -13,6 +13,7 @@ import yaml
 # Start Generation Here
 import concurrent.futures
 import shutil 
+import time 
 def run_simulation_and_save(param, dir):
 
     dirs_to_search = os.listdir(dir)
@@ -38,6 +39,7 @@ def run_simulation_and_save(param, dir):
     assert new_dir is not None
 
     print(f"Will save results to : {new_dir}")
+    time.sleep(5)
     
     if not os.path.exists(new_dir):
         os.makedirs(new_dir)
@@ -53,7 +55,9 @@ def sweep(dir):
 
     while True:
 
-        for param in tqdm.tqdm(all_parameter_combinations[10:]):
+        for idx, param in enumerate(tqdm.tqdm(all_parameter_combinations)):
+            if idx == 19 or idx == 0:
+                continue
             print(f"Param: {param}")
             run_simulation_and_save(param, dir)
             
@@ -74,5 +78,5 @@ def run_default():
     run_simulation(param, dir, save_grids=True, save_networks=True)
 
 if __name__ == "__main__":
-    #run_default()
-    sweep('new-gamma-update')
+    run_default()
+   #sweep('new-gamma-update')

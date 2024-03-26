@@ -246,6 +246,10 @@ def analyze_parameter(dir):
         last_times.append(last_time)
         distances.append(trial_analysis.average_distances)
         connectivities.append(trial_analysis.connectivities)
+    
+    if len(_times) == 0:
+        return None, None
+    print(f"Times: {_times}")
 
     max_length = max(len(times) for times in _times)
     for times in _times:
@@ -288,6 +292,19 @@ def analyze_parameter(dir):
 
 #%%
 
+default_dir = "new-gamma-update/param_0"
+
+default_average_times, default_last_times = analyze_parameter(default_dir)
+
+mean_default_avg_time = np.mean(default_average_times)
+std_default_avg_time = np.std(default_average_times)
+
+mean_default_last_time = np.mean(default_last_times)
+std_default_last_time = np.std(default_last_times)
+
+defaults = {}
+
+defaults["new-gamma-update"] = {"mean_default_avg_time": mean_default_avg_time, "std_default_avg_time": std_default_avg_time, "mean_default_last_time": mean_default_last_time, "std_default_last_time": std_default_last_time}
 default_dir = "output/param_0"
 
 default_average_times, default_last_times = analyze_parameter(default_dir)
@@ -297,22 +314,33 @@ std_default_avg_time = np.std(default_average_times)
 
 mean_default_last_time = np.mean(default_last_times)
 std_default_last_time = np.std(default_last_times)
+
+defaults["output"] = {"mean_default_avg_time": mean_default_avg_time, "std_default_avg_time": std_default_avg_time, "mean_default_last_time": mean_default_last_time, "std_default_last_time": std_default_last_time}
+
+
 #%%
 
-sweep_param_dirs = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_0']
-
+sweep_param_dirs_1 = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_0']
 times_per_param = {}
+
+sweep_param_dirs = [f'new-gamma-update/{f}' for f in os.listdir('new-gamma-update') if 'param' in f and f != 'param_0']
+sweep_param_dirs += sweep_param_dirs_1
 for param_dir in sweep_param_dirs:
     average_times, last_times = analyze_parameter(param_dir)
-    times_per_param[param_dir] = (average_times, last_times)
+    if average_times is not None:
+        times_per_param[param_dir] = (average_times, last_times)
 
 
 
 #%%
+
+directories = [ "output", "new-gamma-update"]
 
 for param, param_values_dict in param_to_index_mapping.items():
 
     param_values = list(param_values_dict.values())
+
+    param_values += [f"{p}*" for p in param_values]
 
     avg_avg = []
     last_avg = []
@@ -320,25 +348,28 @@ for param, param_values_dict in param_to_index_mapping.items():
     avg_std = []
     last_std = []
 
+    for directory in directories:
 
-    for idx, value in param_values_dict.items():
-        dir = f"output/param_{idx}"
-        if idx == 0:
-            mean_avg_time = mean_default_avg_time
-            std_avg_time = std_default_avg_time
 
-            mean_last_time = mean_default_last_time
-            std_last_time = std_default_last_time
-        else:
-            average_times, last_times = times_per_param[dir]
-            mean_avg_time = np.mean(average_times)
-            std_avg_time = np.std(average_times)
-            mean_last_time = np.mean(last_times)
-            std_last_time = np.std(last_times)
-        avg_avg.append(mean_avg_time)
-        last_avg.append(mean_last_time)
-        avg_std.append(std_avg_time)
-        last_std.append(std_last_time)
+        for idx, value in param_values_dict.items():
+            dir = f"{directory}/param_{idx}"
+            if idx == 0:
+                mean_avg_time = defaults[directory]["mean_default_avg_time"]
+                std_avg_time = defaults[directory]["std_default_avg_time"]
+
+                mean_last_time = defaults[directory]["mean_default_last_time"]
+                std_last_time = defaults[directory]["std_default_last_time"]
+            else:
+                if dir in times_per_param:
+                    average_times, last_times = times_per_param[dir]
+                    mean_avg_time = np.mean(average_times)
+                    std_avg_time = np.std(average_times)
+                    mean_last_time = np.mean(last_times)
+                    std_last_time = np.std(last_times)
+            avg_avg.append(mean_avg_time)
+            last_avg.append(mean_last_time)
+            avg_std.append(std_avg_time)
+            last_std.append(std_last_time)
 
     print(f"param values: {param_values}")
 

@@ -8,65 +8,21 @@ from pymdp import maths
 from pymdp.agent import Agent 
 import copy
 
-from pymdp.envs import TMazeEnvNullOutcome
+from pymdp.envs import TMaze
 reward_probabilities = [0.98, 0.02] # probabilities used in the original SPM T-maze demo
-env = TMazeEnvNullOutcome(reward_probs = reward_probabilities)
+env = TMaze(reward_probs = reward_probabilities)
+env._reward_condition = 0
 
 B_gp = env.get_transition_dist()
 A_gp = env.get_likelihood_dist()
 A_gm = copy.deepcopy(A_gp)
 
-B_gm = utils.obj_array(len(B_gp))
+A_gm[0] = A_gp[0][:,:,0]
 
-A_gm[1] = np.zeros_like(A_gp[1])
-
-A_gm[1][:,0,0] = [1,0,0]
-A_gm[1][:,1,0] = [0, 0.98, 0.02]
-A_gm[1][:,2,0] = [0, 0.02,0.98]
-A_gm[1][:,3,0] = [1,0,0]
-
-A_gm[1][:,0,1] = [1,0,0]
-A_gm[1][:,1,1] = [0, 0.02,0.98]
-A_gm[1][:,2,1] = [0, 0.98, 0.02]
-A_gm[1][:,3,1] = [1,0,0]
-
-A_gm[2] = np.zeros_like(A_gp[2])
-
-A_gm[2][:,0,0] = [1,0,0]
-A_gm[2][:,1,0] = [1,0,0]
-A_gm[2][:,2,0] = [1,0,0]
-A_gm[2][:,3,0] = [0,1,0]
-
-A_gm[2][:,0,1] = [1,0,0]
-A_gm[2][:,1,1] = [1,0,0]
-A_gm[2][:,2,1] = [1,0,0]
-A_gm[2][:,3,1] = [0,0,1]
-
-B_gm[0] = np.zeros_like(B_gp[0])
-
-B_gm[0][:,0,0,] = [1,0,0,0]
-B_gm[0][:,0,1] = [0,1,0,0]
-B_gm[0][:,0,2] = [0,0,1,0]
-B_gm[0][:,0,3] = [1,0,0,0]
-
-B_gm[0][:,1,0] = [0,1,0,0]
-B_gm[0][:,1,1] = [0,1,0,0]
-B_gm[0][:,1,2] = [0,0,1,0]
-B_gm[0][:,1,3] = [0,1,0,0]
-
-B_gm[0][:,2,0] = [0,0,1,0]
-B_gm[0][:,2,1] = [0,1,0,0]
-B_gm[0][:,2,2] = [0,0,1,0]
-B_gm[0][:,2,3] = [0,0,1,0]
-
-B_gm[0][:,3,0] = [0,0,0,1]
-B_gm[0][:,3,1] = [0,1,0,0]
-B_gm[0][:,3,2] = [0,0,1,0]
-B_gm[0][:,3,3] = [0,0,0,1]
-
-B_gm[1] = copy.deepcopy(B_gp[1])
+B_gm = copy.deepcopy(B_gp)
 
 A_factor_list = []
+
 
 # %%
 import os
@@ -120,9 +76,12 @@ policies = [array([[0, 0],
 
 
 pD = [np.array([0.976,0.008,0.008,0.008]), np.array([1,1]).astype(float)]
-agent = Agent(A = A_gm,B = B_gm, gamma=gamma_G, pE = pE, pD = pD, modalities_to_learn=learnable_modalities,lr_pD = 0.9, use_param_info_gain=True, inference_algo="MMP", inference_horizon=2, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
 
-names = ['center', 'left', 'right', 'cue']
+
+A_factor_list = [[0],[0,1],[0,1] ]
+agent = Agent(A = A_gm,A_factor_list=A_factor_list,B = B_gm, gamma=gamma_G, pE = pE, pD = pD, lr_pD = 1.0, lr_pE = 0.5, use_param_info_gain=True, inference_algo="MMP", inference_horizon=3, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
+
+names = ['center', 'right', 'left', 'cue']
 policy_names = []
 for p in agent.policies:
     p_loc = p[:,0]
@@ -134,12 +93,14 @@ agent.D[0] = np.array([0.976,0.008,0.008,0.008])
 #%%
 T = 25 # number of timesteps
 
+num_modalities = 3 #location, reward, cue
+num_factors = 2 #location (4 locations: center, left, right, down), context (2 contexts: left, right)
 
 # these are useful for displaying read-outs during the loop over time
 reward_conditions = ["Right", "Left"]
 location_observations = ['CENTER','RIGHT ARM','LEFT ARM','CUE LOCATION']
 reward_observations = ['No reward','Reward!','Loss!']
-cue_observations = ['Cue Right','Cue Left']
+cue_observations = ['Null','Cue Right','Cue Left']
 
 num_trials = 64
 import time
@@ -153,7 +114,12 @@ strongest_prior_belief_about_policies = []
 
 q_pi_over_time = []
 
-REWARD_CONDITION = 1
+qs_over_time = []
+
+policies_over_time = []
+
+observations_over_time = []
+REWARD_CONDITION = 0
 
 
 obs = env.reset(reward_condition=REWARD_CONDITION) # reset the environment and get an initial observation
@@ -161,8 +127,13 @@ obs = env.reset(reward_condition=REWARD_CONDITION) # reset the environment and g
 for trial in range(num_trials):
     timestep = 0
 
+    selected_policy = []
+
     if trial == 32:
-        REWARD_CONDITION = 0
+        REWARD_CONDITION = 1
+
+    observations_per_trial = []    
+    qs_per_trial = []       
 
     if trial != 0:
         #agent.update_gamma()
@@ -188,6 +159,9 @@ for trial in range(num_trials):
         # agent.qs_prev = None
         # agent.action = None
         # agent.curr_timestep = 0
+        policies_over_time.append(selected_policy)
+        observations_over_time.append(observations_per_trial)
+        qs_over_time.append(qs_per_trial)
         agent.reset()
         #
 
@@ -200,26 +174,26 @@ for trial in range(num_trials):
 
         print(f"trial: {trial}, timestep: {timestep}")
 
-        print(f"observation: {obs}")
+        print(f"observation: {location_observations[obs[0]]}, {reward_observations[obs[1]]}, {cue_observations[obs[2]]}")
+
+        observations_per_trial.append(obs)
 
         qx = agent.infer_states(obs)
+        qs_per_trial.append(qx )
         q_pi, efe = agent.infer_policies()
         q_pi_over_time.append(q_pi)
+        agent.update_E()
 
-        print(f"inferred policy: {q_pi}")
-        print(f"efe: {efe}")
+       #  print(f"inferred policy: {q_pi}")
+       #  print(f"efe: {efe}")
         action = agent.sample_action()
+        selected_policy.append(action[0])
         agent.update_gamma()
         gamma_G_over_timesteps.append(agent.gamma)
         affective_charge_per_timestep.append(agent.affective_charge)
 
-
-        #print("updating E")
-        #agent.update_E()
-
-        
-
-        print(f"ACTION: {action}")
+       
+        print(f"ACTION: {location_observations[int(action[0])]}")
         # print(f"Update gamma")
         # agent.update_gamma()
         # gamma_G_over_trials[trial].append(agent.affective_charge)

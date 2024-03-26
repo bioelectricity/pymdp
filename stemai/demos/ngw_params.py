@@ -49,7 +49,7 @@ params_to_sweep = {
 
 }
 
-default_num_trials = 21
+default_num_trials = 10
 default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4
@@ -64,7 +64,7 @@ default_grid_size = 10
 default_active_connectivity_proportion = 0.6
 default_sensory_connectivity_proportion = 0.4
 default_action_time_threshold = 10
-default_precision_threshold = 0.4
+default_precision_threshold = 0.03 #how far away from 0.5 you are in each direction
 default_precision_update_frequency = 10
 default_add_connections = False 
 default_prune_connections = True

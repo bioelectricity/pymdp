@@ -239,6 +239,14 @@ class Runner:
             for trial, connectivity in self.connectivities.items():
                 file.write(f"{trial}: {connectivity}\n")
 
+        with open(f"{self.dir}/precisions_over_time.txt", "w") as file:
+            for trial, precisions in self.precisions.items():
+                file.write(f"{trial}: {precisions}\n")
+
+        with open(f"{self.dir}/gammas_over_time.txt", "w") as file:
+            for trial, gammas in self.gammas.items():
+                file.write(f"{trial}: {gammas}\n")
+
 
 
     def run(self, save_grids = False, save_networks = False):
@@ -247,13 +255,21 @@ class Runner:
 
         self.distances_over_time = {}
         self.signals_over_time = {}
+        self.precisions = {}
         self.time_to_reward_per_trial = []
         self.connectivities = {}
         self.grids_over_time = []
         self.gamma_update_times = []
+        self.gammas = {}
         self.distances_over_time[trial] = []
         self.signals_over_time[trial] = []
         self.connectivities[trial] = []
+
+        self.precisions[trial] = []
+        self.gammas[trial] = []
+
+        precisions_dict_per_timestep = {}
+        gamma_dict_per_timestep = {}
 
 
         while agent_location != self.system.reward_location and trial < self.num_trials:
@@ -286,7 +302,11 @@ class Runner:
                # self.system.renormalize_precisions()
 
                 if self.system.prune_connections:
-                    self.system.prune()
+                    precisions_dict_per_timestep[self.system.t] = {}
+                    gamma_dict_per_timestep[self.system.t] = {}
+                    precisions_dict_per_timestep, gamma_dict_per_timestep = self.system.prune(precisions_dict_per_timestep, gamma_dict_per_timestep)
+                    self.precisions[trial].append(precisions_dict_per_timestep)
+                    self.gammas[trial].append(gamma_dict_per_timestep)
                 if self.system.add_connections:
                     self.system.add_new_connections()
                 trial += 1
@@ -297,6 +317,10 @@ class Runner:
                 self.distances_over_time[trial] = []
                 self.signals_over_time[trial] = []
                 self.connectivities[trial] = []
+                precisions_dict_per_timestep = {}
+                gamma_dict_per_timestep = {}
+                self.precisions[trial] = []
+                self.gammas[trial] = []
 
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/grids")
@@ -304,6 +328,8 @@ class Runner:
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
+
+
 
             if save_networks:
                 self.save_network(trial, self.system.t) 

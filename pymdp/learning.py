@@ -254,12 +254,12 @@ def update_state_prior_dirichlet(
 
     for factor in factors:
         idx = pD[factor] > 0 # only update those state level indices that have some prior probability
-        print(f"Factor: {factor}, idx: {idx}")
-        print(f"Current qd[factor]: {qD[factor]}")
-        print(f"qs[factor]: {qs[factor]}")
+        # print(f"Factor: {factor}, idx: {idx}")
+        # print(f"Current qd[factor]: {qD[factor]}")
+        # print(f"qs[factor]: {qs[factor]}")
 
-        qD[factor][idx] = (qD[factor][idx]*0.7)  + (lr * qs[factor][idx]) 
-        print(f"Updated qd[factor]: {qD[factor][idx]}")
+        qD[factor][idx] = (qD[factor][idx]*1.0)  + (lr * qs[factor][idx]) 
+        # print(f"Updated qd[factor]: {qD[factor][idx]}")
        
     return qD
 
@@ -537,21 +537,21 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
     # in case A_factor_list is non-trivial, you have to sub-select qs[relevant_factor_idx]
     get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
     qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
-    print(f"Expected a : {expected_A}")
-    print(f"Qs relevant : {qs_relevant}")
+    # print(f"Expected a : {expected_A}")
+    # print(f"Qs relevant : {qs_relevant}")
     # print(f"Qs relevant : {qs_relevant}")
     bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
 
     observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
 
-    print(f"Observations under gamma_A: {bold_o_per_modality}")
-    print(f"Observations: {observation_array}")
+    # print(f"Observations under gamma_A: {bold_o_per_modality}")
+    # print(f"Observations: {observation_array}")
 
     prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
     # prediction_errors = np.array(bold_o_per_modality) - 
 
-    print(f"Gamma A prior: {gamma_A_prior}")
-    print(f"Beta A prior: {1/gamma_A_prior}")
+    # print(f"Gamma A prior: {gamma_A_prior}")
+    # print(f"Beta A prior: {1/gamma_A_prior}")
 
 
     lnA = maths.spm_log_obj_array(base_A)
@@ -576,30 +576,30 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
 
             beta_A_prior = 1/ gamma_A_prior[m]
 
-            print(f"MODALITY : {m}, prediction error: {prediction_errors[m]}")
+            # print(f"MODALITY : {m}, prediction error: {prediction_errors[m]}")
             # prediction_errors_expanded = prediction_errors[m]
             # for _ in range(base_A[m].ndim - 1):
             #     prediction_errors_expanded = prediction_errors_expanded[..., np.newaxis]
             
 
-            print(f"ln A: {lnA[m]}")
-            print(f"Prediction errors expanded: {prediction_errors[m]}")
+            # print(f"ln A: {lnA[m]}")
+            # print(f"Prediction errors expanded: {prediction_errors[m]}")
 
-            print(f"Dot product: { (prediction_errors[m] * lnA[m]).sum(axis=0) }")
+            # print(f"Dot product: { (prediction_errors[m] * lnA[m]).sum(axis=0) }")
             beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-            print(f"beta update term: {beta_update_term}")
+            # print(f"beta update term: {beta_update_term}")
             beta_A_full = beta_A_prior  + beta_update_term
             for idx, s in enumerate(beta_A_full):
                 if s < 0.1:
                     beta_A_full[idx] = 0.1 - 10**-5 #set this as a parameter
                 if s > 10:
                     beta_A_full[idx] = 10 - 10**-5 #set this as a parameter
-            print(f"Beta A full m: {beta_A_full}")
+            # print(f"Beta A full m: {beta_A_full}")
 
             gamma_A_full[m] = 1 / np.array(beta_A_full) 
 
-            print(f"Gamma A full m: {gamma_A_full[m]}")
+            # print(f"Gamma A full m: {gamma_A_full[m]}")
     
 
     if np.isscalar(gamma_A):
@@ -689,18 +689,9 @@ def update_gamma_G(G, gamma, q_pi, q_pi_bar, policies):
 
     affective_charge = 0
 
-    print(f"Gamma: {gamma}")
-    print(f"Qpi: {q_pi}")
-    print(f"Qpi bar: {q_pi_bar}")
-    print(f"G: {G}")
-
     affective_charge = (q_pi - q_pi_bar).dot(G)
-
-    print(f"Affective charge: {affective_charge}")
 
     new_beta = (1/gamma) - affective_charge
 
-    print(f"New beta: {new_beta}")
-    print(f"New gamma: {1/new_beta}")
     return 1 / new_beta, affective_charge
 

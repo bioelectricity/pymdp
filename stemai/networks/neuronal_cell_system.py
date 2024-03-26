@@ -551,7 +551,7 @@ class System(Network):
                 assert node in list(networkx.neighbors(self.internal_network.network, new_node))
                 assert new_node in list(networkx.neighbors(self.internal_network.network, node))
 
-    def prune(self):
+    def prune(self, precisions_dict, gamma_dict):
         node_idx = 0
         nodes = list(self.internal_network.nodes)
 
@@ -581,7 +581,14 @@ class System(Network):
             neighbor = internal_neighbors[minimum_precision_neighbor]
             assert "i" in neighbor
 
-            if precision < 0.55 and precision > 0.45:
+            print(f"Precision: {precision}")
+
+            precisions_dict[self.t][node] = np.round(precisions,3)
+
+
+            gamma_dict[self.t][node] = (agent.gamma_A[0][0],agent.gamma_A[0][1], agent.gamma_A[1][0], agent.gamma_A[1][1])
+
+            if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
                 new_agent = self.internal_network.nodes[neighbor]["agent"]
                 if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
                     continue
@@ -591,5 +598,7 @@ class System(Network):
                 if neighbor in node_neighbors:
                     self.internal_network.network.remove_edge(node, neighbor)
                     self.system.remove_edge(node, neighbor)
+            
+        return precisions_dict, gamma_dict
 
              

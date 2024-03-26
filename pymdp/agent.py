@@ -953,10 +953,10 @@ class Agent(object):
     
     def update_gamma_A(self, observation, qs, modalities = None):
 
-        print(f"Old gamma A :{self.gamma_A}")
+        #f"Old gamma A :{self.gamma_A}")
         self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
 
-        print(f"New gamma A :{self.gamma_A}")
+        #print(f"New gamma A :{self.gamma_A}")
         if any([len(self.gamma_A[f].shape) > 1 for f in range(len(self.gamma_A))]):
             raise
         self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
@@ -972,9 +972,9 @@ class Agent(object):
 
     def update_gamma(self):
 
-        print(f"F: {self.F}")
-        print(f"E: {self.E}")
-        print(f"G: {self.G}")
+        # print(f"F: {self.F}")
+        # print(f"E: {self.E}")
+        # print(f"G: {self.G}")
 
         q_pi = maths.softmax(np.array(-1*self.E - self.gamma*self.G).astype(float))
         q_pi_bar = maths.softmax(np.array(-1*self.E - self.gamma*self.G - self.F).astype(float))
