@@ -562,7 +562,7 @@ class System(Network):
 
             agent = self.internal_network.nodes[node]["agent"]
 
-            neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            neighbors = agent.neighbors
 
             internal_neighbors = [n for n in neighbors if "i" in n]
 
@@ -592,10 +592,12 @@ class System(Network):
 
             all_precisions = np.round(all_precisions,3)
 
-            precisions_dict[self.t][node] = {n:p for n, p in zip(agent.neighbors, all_precisions)    }
+            assert len(all_precisions) == len(neighbors), f"Length of all precisions: {all_precisions} doesn't match length of neighbors: {agent.neighbors}"
+
+            precisions_dict[self.t][node] = {n:p for n, p in zip(neighbors, all_precisions)    }
 
 
-            gamma_dict[self.t][node] = {n: (g[0],g[1]) for n, g in zip(agent.neighbors, agent.gamma_A)}
+            gamma_dict[self.t][node] = {n: (g[0],g[1]) for n, g in zip(neighbors, agent.gamma_A)}
 
             if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
                 new_agent = self.internal_network.nodes[neighbor]["agent"]
