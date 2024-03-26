@@ -595,6 +595,9 @@ class System(Network):
 
             internal_neighbors = [n for n in neighbors if "i" in n]
 
+            if len(internal_neighbors) == 0:
+                continue
+
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
             other_neighbors = [n for n in neighbors if "i" not in n]
@@ -632,6 +635,7 @@ class System(Network):
             if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
                 new_agent = self.internal_network.nodes[neighbor]["agent"]
                 if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
+                    pdb.set_trace()
                     continue
                 agent.disconnect_from(neighbor)
                 new_agent.disconnect_from(node)

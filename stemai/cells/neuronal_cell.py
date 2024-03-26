@@ -133,6 +133,14 @@ class NeuronalCell(Agent):
         if self.logging: print(f"Neighbor idx: {neighbor_idx}")
 
         self.num_obs.remove(self.num_obs[neighbor_idx])
+
+
+        if self.num_modalities == 0:
+            self.gamma_A = []
+            self.gamma_A_prior = []
+            self.A = utils.obj_array(0)
+            self.neighbors.remove(neighbor_node)
+            return
         old_base_A = np.copy(self.base_A)
         old_gamma_A_prior  = np.copy(self.gamma_A_prior)
         old_gamma_A = np.copy(self.gamma_A)
@@ -176,7 +184,7 @@ class NeuronalCell(Agent):
         return True
 
     def check_disconnect_from(self, neighbor_node):
-        if self.num_modalities == 1 or neighbor_node not in self.neighbors:            
+        if neighbor_node not in self.neighbors:            
             return False
         return True
 

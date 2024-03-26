@@ -1,9 +1,9 @@
 # %%
 import os
-os.chdir('/Users/daphne/Desktop/stemai/pymdp')
+# os.chdir('/Users/daphne/Desktop/stemai/pymdp')
 from stemai.runner import Runner
 
-from stemai.demos.ngw_params import all_parameter_combinations
+from stemai.demos.ngw_params import all_parameter_combinations, defaults
 import tqdm 
 # %%
 # comment these
@@ -73,7 +73,7 @@ def sweep(dir):
  
 
 def run_default():
-    param = all_parameter_combinations[0]
+    param = defaults
     dir = 'default-run'
     run_simulation(param, dir, save_grids=True, save_networks=True)
 
