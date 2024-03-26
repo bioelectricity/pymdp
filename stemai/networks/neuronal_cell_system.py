@@ -4,6 +4,7 @@ import sys
 import os
 from stemai.networks.network import Network
 import time
+import pdb
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -566,27 +567,28 @@ class System(Network):
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            all_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
             # precisions = agent.gamma_A
 
-            if len(precisions) < 2:
+            if len(all_precisions) < 2:
                 continue
 
             # log_precisions = np.log(precisions)
 
-            minimum_precision_neighbor = np.argmin(precisions)
-            precision = precisions[minimum_precision_neighbor]
+            minimum_precision_neighbor = np.argmin(all_precisions)
+            precision = all_precisions[minimum_precision_neighbor]
 
 
             neighbor = internal_neighbors[minimum_precision_neighbor]
             assert "i" in neighbor
 
             print(f"Precision: {precision}")
+            pdb.set_trace()
 
-            precisions_dict[self.t][node] = np.round(precisions,3)
+            precisions_dict[self.t][node] = np.round(all_precisions,3)
 
 
-            gamma_dict[self.t][node] = (agent.gamma_A[0][0],agent.gamma_A[0][1], agent.gamma_A[1][0], agent.gamma_A[1][1])
+            gamma_dict[self.t][node] = [(g[0],g[1]) for g in agent.gamma_A]
 
             if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
                 new_agent = self.internal_network.nodes[neighbor]["agent"]

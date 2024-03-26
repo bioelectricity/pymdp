@@ -291,7 +291,7 @@ class Runner:
                 self.system.update_gamma_A()
                 self.gamma_update_times.append(self.system.t)
 
-            if agent_location == self.system.reward_location or self.system.t > 2000:
+            if agent_location == self.system.reward_location or self.system.t > 500:
                 self.time_to_reward_per_trial.append(self.system.t)
 
                 if save_grids:
