@@ -2,6 +2,7 @@
 import pathlib
 import sys
 import os
+import pickle
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -25,6 +26,7 @@ class NeuronalNetwork:
         gamma_A=0.1,
         gamma_B=0.1,
         color=None,
+        file = None
     ):
         """
         num_cells: number of cells in the network
@@ -34,8 +36,10 @@ class NeuronalNetwork:
 
         self.num_cells = num_cells
         self.connectivity = connectivity
-
-        self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+        if file is not None:
+            self.network = pickle.load(open(file, "rb"))
+        else:
+            self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
         for node in self.network.nodes:
             if len(list(networkx.neighbors(self.network, node))) == 0:
                 random_node = np.random.choice(list(self.network.nodes))

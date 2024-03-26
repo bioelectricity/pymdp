@@ -96,50 +96,55 @@ class Runner:
 
     def construct_system(self, default = False):
 
+        internal_file = active_file = sensory_file = external_file = None
 
-        if default and os.path.exists("internal_network.gpickle"):
-            self.internal_network.network =  pickle.load("internal_network.pickle")
-            self.sensory_network.network = pickle.load("sensory_network.pickle")
-            self.active_network.network = pickle.load("active_network.pickle")
-            self.external_network.network = pickle.load("external_network.pickle")
 
-        else:
-            internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
+        if default and os.path.exists("internal_network.pickle"):
+            internal_file = "internal_network.pickle"
+            active_file = "active_network.pickle"
+            sensory_file = "sensory_network.pickle"
+            external_file = "external_network.pickle"
 
-            active_node_labels = [f"a{i}" for i in range(self.num_active_cells)]
-            sensory_node_labels = [f"s{i}" for i in range(self.num_sensory_cells)]
+        internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
 
-            external_node_labels = [f"e{i}" for i in range(self.num_external_cells)]
+        active_node_labels = [f"a{i}" for i in range(self.num_active_cells)]
+        sensory_node_labels = [f"s{i}" for i in range(self.num_sensory_cells)]
 
-            self.internal_network = NeuronalNetwork(
-                self.num_internal_cells,
-                self.internal_connectivity,
-                node_labels=internal_node_labels,
-                color="mediumseagreen",
-            )
+        external_node_labels = [f"e{i}" for i in range(self.num_external_cells)]
 
-            if self.logging: print("Created internal network")
+        self.internal_network = NeuronalNetwork(
+            self.num_internal_cells,
+            self.internal_connectivity,
+            node_labels=internal_node_labels,
+            color="mediumseagreen",
+            file = internal_file
+        )
 
-            self.active_network = NeuronalNetwork(
-                self.num_active_cells,
-                self.active_connectivity,
-                node_labels=active_node_labels,
-                color="indianred",
-            )
+        if self.logging: print("Created internal network")
 
-            self.sensory_network = NeuronalNetwork(
-                self.num_sensory_cells,
-                self.sensory_connectivity,
-                node_labels=sensory_node_labels,
-                color="lightgrey",
-            )
+        self.active_network = NeuronalNetwork(
+            self.num_active_cells,
+            self.active_connectivity,
+            node_labels=active_node_labels,
+            color="indianred",
+            file = active_file
+        )
 
-            self.external_network = ExternalNetwork(
-                self.num_external_cells,
-                self.external_connectivity,
-                external_node_labels,
-                celltype=GridWorldCell,
-            )
+        self.sensory_network = NeuronalNetwork(
+            self.num_sensory_cells,
+            self.sensory_connectivity,
+            node_labels=sensory_node_labels,
+            color="lightgrey",
+            file = sensory_file
+        )
+
+        self.external_network = ExternalNetwork(
+            self.num_external_cells,
+            self.external_connectivity,
+            external_node_labels,
+            celltype=GridWorldCell,
+            file = external_file
+        )
 
 
         # now connect them together

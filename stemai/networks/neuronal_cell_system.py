@@ -120,12 +120,12 @@ class System(Network):
         system = networkx.compose(self.internal_network.network, self.sensory_network.network)
         system = networkx.compose(system, self.active_network.network)
         self.system = networkx.compose(system, self.external_network.network)
-        if default and not os.path.exists("default-run/internal_network.pickle"):
+        if default and not os.path.exists("internal_network.pickle"):
             import pickle
-            pickle.dump(self.internal_network.network, open("default-run/internal_network.pickle", "wb"))
-            pickle.dump(self.sensory_network.network, open("default-run/sensory_network.pickle", "wb"))
-            pickle.dump(self.active_network.network, open("default-run/active_network.pickle", "wb"))
-            pickle.dump(self.external_network.network, open("default-run/external_network.pickle", "wb"))
+            pickle.dump(self.internal_network.network, open("internal_network.pickle", "wb"))
+            pickle.dump(self.sensory_network.network, open("sensory_network.pickle", "wb"))
+            pickle.dump(self.active_network.network, open("active_network.pickle", "wb"))
+            pickle.dump(self.external_network.network, open("external_network.pickle", "wb"))
 
 
     def set_agents_in_system(self):
