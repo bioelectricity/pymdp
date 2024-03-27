@@ -34,7 +34,6 @@ class Runner:
         precision_update_frequency,
         prune_connections, 
         prune_interval,
-        add_connections=False,
         logging=False,
         dir="out",
         default = False
@@ -61,7 +60,6 @@ class Runner:
         self.logging = logging
 
         self.prune_connections = prune_connections
-        self.add_connections = add_connections
         self.prune_interval = prune_interval
 
         self.dir = dir
@@ -86,7 +84,7 @@ class Runner:
             "precision_threshold": self.precision_threshold,
             "precision_update_frequency": self.precision_update_frequency,
             "prune_connections": self.prune_connections,
-            "add_connections": self.add_connections,
+            "prune_interval": self.prune_interval,
             "logging": self.logging,
         }
         if not os.path.exists(f"{self.dir}/params.yaml"):
@@ -161,7 +159,6 @@ class Runner:
             action_time_horizon=self.action_time_threshold,
             precision_threshold=self.precision_threshold,
             prune_connections=self.prune_connections,
-            add_connections=self.add_connections,
             default = default
         )
 

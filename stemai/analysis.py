@@ -10,8 +10,10 @@ os.chdir('../')
 #plots to make 
 from stemai.demos.ngw_params import all_parameter_combinations, params_to_sweep, param_to_index_mapping
 from stemai.utils import draw_network
-
-
+import json
+def flatten(original_list):
+    flattened_list = [item for sublist in original_list for item in sublist]
+    return flattened_list
 class TrialAnalysis:
 
     def __init__(
@@ -33,7 +35,7 @@ class TrialAnalysis:
         precision_threshold,
         precision_update_frequency,
         prune_connections, 
-        add_connections,
+        prune_interval,
         index,
         dir = "out",
         logging=False,
@@ -58,12 +60,61 @@ class TrialAnalysis:
         self.logging = logging
         self.index = index
         self.prune_connections = prune_connections
-        self.add_connections = add_connections
+        self.prune_interval = prune_interval
 
         self.path = f"{dir}/{index}"
 
         self.trial_paths = [f"{self.path}/{i}" for i in range(self.num_trials) if os.path.exists(f"{self.path}/{i}")]
 
+
+    def draw_networks_from_precisions(self):
+
+        #for trial_path in self.trial_paths:
+        precision_file = f"{self.path}/precisions_over_time.txt"
+        pos = None
+        network_images = []
+        network_files = []
+        with open(precision_file, "r") as f:
+            print(f"Reading: {precision_file}")
+            lines = f.readlines()
+            for t, line in enumerate(lines):
+                try:
+                    json_component = line.split(": [")[1].replace("]", "").replace("\n", "")
+                except:
+                    continue
+                if len(json_component) == 0:
+                    continue
+                data = json.loads(json_component[4:-1].replace("'", '"'))
+
+                # Initialize a directed graph
+                G = networkx.Graph()
+
+                # Add nodes to the graph
+                for node, neighbors in data.items():
+                    for neighbor, weight in neighbors.items():
+                        G.add_edge(node, neighbor, weight=weight)
+
+                edge_colors = [weight for weight in networkx.get_edge_attributes(G, 'weight').values()]
+
+                #print(f"Weights: {edge_colors}")
+                edge_colors = ["darkblue" if color > 0.84 else "lightblue" if color < 0.68 else "blue" for color in edge_colors]  # Convert to gradient of blue based on edge color
+               # print(f"Colors: {edge_colors}")
+                
+                # Draw the graph
+                if pos is None:
+                    pos = networkx.spring_layout(G)  # Position nodes using Fruchterman-Reingold force-directed algorithm
+
+
+                if not os.path.exists(f"{self.path}/networks"):
+                    os.makedirs(f"{self.path}/networks")
+                fn =  f"{self.path}/networks/network_{t}.png"
+                draw_network(G, pos=pos, save=True, show=False, edge_colors = edge_colors, temp_file_name=f"{self.path}/networks/network_{t}.png")
+                network_files.append(fn)
+                network_images.append(imageio.imread(fn))
+        gif_path = f"{self.path}/network-simulation.gif"
+        imageio.mimsave(gif_path, network_images, fps=5)
+        for temp_file in network_files:
+            os.remove(temp_file)
 
     def generate_network_gif(self):
    
@@ -129,6 +180,7 @@ class TrialAnalysis:
             for line in lines:
                 time_to_reward.append(float(line.replace("\n","")))
         plt.plot(time_to_reward)
+    
         plt.xlabel("Trials")
         plt.ylabel("Number of timesteps to reward")
         plt.title(f"Number of timesteps to reward over trials")
@@ -186,6 +238,8 @@ class TrialAnalysis:
         self.connectivities = connectivities
 
     def generate_plots(self, gifs = False):
+        if not os.path.exists(f"{self.path}/network-simulation.gif") and self.prune_connections:
+            self.draw_networks_from_precisions()
         self.plot_time_to_reward()
         self.plot_distances_over_time()
         self.plot_connections_by_time()
@@ -228,6 +282,7 @@ def analyze_parameter(dir):
     _times = []
     distances = []
     connectivities = []
+    all_distances = []
 
     print(f"Parameter dir : {dir}, num runs: {num_runs}")
 
@@ -246,6 +301,7 @@ def analyze_parameter(dir):
         last_times.append(last_time)
         distances.append(trial_analysis.average_distances)
         connectivities.append(trial_analysis.connectivities)
+        all_distances.append(trial_analysis.distances_over_time)
     
     if len(_times) == 0:
         return None, None
@@ -259,6 +315,8 @@ def analyze_parameter(dir):
     std_times_over_runs = np.nanstd(_times, axis = 0)
 
     plt.plot(average_times_over_runs, label="Average time to reach reward")
+    for idx, time in enumerate(_times):
+        plt.plot(time, alpha=0.2, label=f"Run {idx}")
     plt.fill_between(np.arange(len(average_times_over_runs)), average_times_over_runs - std_times_over_runs, average_times_over_runs + std_times_over_runs, alpha=0.2)
     plt.title("Average time to reach reward over runs")
     plt.savefig(f"{dir}/average_time_to_reward.png")
@@ -267,6 +325,8 @@ def analyze_parameter(dir):
     max_dist = max(len(_d) for _d in distances)
     for d in distances:
         d.extend([np.nan] * (max_dist - len(d)))
+    for idx, d in enumerate(distances):
+        plt.plot(d, alpha=0.2, label=f"Run {idx}")
     average_distances_over_runs = np.nanmean(distances, axis=0)
     std_distances_over_runs = np.nanstd(distances, axis=0)
 
@@ -281,20 +341,29 @@ def analyze_parameter(dir):
     average_connectivities_over_runs = np.nanmean(connectivities, axis=0)
     std_connectivities_over_runs = np.nanstd(connectivities, axis=0)
 
-    plt.plot(average_connectivities_over_runs, label="Average connectivity to reward")
+    plt.plot(average_connectivities_over_runs, label="Average connectivity")
     plt.fill_between(np.arange(len(average_connectivities_over_runs)), average_connectivities_over_runs - std_connectivities_over_runs, average_connectivities_over_runs + std_connectivities_over_runs, alpha=0.2)
     plt.title("Average connectivity over runs")
-    plt.savefig(f"{dir}/average_connectivity_to_reward.png")
+    plt.savefig(f"{dir}/average_connectivity.png")
+    plt.clf()
 
-    return average_times, last_times
+
+    plt.scatter(flatten(_times), flatten(connectivities))
+    plt.xlabel("Time to reward")
+    plt.ylabel("Connectivity")
+    plt.title("Connectivity against time to reward")
+    plt.savefig(f"{dir}/connectivity_vs_time.png")
+    plt.clf()
+
+    return average_times, last_times, connectivities, _times, all_distances
 
 
 
 #%%
 
-default_dir = "new-gamma-update/param_0"
+default_dir = "default-run"
 
-default_average_times, default_last_times = analyze_parameter(default_dir)
+default_average_times, default_last_times, default_connectivities, default_times, default_distances = analyze_parameter(default_dir)
 
 mean_default_avg_time = np.mean(default_average_times)
 std_default_avg_time = np.std(default_average_times)
@@ -302,31 +371,15 @@ std_default_avg_time = np.std(default_average_times)
 mean_default_last_time = np.mean(default_last_times)
 std_default_last_time = np.std(default_last_times)
 
-defaults = {}
-
-defaults["new-gamma-update"] = {"mean_default_avg_time": mean_default_avg_time, "std_default_avg_time": std_default_avg_time, "mean_default_last_time": mean_default_last_time, "std_default_last_time": std_default_last_time}
-default_dir = "output/param_0"
-
-default_average_times, default_last_times = analyze_parameter(default_dir)
-
-mean_default_avg_time = np.mean(default_average_times)
-std_default_avg_time = np.std(default_average_times)
-
-mean_default_last_time = np.mean(default_last_times)
-std_default_last_time = np.std(default_last_times)
-
-defaults["output"] = {"mean_default_avg_time": mean_default_avg_time, "std_default_avg_time": std_default_avg_time, "mean_default_last_time": mean_default_last_time, "std_default_last_time": std_default_last_time}
 
 
 #%%
 
-sweep_param_dirs_1 = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_0']
+sweep_param_dirs = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_1']
 times_per_param = {}
 
-sweep_param_dirs = [f'new-gamma-update/{f}' for f in os.listdir('new-gamma-update') if 'param' in f and f != 'param_0']
-sweep_param_dirs += sweep_param_dirs_1
 for param_dir in sweep_param_dirs:
-    average_times, last_times = analyze_parameter(param_dir)
+    average_times, last_times, _, _, _ = analyze_parameter(param_dir)
     if average_times is not None:
         times_per_param[param_dir] = (average_times, last_times)
 
@@ -334,13 +387,13 @@ for param_dir in sweep_param_dirs:
 
 #%%
 
-directories = [ "output", "new-gamma-update"]
+directories = [ "output"]
 
 for param, param_values_dict in param_to_index_mapping.items():
 
     param_values = list(param_values_dict.values())
 
-    param_values += [f"{p}*" for p in param_values]
+    # param_values += [f"{p}*" for p in param_values]
 
     avg_avg = []
     last_avg = []
@@ -353,12 +406,11 @@ for param, param_values_dict in param_to_index_mapping.items():
 
         for idx, value in param_values_dict.items():
             dir = f"{directory}/param_{idx}"
-            if idx == 0:
-                mean_avg_time = defaults[directory]["mean_default_avg_time"]
-                std_avg_time = defaults[directory]["std_default_avg_time"]
-
-                mean_last_time = defaults[directory]["mean_default_last_time"]
-                std_last_time = defaults[directory]["std_default_last_time"]
+            if idx == 1:
+                mean_avg_time = mean_default_avg_time
+                std_avg_time = std_default_avg_time
+                mean_last_time = mean_default_last_time
+                std_last_time = std_default_last_time
             else:
                 if dir in times_per_param:
                     average_times, last_times = times_per_param[dir]

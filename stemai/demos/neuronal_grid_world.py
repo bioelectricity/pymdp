@@ -72,6 +72,7 @@ def sweep(dir):
 
 def run_default():
     param = defaults
+
     dir = 'default-run'
     run_simulation(param, dir, save_grids=True, save_networks=True, default=True)
 

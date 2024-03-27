@@ -24,7 +24,6 @@ B_gm = copy.deepcopy(B_gp)
 A_factor_list = []
 
 
-# %%
 import os
 
 os.chdir("/Users/daphne/Desktop/stemai/pymdp")
@@ -43,7 +42,7 @@ num_factors = 2 #location (4 locations: center, left, right, down), context (2 c
 
 #reward: 4, -6, 0
 
-gamma_G = 1.0
+gamma_G = 0.95
 pA = utils.dirichlet_like(A_gp, scale = 1e16)
 
 pA[1][1:,1:3,:] = 1.0
@@ -79,17 +78,16 @@ pD = [np.array([0.976,0.008,0.008,0.008]), np.array([1,1]).astype(float)]
 
 
 A_factor_list = [[0],[0,1],[0,1] ]
-agent = Agent(A = A_gm,A_factor_list=A_factor_list,B = B_gm, gamma=gamma_G, pE = pE, pD = pD, lr_pD = 1.0, lr_pE = 0.5, use_param_info_gain=True, inference_algo="MMP", inference_horizon=3, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1])
+agent = Agent(A = A_gm,A_factor_list=A_factor_list,B = B_gm, gamma=gamma_G, pE = pE, pD = pD, lr_pD = 0.01, lr_pE = 0.9, use_param_info_gain=True, inference_algo="MMP", inference_horizon=1, policy_len=2, policy_sep_prior=True, policies = policies, factors_to_learn=[1], control_fac_idx=[0])
 
 names = ['center', 'right', 'left', 'cue']
 policy_names = []
-for p in agent.policies:
-    p_loc = p[:,0]
-    name = [names[p_loc[0]], names[p_loc[1]]]
-    policy_names.append(name)
+
 agent.C[1][1] = 4.0
 agent.C[1][2] = -6.0
 agent.D[0] = np.array([0.976,0.008,0.008,0.008])
+
+initial_D = copy.deepcopy(agent.D)
 #%%
 T = 25 # number of timesteps
 
@@ -103,6 +101,8 @@ reward_observations = ['No reward','Reward!','Loss!']
 cue_observations = ['Null','Cue Right','Cue Left']
 
 num_trials = 64
+
+#num_trials =32
 import time
 gamma_G_over_trials = [agent.gamma]
 gamma_G_over_timesteps = [agent.gamma]
@@ -121,7 +121,12 @@ policies_over_time = []
 observations_over_time = []
 REWARD_CONDITION = 0
 
-
+names = ['center', 'right', 'left', 'cue']
+named_policies = []
+for p in agent.policies:
+    p_loc = p[:,0]
+    name = [names[p_loc[0]], names[p_loc[1]]]
+    named_policies.append(name)
 obs = env.reset(reward_condition=REWARD_CONDITION) # reset the environment and get an initial observation
 
 for trial in range(num_trials):
@@ -133,7 +138,8 @@ for trial in range(num_trials):
         REWARD_CONDITION = 1
 
     observations_per_trial = []    
-    qs_per_trial = []       
+    qs_per_trial = []   
+    policy_names_per_trial = []    
 
     if trial != 0:
         #agent.update_gamma()
@@ -162,7 +168,15 @@ for trial in range(num_trials):
         policies_over_time.append(selected_policy)
         observations_over_time.append(observations_per_trial)
         qs_over_time.append(qs_per_trial)
+        agent.qs = copy.deepcopy(initial_D)
+        agent.action = None
+        agent.qs_prev = copy.deepcopy(initial_D)
+        agent.prev_obs = []
         agent.reset()
+        agent.prev_actions = None
+        policy_names.append(policy_names_per_trial)
+       #  agent.update_E()
+
         #
 
        # agent.set_latest_beliefs(last_belief = agent.D)
@@ -179,14 +193,27 @@ for trial in range(num_trials):
         observations_per_trial.append(obs)
 
         qx = agent.infer_states(obs)
+        print(f"qs: {np.mean(np.mean(qx, axis = 0),axis=0)}")
+
+        print(f"F pi :{ [(name, round(agent.F[idx],2)) for idx, name in enumerate(named_policies)]}")
+
         qs_per_trial.append(qx )
         q_pi, efe = agent.infer_policies()
+
+        print(f"Q pi :{ [(name, round(agent.q_pi[idx],2)) for idx, name in enumerate(named_policies)]}")
+        print(f"G :{ [(name, round(agent.G[idx],2)) for idx, name in enumerate(named_policies)]}")
+        print(f"E :{ [(name, round(agent.E[idx],2)) for idx, name in enumerate(named_policies)]}")
+        print(f"Gamma: {agent.gamma}")
         q_pi_over_time.append(q_pi)
         agent.update_E()
 
        #  print(f"inferred policy: {q_pi}")
        #  print(f"efe: {efe}")
         action = agent.sample_action()
+        if len(policy_names_per_trial) > 0 and policy_names_per_trial[-1] == "right":
+            policy_names_per_trial.append('right')
+        else:
+              policy_names_per_trial.append(names[int(action[0])])
         selected_policy.append(action[0])
         agent.update_gamma()
         gamma_G_over_timesteps.append(agent.gamma)
@@ -248,3 +275,14 @@ plt.ylabel("Strongest prior belief about policies")
 plt.title("Strongest prior belief about policies over trials")
 plt.xlabel("Trials")
 plt.show()
+
+
+unique_policies = np.unique(policy_names, axis =0 )
+unique_policies = [list(p) for p in unique_policies]
+policy_indices = [unique_policies.index(p) for p in policy_names]
+plt.plot(policy_indices)
+plt.yticks([0,1, 2, 3], labels =["CL", "CR", "LL", "RR"])
+# plt.yticklabels(["CR", "RR"])
+plt.ylabel("Policy")
+plt.title("Policy over trials")
+plt.xlabel("Trials")
