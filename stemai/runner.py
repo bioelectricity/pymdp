@@ -33,7 +33,8 @@ class Runner:
         precision_threshold,
         precision_update_frequency,
         prune_connections, 
-        add_connections,
+        prune_interval,
+        add_connections=False,
         logging=False,
         dir="out",
         default = False
@@ -61,6 +62,7 @@ class Runner:
 
         self.prune_connections = prune_connections
         self.add_connections = add_connections
+        self.prune_interval = prune_interval
 
         self.dir = dir
 
@@ -318,7 +320,7 @@ class Runner:
 
                 #self.system.renormalize_precisions()
 
-                if self.system.prune_connections:
+                if self.system.prune_connections and trial % self.prune_interval == 0:
                     precisions_dict_per_timestep[self.system.t] = {}
                     gamma_dict_per_timestep[self.system.t] = {}
                     precisions_dict_per_timestep, gamma_dict_per_timestep = self.system.prune(precisions_dict_per_timestep, gamma_dict_per_timestep)

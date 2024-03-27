@@ -28,10 +28,10 @@ all_sensory_connectivity = [0.3, 0.5, 0.7]
 all_active_connectivity_proportion = [0.3, 0.6, 0.8]
 all_sensory_connectivity_proportion = [0.2, 0.4, 0.6]
 all_action_time_threshold = [1, 5, 10]
-all_precision_threshold = [0.1, 0.3, 0.5]
+all_precision_threshold = [0.05,0.1,0.2]
 all_precision_update_frequency = [10, 20, 30]
-all_add_connections = [True, False] #need to rerun with True
 all_prune_connections = [True, False] #need to rerun with False 
+all_prune_intervals = [2, 5, 10]
 
 params_to_sweep = {
     "num_internal_cells": all_num_internal_cells,
@@ -44,7 +44,7 @@ params_to_sweep = {
     "precision_threshold": all_precision_threshold,
 
     "precision_update_frequency": all_precision_update_frequency,
-    "add_connections": all_add_connections,
+    "prune_interval": all_prune_intervals,
     "prune_connections": all_prune_connections,
 
 }
@@ -53,20 +53,20 @@ default_num_trials = 40
 default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4
-default_num_sensory_cells = 6
+default_num_sensory_cells = 10
 default_internal_connectivity = 0.3
 default_active_connectivity = 0
-default_sensory_connectivity = 0.5
+default_sensory_connectivity = 0.3
 default_external_connectivity = 1
 default_reward_location = (9, 9)
 default_agent_location = (0, 0)
 default_grid_size = 10
-default_active_connectivity_proportion = 0.6
-default_sensory_connectivity_proportion = 0.8
+default_active_connectivity_proportion = 0.4
+default_sensory_connectivity_proportion = 0.4
 default_action_time_threshold = 10
-default_precision_threshold = 0.05 #how far away from 0.5 you are in each direction
+default_precision_threshold = 0.1 #how far away from 0.5 you are in each direction
 default_precision_update_frequency = 10
-default_add_connections = False 
+default_prune_interval = 2 
 default_prune_connections = True
 defaults = {
     "logging": False,
@@ -86,7 +86,7 @@ defaults = {
     "reward_location": default_reward_location,
     "agent_location": default_agent_location,
     "grid_size": default_grid_size,
-    "add_connections": default_add_connections,
+    "prune_interval": default_prune_interval,
     "prune_connections": default_prune_connections,
 }
 did_default=False

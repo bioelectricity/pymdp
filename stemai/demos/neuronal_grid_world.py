@@ -56,8 +56,6 @@ def sweep(dir):
     while True:
 
         for idx, param in enumerate(tqdm.tqdm(all_parameter_combinations)):
-            if idx == 19 or idx == 0:
-                continue
             print(f"Param: {param}")
             run_simulation_and_save(param, dir)
             
@@ -78,5 +76,15 @@ def run_default():
     run_simulation(param, dir, save_grids=True, save_networks=True, default=True)
 
 if __name__ == "__main__":
-    run_default()
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run neuronal grid world simulations.")
+    parser.add_argument("--mode", choices=["sweep", "run_default"], required=True, help="Choose 'sweep' to run parameter sweep or 'run_default' to run with default parameters.")
+    args = parser.parse_args()
+
+    if args.mode == "run_default":
+        run_default()
+    elif args.mode == "sweep":
+        sweep('output')
    #sweep('new-gamma-update')
