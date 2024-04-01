@@ -223,7 +223,7 @@ def run_mmp_factorized(
                 reshape_dims[_f_id] = num_states[_f_id]
             joint_loglikelihood += lh_seq[t][m].reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
         joint_lh_seq[t] = joint_loglikelihood
-
+    print(F"beginning gradient descent")
     for itr in range(num_iter):
         F = 0.0 # reset variational free energy (accumulated over time and factors, but reset per iteration)
         for t in range(infer_len):
@@ -264,6 +264,7 @@ def run_mmp_factorized(
                         F += sx.dot(0.5*err)
                     else:
                         F += sx.dot(0.5*(err - (num_factors - 1)*lnA/num_factors)) # @NOTE: not sure why Karl does this in SPM_MDP_VB_X, we should look into this
+                    print(f"F: {F}")
                 else:
                     qs_seq[t][f] = softmax(lnA + lnB_past + lnB_future)
             
@@ -273,7 +274,8 @@ def run_mmp_factorized(
                     F += calc_free_energy(qs_seq[t], prior, num_factors, likelihood = spm_log_single(joint_lh_seq[t]) )
                 else:
                     F += calc_free_energy(qs_seq[t], prior, num_factors)
-
+    if grad_descent:
+        F*= -1
     return qs_seq, F
 
 def _run_mmp_testing(

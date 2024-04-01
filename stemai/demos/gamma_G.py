@@ -119,6 +119,8 @@ qs_over_time = []
 policies_over_time = []
 
 observations_over_time = []
+
+F_over_time = []
 REWARD_CONDITION = 0
 
 names = ['center', 'right', 'left', 'cue']
@@ -175,6 +177,8 @@ for trial in range(num_trials):
         agent.reset()
         agent.prev_actions = None
         policy_names.append(policy_names_per_trial)
+        F_over_time.append(agent.F)
+
        #  agent.update_E()
 
         #
@@ -286,3 +290,10 @@ plt.yticks([0,1, 2, 3], labels =["CL", "CR", "LL", "RR"])
 plt.ylabel("Policy")
 plt.title("Policy over trials")
 plt.xlabel("Trials")
+plt.clf()
+
+for i in range(10):
+    plt.plot(np.array(F_over_time)[:,i], label = f'policy {i}')
+plt.xlabel("Trials")
+plt.ylabel("Free Energy")
+plt.legend()

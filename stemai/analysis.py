@@ -158,14 +158,17 @@ class TrialAnalysis:
             os.remove(temp_file)
 
     def generate_grid_gif(self):
-        grids = np.load(self.path + "/grids.npy")
         grid_images = []
-        for i in range(len(grids)):
-            plt.imshow(grids[i])
-            fn = f"{self.path}/grids/grid_{i}.png"
-            plt.savefig(fn)
-            grid_images.append(imageio.imread(f"{self.path}/grids/grid_{i}.png"))
-            os.remove(fn)
+        for trial_idx, trial_path in enumerate(self.trial_paths):
+            grids = np.load(f"{trial_path}/grids.npy")
+            if not os.path.exists(f"{self.path}/grids"):
+                os.makedirs(f"{self.path}/grids")
+            for i in range(len(grids)):
+                plt.imshow(grids[i])
+                fn = f"{self.path}/grids/grid_{i}.png"
+                plt.savefig(fn)
+                grid_images.append(imageio.imread(f"{self.path}/grids/grid_{i}.png"))
+                os.remove(fn)
         gif_path = f"{self.path}/grid-simulation.gif"
         print(f"Saving gif to : {self.path}/grid-simulation.gif")
 
@@ -237,14 +240,14 @@ class TrialAnalysis:
         # plt.clf()
         self.connectivities = connectivities
 
-    def generate_plots(self, gifs = False):
+    def generate_plots(self, gifs = True):
         if not os.path.exists(f"{self.path}/network-simulation.gif") and self.prune_connections:
             self.draw_networks_from_precisions()
         self.plot_time_to_reward()
         self.plot_distances_over_time()
         self.plot_connections_by_time()
         if gifs:
-            self.generate_network_gif()
+            #self.generate_network_gif()
             self.generate_grid_gif()
 
 
@@ -348,19 +351,19 @@ def analyze_parameter(dir):
     plt.clf()
 
 
-    plt.scatter(flatten(_times), flatten(connectivities))
-    plt.xlabel("Time to reward")
-    plt.ylabel("Connectivity")
-    plt.title("Connectivity against time to reward")
-    plt.savefig(f"{dir}/connectivity_vs_time.png")
-    plt.clf()
+    # plt.scatter(flatten(_times), flatten(connectivities))
+    # plt.xlabel("Time to reward")
+    # plt.ylabel("Connectivity")
+    # plt.title("Connectivity against time to reward")
+    # plt.savefig(f"{dir}/connectivity_vs_time.png")
+    # plt.clf()
 
     return average_times, last_times, connectivities, _times, all_distances
 
 
 
 #%%
-
+ 
 default_dir = "default-run"
 
 default_average_times, default_last_times, default_connectivities, default_times, default_distances = analyze_parameter(default_dir)
@@ -370,6 +373,9 @@ std_default_avg_time = np.std(default_average_times)
 
 mean_default_last_time = np.mean(default_last_times)
 std_default_last_time = np.std(default_last_times)
+
+
+
 
 
 

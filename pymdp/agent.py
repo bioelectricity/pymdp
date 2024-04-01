@@ -213,7 +213,7 @@ class Agent(object):
 
         # Users have the option to make only certain factors controllable.
         # default behaviour is to make all hidden state factors controllable, i.e. `self.num_factors == len(self.num_controls)`
-        if control_fac_idx == None:
+        if control_fac_idx is None:
             self.control_fac_idx = [f for f in range(self.num_factors) if self.num_controls[f] > 1]
         else:
 
@@ -571,6 +571,7 @@ class Agent(object):
                 **self.inference_params
             )
             self.F = F
+
         elif self.inference_algo == "MMP":
 
             self.prev_obs.append(observation)
@@ -580,6 +581,8 @@ class Agent(object):
             else:
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
+
+            print(f"Latest observation: {latest_obs}")
             
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
@@ -974,8 +977,11 @@ class Agent(object):
         # print(f"E: {self.E}")
         # print(f"G: {self.G}")
 
-        q_pi = maths.softmax(np.array(-1*self.E - self.gamma*self.G).astype(float))
-        q_pi_bar = maths.softmax(np.array(-1*self.E - self.gamma*self.G - self.F).astype(float))
+        #q_pi = maths.softmax(np.array(-1*self.E - self.gamma*self.G).astype(float))
+        #q_pi_bar = maths.softmax(np.array(-1*self.E - self.gamma*self.G - self.F).astype(float))
+
+        q_pi = maths.softmax(self.G * self.gamma + maths.spm_log_single(self.E) )
+        q_pi_bar = maths.softmax(self.G * self.gamma - self.F + maths.spm_log_single(self.E) )
         self.gamma, self.affective_charge = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
         return self.gamma
     

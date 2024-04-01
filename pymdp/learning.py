@@ -258,7 +258,7 @@ def update_state_prior_dirichlet(
         # print(f"Current qd[factor]: {qD[factor]}")
         # print(f"qs[factor]: {qs[factor]}")
 
-        qD[factor][idx] = (qD[factor][idx]*1.0)  + (lr * qs[factor][idx]) 
+        qD[factor][idx] = (qD[factor][idx]*0.7)  + (lr * qs[factor][idx]) 
         # print(f"Updated qd[factor]: {qD[factor][idx]}")
        
     return qD
@@ -600,8 +600,8 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             for idx, s in enumerate(beta_A_full):
                 if s < 0.1:
                     beta_A_full[idx] = 0.1 - 10**-5 #set this as a parameter
-                if s > 10:
-                    beta_A_full[idx] = 10 - 10**-5 #set this as a parameter
+                if s > 50:
+                    beta_A_full[idx] = 50  - 10**-5 #set this as a parameter
 
             gamma_A_full[m] = 1 / np.array(beta_A_full) 
             # for idx, s in enumerate(gamma_A_full[m]):
