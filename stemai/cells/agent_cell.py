@@ -1,7 +1,3 @@
-
-#TODO with lars: make this cell for the new generative model 
-
-
 from pymdp.agent import Agent
 from pymdp import utils
 from pymdp import maths
@@ -9,37 +5,18 @@ import numpy as np
 import tqdm
 
 
-"""
-Number of modalities: num neighbors
-Number of state factors: 2 hidden state
-Control state factors: 1 (action)
-
-Need to change action function 
-- actually infer the action 
-
-Think about memory 
-- how can we endow the agents with the ability to understand how their actions change states over time ? 
-
-need to build a new Network that uses this new cell, generative process and act functions need to change 
-
-
-"""
-
-
-
-
-class EFENeuron(Agent):
+class NeuronalCell(Agent):
     """A class that inherits from pymdp agent that represents an abstract cell in a network"""
 
-    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar=0.01):
+    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar=0.01, alpha = 16):
         """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
 
-        self.num_factors = 1  # currently we only have one state factor
+        self.num_factors = 1  # one state factor: for the state fire or not fire
         self.neighbors = neighbors
         self.num_neighbors = len(neighbors)
-        self.num_modalities = len(neighbors)  # currently we only have one observation modality
+        self.num_modalities = len(neighbors)  #one observation modality per neighbor
 
         gamma_B = utils.obj_array(self.num_factors)
 
@@ -74,15 +51,17 @@ class EFENeuron(Agent):
             pA=self.A,
             C=C,
             D=D,
-            beta_zeta_prior=self.gamma_A,
-            beta_omega_prior=self.gamma_B,
+            gamma_A_prior=self.gamma_A,
+            gamma_B_prior=self.gamma_B,
+            pB = self.B,
+            alpha = alpha
         )
 
     def setup(self, num_neighbors):
 
         self.num_states = [2]
         self.num_obs = [2] * num_neighbors
-        self.num_actions = 1
+        self.num_actions = [2] #fire or not fire 
         # actions: take the posterior distribution and a
 
         self.build_A()
@@ -104,13 +83,21 @@ class EFENeuron(Agent):
     def build_B(self):
         B = utils.obj_array(self.num_factors)
 
-        for f in range(self.num_factors):
-            B[f] = np.eye(self.num_states[0]).reshape((self.num_states[0], self.num_states[0], 1))
+
+        for i in range(self.num_factors):
+            B_i = np.zeros((self.num_states[i], self.num_states[i], self.num_actions[i]))
+
+            for action in range(self.num_actions[i]):
+                B_i[:, :, action] = np.full(
+                    (self.num_states[i], self.num_states[i]), 1 / self.num_states[i]
+                )
+            B[i] = B_i
         self.B = B
 
     def rebuild_A_factor_list(self):
         self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
-
+    
+    
     def disconnect_from(self, neighbor_node):
 
         self.num_neighbors -= 1
@@ -124,12 +111,18 @@ class EFENeuron(Agent):
         if self.logging: print(f"Neighbor idx: {neighbor_idx}")
 
         self.num_obs.remove(self.num_obs[neighbor_idx])
-        old_base_A = np.copy(self.base_A)
-        old_beta_zeta = np.copy(self.beta_zeta)
-        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
 
-        if self.logging: print(f"Old beta zeta: {len(old_beta_zeta_prior)}")
-        self.build_B()
+        if self.num_modalities == 0:
+            self.gamma_A = []
+            self.gamma_A_prior = []
+            self.A = utils.obj_array(0)
+            self.neighbors.remove(neighbor_node)
+            return
+        
+        old_base_A = np.copy(self.base_A)
+        old_gamma_A = np.copy(self.gamma_A)
+        old_gamma_A_prior = np.copy(self.gamma_A_prior)
+
         mapping = {} #mapping from old modality to new modality 
         neighbor_idx = list(self.neighbors).index(neighbor_node)
         for o in range(self.num_neighbors + 1):
@@ -140,29 +133,30 @@ class EFENeuron(Agent):
             else:
                 mapping[o] = o - 1
         new_base_A = utils.obj_array(self.num_modalities)
-        new_beta_zeta = utils.obj_array(self.num_modalities)
-        new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        new_gamma_A = utils.obj_array(self.num_modalities)
+        new_gamma_A_prior = utils.obj_array(self.num_modalities)
         for old_m in range(self.num_neighbors + 1):
             if old_m not in mapping:
                 continue
             new_m = mapping[old_m]
             new_base_A[new_m] = old_base_A[old_m]
-            new_beta_zeta[new_m] = old_beta_zeta[old_m]
+            new_gamma_A[new_m] = old_gamma_A[old_m]
 
-            new_beta_zeta_prior[new_m] = old_beta_zeta_prior[old_m]
+            new_gamma_A_prior[new_m] = old_gamma_A_prior[old_m]
         
         self.base_A = new_base_A        
-        self.beta_zeta_prior = new_beta_zeta_prior
-        self.beta_zeta = new_beta_zeta
-        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
-        self.neighbors.remove(self.neighbors[neighbor_idx])
-        if self.logging: print(f"New beta zeta: {len(self.beta_zeta_prior)}")
+        self.gamma_A_prior = new_gamma_A_prior
+        self.gamma_A = new_gamma_A
+        self.A = utils.scale_A_with_gamma(self.base_A, self.gamma_A)
+        self.neighbors.remove(neighbor_node)
+        if self.logging: print(f"New gamma_A : {len(self.gamma_A_prior)}")
+        print(f"actions received: {self.actions_received}")
         self.actions_received.pop(neighbor_node)
         self.rebuild_A_factor_list()
         self.qs_over_time = []
         self.observation_history = []
+        self.C = self.build_uniform_C()
 
-        return True
     
     def check_connect_to(self, neighbor_node):
         if neighbor_node in self.neighbors:
@@ -170,9 +164,10 @@ class EFENeuron(Agent):
         return True
 
     def check_disconnect_from(self, neighbor_node):
-        if self.num_modalities == 1 or neighbor_node not in self.neighbors:            
+        if neighbor_node not in self.neighbors:            
             return False
         return True
+
 
         
     def connect_to(self, neighbor_node):
@@ -180,26 +175,23 @@ class EFENeuron(Agent):
         self.num_modalities += 1
         self.num_obs.append(2)
         old_base_A = np.copy(self.base_A)
-        old_beta_zeta = np.copy(self.beta_zeta)
-        old_beta_zeta_prior = np.copy(self.beta_zeta_prior)
-
-        self.build_B()
-
+        old_gamma_A = np.copy(self.gamma_A)
+        old_gamma_A_prior = np.copy(self.gamma_A_prior)
         new_base_A = utils.obj_array(self.num_modalities)
-        new_beta_zeta = utils.obj_array(self.num_modalities)
-        new_beta_zeta_prior = utils.obj_array(self.num_modalities)
+        new_gamma_A = utils.obj_array(self.num_modalities)
+        new_gamma_A_prior = utils.obj_array(self.num_modalities)
         
         for m in range(1, self.num_modalities):
             new_base_A[m] = old_base_A[m-1]
-            new_beta_zeta[m] = old_beta_zeta[m-1]
-            new_beta_zeta_prior[m] = old_beta_zeta_prior[m-1]
+            new_gamma_A[m] = old_gamma_A[m-1]
+            new_gamma_A_prior[m] = old_gamma_A_prior[m-1]
         new_base_A[0] = np.eye(self.num_states[0])
-        new_beta_zeta[0] = 0.1
-        new_beta_zeta_prior[0] = 0.1
+        new_gamma_A[0] = 0.1
+        new_gamma_A_prior[0] = 0.1
         self.base_A = new_base_A
-        self.beta_zeta_prior = new_beta_zeta_prior
-        self.beta_zeta = new_beta_zeta
-        self.A = utils.scale_A_with_zeta(self.base_A, self.beta_zeta)
+        self.gamma_A_prior = new_gamma_A_prior
+        self.gamma_A = new_gamma_A
+        self.A = utils.scale_A_with_zeta(self.base_A, self.gamma_A)
         # print(f"Neighbors: {self.neighbors}")
         self.neighbors = [neighbor_node] + self.neighbors
         # print(f"New neighbors: {self.neighbors}")
@@ -224,22 +216,27 @@ class EFENeuron(Agent):
         # self.D = self.qs
         self.qs_over_time.append(qs)
 
-        action = utils.sample(maths.softmax(3.0 * qs[0]))
+        self.infer_policies()
 
-        self.neuronal_action = action
+        action = self.sample_action()
 
-        return action
+        self.neuronal_action = action[0]
+        if len(self.qs_over_time) > 1:
+            self.update_B(self.qs_over_time[-2])
+
+        return action[0]
 
     def update_after_trial(self, modalities_to_omit):
         # update gamma_A
         for t in range(len(self.observation_history)):
             if self.cell_type == "internal":
                 modalities = list(range(self.num_modalities - modalities_to_omit))
-                self.update_zeta(
+                self.update_gamma_A(
                     self.observation_history[t], self.qs_over_time[t], modalities=modalities
                 )
             else:
-                self.update_zeta(self.observation_history[t], self.qs_over_time[t])
+                self.update_gamma_A(self.observation_history[t], self.qs_over_time[t])
+            
             # self.update_A(self.observation_history[t])
 
         # overwrite the sensory ones

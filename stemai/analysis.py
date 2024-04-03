@@ -66,25 +66,46 @@ class TrialAnalysis:
 
         self.trial_paths = [f"{self.path}/{i}" for i in range(self.num_trials) if os.path.exists(f"{self.path}/{i}")]
 
+    def get_gammas(self):
+
+        gamma_files = os.listdir(f"{self.path}/gammas")
+        gamma_data = {}
+
+        for t, gamma_file_idx in enumerate(range(1, len(gamma_files)+1)):
+            gamma_file = f"{gamma_file_idx}.pickle"
+            alldata = pickle.load(open(f"{self.path}/gammas/{gamma_file}", "rb"))
+            for t, data in alldata[list(alldata.keys())[0]].items():
+                gamma_data[t] = data
+        self.gamma_data = gamma_data
+
+    def get_precisions(self):
+        precision_files = os.listdir(f"{self.path}/precisions")
+        precision_data = {}
+
+        for t, precision_file_idx in enumerate(range(1, len(precision_files)+1)):
+            precision_file = f"{precision_file_idx}.pickle"
+            alldata = pickle.load(open(f"{self.path}/precisions/{precision_file}", "rb"))
+            for t, data in alldata[list(alldata.keys())[0]].items():
+                precision_data[t] = data
+        self.precision_data = precision_data
 
     def draw_networks_from_precisions(self):
 
         #for trial_path in self.trial_paths:
-        precision_file = f"{self.path}/precisions_over_time.txt"
+
+        precision_files = os.listdir(f"{self.path}/precisions")
         pos = None
         network_images = []
         network_files = []
-        with open(precision_file, "r") as f:
-            print(f"Reading: {precision_file}")
-            lines = f.readlines()
-            for t, line in enumerate(lines):
-                try:
-                    json_component = line.split(": [")[1].replace("]", "").replace("\n", "")
-                except:
-                    continue
-                if len(json_component) == 0:
-                    continue
-                data = json.loads(json_component[4:-1].replace("'", '"'))
+        precision_data = {}
+
+        print(f"Precision files: {precision_files}")
+
+        for t, precision_file_idx in enumerate(range(1, len(precision_files)+1)):
+            precision_file = f"{precision_file_idx}.pickle"
+            alldata = pickle.load(open(f"{self.path}/precisions/{precision_file}", "rb"))
+            for t, data in alldata[list(alldata.keys())[0]].items():
+                precision_data[t] = data
 
                 # Initialize a directed graph
                 G = networkx.Graph()
@@ -98,7 +119,7 @@ class TrialAnalysis:
 
                 #print(f"Weights: {edge_colors}")
                 edge_colors = ["darkblue" if color > 0.84 else "lightblue" if color < 0.68 else "blue" for color in edge_colors]  # Convert to gradient of blue based on edge color
-               # print(f"Colors: {edge_colors}")
+                # print(f"Colors: {edge_colors}")
                 
                 # Draw the graph
                 if pos is None:
@@ -113,8 +134,9 @@ class TrialAnalysis:
                 network_images.append(imageio.imread(fn))
         gif_path = f"{self.path}/network-simulation.gif"
         imageio.mimsave(gif_path, network_images, fps=5)
-        for temp_file in network_files:
-            os.remove(temp_file)
+        # for temp_file in network_files:
+        #     os.remove(temp_file)
+        self.precision_data = precision_data
 
     def generate_network_gif(self):
    
@@ -178,11 +200,15 @@ class TrialAnalysis:
         fn = f"{self.path}/time_to_reward.txt"
         print(f"Loading time to reward from {fn}")
         time_to_reward = []
-        with open(fn, "r") as f:
+        with open(fn, "r") as f: 
             lines = f.readlines()
             for line in lines:
                 time_to_reward.append(float(line.replace("\n","")))
         plt.plot(time_to_reward)
+
+        for i in range(0, int(len(time_to_reward)), 10):
+            print(f"Line at {i}")
+            plt.axvline(x=i, color='black', linestyle='--')
     
         plt.xlabel("Trials")
         plt.ylabel("Number of timesteps to reward")
@@ -240,9 +266,9 @@ class TrialAnalysis:
         # plt.clf()
         self.connectivities = connectivities
 
-    def generate_plots(self, gifs = True):
-        if not os.path.exists(f"{self.path}/network-simulation.gif") and self.prune_connections:
-            self.draw_networks_from_precisions()
+    def generate_plots(self, gifs = False):
+        # if not os.path.exists(f"{self.path}/network-simulation.gif") and self.prune_connections:
+        #     self.draw_networks_from_precisions()
         self.plot_time_to_reward()
         self.plot_distances_over_time()
         self.plot_connections_by_time()
@@ -250,24 +276,34 @@ class TrialAnalysis:
             #self.generate_network_gif()
             self.generate_grid_gif()
 
+    def analyze_precisions(self):
+        self.get_precisions()
+        node_precisions = {}
+        for t, data in self.precision_data.items():
+            for node, neighbor_precision in data.items():
+                if node not in node_precisions:
+                    node_precisions[node] = {}
+                for neighbor, precision in neighbor_precision.items():
+                    if not neighbor in node_precisions[node]:
+                        node_precisions[node][neighbor] = [precision]
+                    else:
+                        node_precisions[node][neighbor].append(precision)
+        self.node_precisions = node_precisions
 
 
-#%%
-
-# idx = 0
-# param_to_index_mapping = {}
-# for param_to_sweep, values in params_to_sweep.items():
-#     param_to_index_mapping[param_to_sweep] = {}
-#     for v in values:
-#         param_to_index_mapping[param_to_sweep][idx] = v 
-#         idx += 1
-
-# param_to_index_mapping = {'add_connections': {26: True, 27: False},
-#  'prune_connections': {28: True, 29: False}}
-
-
-#%%
-
+    def analyze_gammas(self):
+        self.get_gammas()
+        gammas = {}
+        for t, data in self.gamma_data.items():
+            for node, neighbor_gamma in data.items():
+                if node not in gammas:
+                    gammas[node] = {}
+                for neighbor, precision in neighbor_gamma.items():
+                    if not neighbor in gammas[node]:
+                        gammas[node][neighbor] = [precision]
+                    else:
+                        gammas[node][neighbor].append(precision)
+        self.gammas = gammas
 
 def analyze_parameter(dir):
     import yaml 
@@ -289,6 +325,7 @@ def analyze_parameter(dir):
 
     print(f"Parameter dir : {dir}, num runs: {num_runs}")
 
+    trial_objs = []
 
     for run in num_runs:
         index = int(run)
@@ -305,6 +342,7 @@ def analyze_parameter(dir):
         distances.append(trial_analysis.average_distances)
         connectivities.append(trial_analysis.connectivities)
         all_distances.append(trial_analysis.distances_over_time)
+        trial_objs.append(trial_analysis)
     
     if len(_times) == 0:
         return None, None
@@ -318,6 +356,10 @@ def analyze_parameter(dir):
     std_times_over_runs = np.nanstd(_times, axis = 0)
 
     plt.plot(average_times_over_runs, label="Average time to reach reward")
+    for i in range(0, len(average_times_over_runs), 10):
+        print(f"Line at {i}")
+        plt.axvline(x=i, color='black', linestyle='--')
+    
     for idx, time in enumerate(_times):
         plt.plot(time, alpha=0.2, label=f"Run {idx}")
     plt.fill_between(np.arange(len(average_times_over_runs)), average_times_over_runs - std_times_over_runs, average_times_over_runs + std_times_over_runs, alpha=0.2)
@@ -358,15 +400,15 @@ def analyze_parameter(dir):
     # plt.savefig(f"{dir}/connectivity_vs_time.png")
     # plt.clf()
 
-    return average_times, last_times, connectivities, _times, all_distances
+    return trial_objs, average_times, last_times, connectivities, _times, all_distances
 
 
 
-#%%
+
  
 default_dir = "default-run"
 
-default_average_times, default_last_times, default_connectivities, default_times, default_distances = analyze_parameter(default_dir)
+trial_objs, default_average_times, default_last_times, default_connectivities, default_times, default_distances = analyze_parameter(default_dir)
 
 mean_default_avg_time = np.mean(default_average_times)
 std_default_avg_time = np.std(default_average_times)
@@ -374,13 +416,34 @@ std_default_avg_time = np.std(default_average_times)
 mean_default_last_time = np.mean(default_last_times)
 std_default_last_time = np.std(default_last_times)
 
+for t_idx, trial in enumerate(trial_objs):
+    trial.analyze_gammas()
 
+    for node in trial.gammas:
 
+        neighbors = [n for n in trial.gammas[node] if 's' not in n]
+        node_precision_array = np.zeros((len(neighbors), 100))
 
+        for idx, neighbor_node in enumerate(neighbors):
 
+            node_precision_array[idx][:len(trial.gammas[node][neighbor_node])] = [np.sum(p) for p in trial.gammas[node][neighbor_node]]
+            node_precision_array[idx][len(trial.gammas[node][neighbor_node]):] = np.nan
 
+        fig = plt.figure(figsize = (30,10))
+        import matplotlib
+        masked_array = np.ma.array (node_precision_array, mask=np.isnan(node_precision_array))
+        cmap = matplotlib.cm.jet
+        cmap.set_bad('white',1.)
+        plt.imshow(node_precision_array, cmap = cmap)
+        plt.colorbar()
+        plt.xlabel("Trials")
+        plt.ylabel("Neighbor nodes")
+        plt.yticks(range(len(neighbors)), labels = neighbors)
+        plt.xticks(range(len(trial.gamma_data.keys())), trial.gamma_data.keys())
+        plt.title(f"Precision over time for node {node}")
+        plt.savefig(f"{default_dir}/{t_idx + 1}/precision_over_time_{node}.png")
+    #%%
 #%%
-
 sweep_param_dirs = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_1']
 times_per_param = {}
 

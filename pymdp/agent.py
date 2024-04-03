@@ -57,7 +57,7 @@ class Agent(object):
         use_utility=True,
         use_states_info_gain=True,
         use_param_info_gain=False,
-        action_selection="deterministic",
+        action_selection="stochastic",
         sampling_mode = "marginal", # whether to sample from full posterior over policies ("full") or from marginal posterior over actions ("marginal")
         inference_algo="VANILLA",
         inference_params=None,
@@ -959,9 +959,6 @@ class Agent(object):
         #f"Old gamma A :{self.gamma_A}")
         self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
 
-        #print(f"New gamma A :{self.gamma_A}")
-        if any([len(self.gamma_A[f].shape) > 1 for f in range(len(self.gamma_A))]):
-            raise
         self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
         
         return self.gamma_A, self.gamma_A_prior

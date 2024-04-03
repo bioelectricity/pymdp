@@ -161,10 +161,11 @@ class GridWorldCell(ExternalCell):
         else:
             # sampling randomly from a distance across 0 and 1
             # the probabilities of the reward depend on the distance
+            steepness = 1 / (distance_to_reward_location + 1)  # Adjust the steepness based on the distance
             probabilities = np.array(
                 [
-                    0.5 - ((20 - distance_to_reward_location) / 20) / 2,
-                    0.5 + ((20 - distance_to_reward_location) / 20) / 2,
+                    0.5 - steepness / 2,
+                    0.5 + steepness / 2,
                 ]
             )
 

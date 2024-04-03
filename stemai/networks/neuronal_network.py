@@ -76,16 +76,18 @@ class NeuronalNetwork:
                     if m >= len(neighbors) - len(incoming_cells[node]):
                         gamma_A[m] = np.array([10,10])
                     else:
-                        gamma_A[m] = np.array([0.1,0.1])
+                        gamma_A[m] = np.array([0.08,0.08])
+                alpha = 0.5
             else:
                 for m in range(len(neighbors)):
                     gamma_A[m] = np.array([0.1,0.1])
+                alpha = 16
 
 
 
             print(f"Celltype: {cell_type}, gamma_A: {gamma_A}")
 
-            agent = self.celltype(idx, neighbors, gamma_A, self.gamma_B)
+            agent = self.celltype(idx, neighbors, gamma_A, self.gamma_B, alpha = alpha)
             networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
             print("CREATING AGENT ")

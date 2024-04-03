@@ -48,6 +48,7 @@ def run_simulation_and_save(param, dir):
 
 def run_simulation(param, dir, save_grids=False, save_networks=False, default = False):
     runner = Runner(**param, dir = dir, default = default)
+    print(f"Running simulation with params: {param}")
     runner.run(save_grids=save_grids, save_networks=save_networks)
 
 
@@ -74,7 +75,18 @@ def run_default():
     param = defaults
 
     dir = 'default-run'
-    run_simulation(param, dir, save_grids=True, save_networks=True, default=True)
+
+    while True:
+
+        subdir = max([int(f) for f in os.listdir(dir) if not f.endswith('yaml') and not f.endswith('.png') and 'DS' not in f], default=0) + 1
+        if not os.path.exists(f"{dir}/{subdir}"):
+            os.makedirs(f"{dir}/{subdir}/gammas")
+        if not os.path.exists(f"{dir}/{subdir}/params.yaml"):
+            with open(f"{dir}/{subdir}/params.yaml", "w") as file:
+                file.write(yaml.dump(param))
+
+        run_simulation(param, f"{dir}/{subdir}", default=True)
+
 
 if __name__ == "__main__":
 
@@ -85,6 +97,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.mode == "run_default":
+        #import cProfile
+        #cProfile.run('run_default()', sort='cumulative')
         run_default()
     elif args.mode == "sweep":
         sweep('output')

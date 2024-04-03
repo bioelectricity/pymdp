@@ -144,10 +144,10 @@ class System(Network):
 
     def configure(self):
         first_half_of_internal = list(self.internal_network.network.nodes)[
-            : int(len(self.internal_cells) / 2)
+            : int(len(self.internal_cells) / 3)
         ]
         second_half_of_internal = list(self.internal_network.network.nodes)[
-            int(len(self.internal_cells) / 2) :
+            int(len(self.internal_cells) / 3) :
         ]
 
         self.internal_network.incoming_nodes = {
@@ -321,9 +321,8 @@ class System(Network):
 
     
     def internal_act(self, node, update=True, accumulate = True, logging=False):
-        internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
         internal_agent = self.internal_network.network.nodes[node]["agent"]
-
+        internal_neighbors = [n for n in internal_agent.neighbors if 'i' in n]
         # nodes that send signals to the internal cells
         incoming_nodes = internal_neighbors + self.internal_network.incoming_nodes[node]
 
@@ -590,7 +589,21 @@ class System(Network):
                 assert node in list(networkx.neighbors(self.internal_network.network, new_node))
                 assert new_node in list(networkx.neighbors(self.internal_network.network, node))
 
-    def prune(self, precisions_dict, gamma_dict):
+    def collect_precisions(self):
+        nodes = list(self.internal_network.nodes)
+        gamma_dict = {}
+
+        for node_idx in range(len(nodes)):
+            node = nodes[node_idx]
+
+            agent = self.internal_network.nodes[node]["agent"]
+            neighbors = agent.neighbors
+
+            gamma_dict[node] = {n: (g[0],g[1]) for n, g in zip(neighbors, agent.gamma_A)}
+        return gamma_dict
+
+
+    def prune(self):
         node_idx = 0
         nodes = list(self.internal_network.nodes)
 
@@ -608,50 +621,51 @@ class System(Network):
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            other_neighbors = [n for n in neighbors if "i" not in n]
-
-            other_neighbor_indices = [neighbors.index(n) for n in other_neighbors]
-
-            internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
-            all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
-
-            # precisions = agent.gamma_A
-
+            all_precisions = [np.sum(p) for p in agent.gamma_A]
+            print(f"all precisions: {all_precisions}")
+            internal_precisions = [all_precisions[idx] for idx in internal_neighbor_indices]
             # if len(internal_precisions) < 4:
             #     continue
 
             # log_precisions = np.log(precisions)
 
-            minimum_precision_neighbor = np.argmin(internal_precisions)
-            precision = internal_precisions[minimum_precision_neighbor]
+            # minimum_precision_neighbor_index = np.argmin(internal_precisions)
+            # minimum_precision = internal_precisions[minimum_precision_neighbor_index]
+
+            # maximum_precision_neighbor_index = np.argmax(internal_precisions)
+            # maximum_precision = internal_precisions[maximum_precision_neighbor_index]
 
 
-            neighbor = internal_neighbors[minimum_precision_neighbor]
-            assert "i" in neighbor
-
-            print(f"Precision: {precision}")
+            # minimum_precision_neighbor = internal_neighbors[minimum_precision_neighbor_index]
+            # maximum_precision_neighbor = internal_neighbors[maximum_precision_neighbor_index]
+            # print(f"minimum_precision: {minimum_precision}")
+            # print(f"maximum_precision: {maximum_precision}")
 
             all_precisions = np.round(all_precisions,3)
 
             assert len(all_precisions) == len(neighbors), f"Length of all precisions: {all_precisions} doesn't match length of neighbors: {agent.neighbors}"
-
-            precisions_dict[self.t][node] = {n:p for n, p in zip(neighbors, all_precisions)    }
-
-
-            gamma_dict[self.t][node] = {n: (g[0],g[1]) for n, g in zip(neighbors, agent.gamma_A)}
-
-            if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
-                new_agent = self.internal_network.nodes[neighbor]["agent"]
-                if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
-                    pdb.set_trace()
-                    continue
-                agent.disconnect_from(neighbor)
-                new_agent.disconnect_from(node)
-                node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
-                if neighbor in node_neighbors:
-                    self.internal_network.network.remove_edge(node, neighbor)
-                    self.system.remove_edge(node, neighbor)
+            for neighbor, p in zip(internal_neighbors, internal_precisions):
+                if p < 0.35:
+                    print(f"Pruning edge between {node} and {neighbor}")
+                    agent.disconnect_from(neighbor)
+                    #new_agent.disconnect_from(node)
+                    #node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+                    if node not in list(networkx.neighbors(self.internal_network.network, neighbor)): #only remove if you aren't their neighbor
+                        print("Removing connection")
+                        self.internal_network.network.remove_edge(node, neighbor)
+                        self.system.remove_edge(node, neighbor)
             
-        return precisions_dict, gamma_dict
+
+            # if (maximum_precision ==1):
+            #     new_agent = self.internal_network.nodes[maximum_precision_neighbor]["agent"]
+            #     if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(maximum_precision_neighbor):
+            #         pdb.set_trace()
+            #         continue
+            #     agent.disconnect_from(maximum_precision_neighbor)
+            #     new_agent.disconnect_from(node)
+            #     node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            #     if maximum_precision_neighbor in node_neighbors:
+            #         self.internal_network.network.remove_edge(node, maximum_precision_neighbor)
+            #         self.system.remove_edge(node, maximum_precision_neighbor)   
 
              

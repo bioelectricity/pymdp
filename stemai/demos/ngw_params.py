@@ -4,12 +4,12 @@ num_external_cells = 1
 num_active_cells = 4
 num_sensory_cells = 6
 
-internal_connectivity = 0.3
+internal_connectivity = 0.6
 active_connectivity = 0
 sensory_connectivity = 0.6
 external_connectivity = 1
 
-REWARD_LOCATION = (9, 9)
+REWARD_LOCATION = (0, 9)
 AGENT_LOCATION = (4, 4)
 GRID_SIZE = 10
 
@@ -54,7 +54,7 @@ default_num_internal_cells = 50
 default_num_external_cells = 1
 default_num_active_cells = 4
 default_num_sensory_cells = 10
-default_internal_connectivity = 0.3
+default_internal_connectivity = 0.4
 default_active_connectivity = 0
 default_sensory_connectivity = 0.3
 default_external_connectivity = 1
@@ -62,11 +62,11 @@ default_reward_location = (9, 9)
 default_agent_location = (0, 0)
 default_grid_size = 10
 default_active_connectivity_proportion = 0.6
-default_sensory_connectivity_proportion = 0.4
+default_sensory_connectivity_proportion = 0.8
 default_action_time_threshold = 5
 default_precision_threshold = 0.05 #how far away from 0.5 you are in each direction
-default_precision_update_frequency = 25
-default_prune_interval = 10
+default_precision_update_frequency = 10 #timesteps 
+default_prune_interval = 5 #trials
 default_prune_connections = True
 defaults = {
     "logging": False,

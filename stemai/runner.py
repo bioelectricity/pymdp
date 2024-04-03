@@ -242,7 +242,7 @@ class Runner:
         self.grids_over_time = []
         self.gamma_update_times = []
 
-    def write_data(self):
+    def write_data(self, trial):
         with open(f"{self.dir}/time_to_reward.txt", "w") as file:
             for time in self.time_to_reward_per_trial:
                 file.write(f"{time}\n")
@@ -255,14 +255,11 @@ class Runner:
             for trial, connectivity in self.connectivities.items():
                 file.write(f"{trial}: {connectivity}\n")
 
-        with open(f"{self.dir}/precisions_over_time.txt", "w") as file:
-            for trial, precisions in self.precisions.items():
-                file.write(f"{trial}: {precisions}\n")
 
-        with open(f"{self.dir}/gammas_over_time.txt", "w") as file:
-            for trial, gammas in self.gammas.items():
-                file.write(f"{trial}: {gammas}\n")
-
+        # with open(f"{self.dir}/precisions/{trial}.pickle", "wb") as file:
+        #     pickle.dump(self.precisions, file)
+        with open(f"{self.dir}/gammas/{trial}.pickle", "wb") as file:
+            pickle.dump(self.gammas, file)
 
 
     def run(self, save_grids = False, save_networks = False):
@@ -281,10 +278,10 @@ class Runner:
         self.signals_over_time[trial] = []
         self.connectivities[trial] = []
 
-        self.precisions[trial] = []
-        self.gammas[trial] = []
+        #self.precisions[trial] = {}
+        self.gammas[trial] = {}
 
-        precisions_dict_per_timestep = {}
+       # precisions_dict_per_timestep = {}
         gamma_dict_per_timestep = {}
 
 
@@ -300,13 +297,19 @@ class Runner:
             self.signals_over_time[trial].append(self.system.external_signal)
 
             self.distances_over_time[trial].append(distance)
-            total_edges = self.system.system.number_of_edges()
+            total_edges = 0
+            for node in self.internal_network.network.nodes:
+                agent = self.internal_network.network.nodes[node]["agent"]
+                total_edges += len(agent.neighbors)
             self.connectivities[trial].append(total_edges)
 
             if self.system.t > 0 and self.system.t % self.precision_update_frequency == 0:
                 self.system.update_gamma_A()
                 self.gamma_update_times.append(self.system.t)
 
+                gamma_dict_per_timestep = self.system.collect_precisions()
+                # self.precisions[trial][self.system.t] = precisions_dict_per_timestep
+                self.gammas[trial][self.system.t] = gamma_dict_per_timestep
             if agent_location == self.system.reward_location or self.system.t > 500:
                 self.time_to_reward_per_trial.append(self.system.t)
 
@@ -317,12 +320,9 @@ class Runner:
 
                 #self.system.renormalize_precisions()
 
-                if self.system.prune_connections and trial % self.prune_interval == 0:
-                    precisions_dict_per_timestep[self.system.t] = {}
-                    gamma_dict_per_timestep[self.system.t] = {}
-                    precisions_dict_per_timestep, gamma_dict_per_timestep = self.system.prune(precisions_dict_per_timestep, gamma_dict_per_timestep)
-                    self.precisions[trial].append(precisions_dict_per_timestep)
-                    self.gammas[trial].append(gamma_dict_per_timestep)
+                if self.system.prune_connections and trial % self.prune_interval == 0 and trial > 0:
+
+                    self.system.prune()
                 if self.system.add_connections:
                     self.system.add_new_connections()
                 trial += 1
@@ -333,23 +333,20 @@ class Runner:
                 self.distances_over_time[trial] = []
                 self.signals_over_time[trial] = []
                 self.connectivities[trial] = []
-                precisions_dict_per_timestep = {}
-                gamma_dict_per_timestep = {}
-                self.precisions[trial] = []
-                self.gammas[trial] = []
-
-                # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
+                    # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/grids")
 
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
 
-
+                self.write_data(trial)
+                #self.precisions = {trial: {}}
+                self.gammas= {trial: {}}
 
             if save_networks:
                 self.save_network(trial, self.system.t) 
-            self.write_data()
+
             if trial == self.num_trials - 1:
 
                 return

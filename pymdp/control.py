@@ -1072,9 +1072,11 @@ def sample_action(q_pi, policies, num_controls, action_selection="deterministic"
         if action_selection == 'deterministic':
             selected_policy[factor_i] = select_highest(action_marginals[factor_i])
         elif action_selection == 'stochastic':
+
             log_marginal_f = spm_log_single(action_marginals[factor_i])
             p_actions = softmax(log_marginal_f * alpha)
             selected_policy[factor_i] = utils.sample(p_actions)
+        
 
     return selected_policy
 
@@ -1131,9 +1133,11 @@ def _sample_action_test(q_pi, policies, num_controls, action_selection="determin
             selected_policy[factor_i] = _select_highest_test(p_actions[factor_i], seed=seed)
         elif action_selection == 'stochastic':
             log_marginal_f = spm_log_single(action_marginals[factor_i])
+            print(f"probabilitiies: {log_marginal_f}")
             p_actions[factor_i] = softmax(log_marginal_f * alpha)
+            print("softmaxed: ", p_actions[factor_i])
             selected_policy[factor_i] = utils.sample(p_actions[factor_i])
-
+        raise
     return selected_policy, p_actions
 
 def sample_policy(q_pi, policies, num_controls, action_selection="deterministic", alpha = 16.0):
