@@ -595,7 +595,7 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
             # print(f"beta update term: {beta_update_term}")
-            beta_A_full = beta_A_prior  + 0.4* beta_update_term
+            beta_A_full = beta_A_prior  + 0.2* beta_update_term
 
             for idx, s in enumerate(beta_A_full):
                 if s < 1:

@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 import imageio
 import networkx
+import pdb
 os.chdir('../')
 #plots to make 
 from stemai.demos.ngw_params import all_parameter_combinations, params_to_sweep, param_to_index_mapping
@@ -71,11 +72,11 @@ class TrialAnalysis:
         gamma_files = os.listdir(f"{self.path}/gammas")
         gamma_data = {}
 
-        for t, gamma_file_idx in enumerate(range(1, len(gamma_files)+1)):
+        for trial, gamma_file_idx in enumerate(range(1, len(gamma_files)+1)):
             gamma_file = f"{gamma_file_idx}.pickle"
             alldata = pickle.load(open(f"{self.path}/gammas/{gamma_file}", "rb"))
-            for t, data in alldata[list(alldata.keys())[0]].items():
-                gamma_data[t] = data
+            for t, data in enumerate(alldata[list(alldata.keys())[0]].values()):
+                gamma_data[(trial+1)*t] = data
         self.gamma_data = gamma_data
 
     def get_precisions(self):
@@ -229,43 +230,65 @@ class TrialAnalysis:
 
         average = []
         for trial, distances in distances_over_time.items():
-            plt.plot(distances)
-            average.append(np.mean(distances))
-            plt.xlabel("Timesteps")
-            plt.ylabel("Distance to reward")
-            plt.title(f"Distance to reward over time, trial: {trial}")
-            plt.savefig(f"{self.path}/distances_over_time_{trial}.png")
-            plt.clf()
-        plt.plot(average)
-        plt.xlabel("Trials")
-        plt.ylabel("Average distance to reward")
-        plt.title(f"Average distance to reward over trials")
-        plt.savefig(f"{self.path}/average_distance_to_reward.png")
-        plt.clf()
+        #     plt.plot(distances)
+             average.append(np.mean(distances))
+        #     plt.xlabel("Timesteps")
+        #     plt.ylabel("Distance to reward")
+        #     plt.title(f"Distance to reward over time, trial: {trial}")
+        #     plt.savefig(f"{self.path}/distances_over_time_{trial}.png")
+        #     plt.clf()
+        # plt.plot(average)
+        # plt.xlabel("Trials")
+        # plt.ylabel("Average distance to reward")
+        # plt.title(f"Average distance to reward over trials")
+        # plt.savefig(f"{self.path}/average_distance_to_reward.png")
+        # plt.clf()
 
         self.distances_over_time = distances_over_time
         self.average_distances = average
 
     def plot_connections_by_time(self):
 
-        fn = f"{self.path}/connectivities.txt"
+        file_path = f"{self.path}/connectivities.txt"
+
+
+        import json
+
+        # Dictionary to store data from each line
         connectivities = []
-        with open(fn, "r") as f:
-            lines = f.readlines()
-            for trial, line in enumerate(lines):
-                c_list = [float(l) for l in line.replace("\n","").replace(']','').split(",")[1:]]
-                if len(c_list) > 0:
-                    connectivities.append(c_list[0])
+        c_per_node = []
 
-        # plt.plot(connectivities[:len(self.time_to_reward)], self.time_to_reward)
+        # Open the file and read each line 
+        with open(file_path, 'r') as file:
+            for line in file:
+                
+
+                line = line.split(': ', 1)[1].replace("'", '"')
+                print(line)
+
+                c = json.loads(line)
+                if len(c) == 0:
+                    continue
+                c_per_node.append(c)
+                connectivities.append(sum(list(c.values())))
+
         
-        # plt.xlabel("Number of connections")
-        # plt.ylabel("Time to reach reward")
-        # plt.title("Number of connections against time to reach reward")
-        # plt.savefig(f"{self.path}/connections_by_time.png")
-        # plt.clf()
+        self.all_connectivities_per_node = c_per_node
+        plt.scatter(connectivities[:len(self.time_to_reward)], self.time_to_reward)
+        
+        plt.xlabel("Number of connections")
+        plt.ylabel("Time to reach reward")
+        plt.title("Number of connections against time to reach reward")
+        plt.savefig(f"{self.path}/connections_by_time.png")
+        plt.clf()
         self.connectivities = connectivities
-
+        plt.plot(connectivities)
+        
+        plt.ylabel("Number of connections")
+        plt.xlabel("Trials")
+        plt.title("Number of connections over time")
+        plt.savefig(f"{self.path}/connections.png")
+        plt.clf()
     def generate_plots(self, gifs = False):
         # if not os.path.exists(f"{self.path}/network-simulation.gif") and self.prune_connections:
         #     self.draw_networks_from_precisions()
@@ -300,9 +323,9 @@ class TrialAnalysis:
                     gammas[node] = {}
                 for neighbor, precision in neighbor_gamma.items():
                     if not neighbor in gammas[node]:
-                        gammas[node][neighbor] = [precision]
+                        gammas[node][neighbor] = {t: precision}
                     else:
-                        gammas[node][neighbor].append(precision)
+                        gammas[node][neighbor][t] = precision
         self.gammas = gammas
 
 def analyze_parameter(dir):
@@ -415,34 +438,41 @@ std_default_avg_time = np.std(default_average_times)
 
 mean_default_last_time = np.mean(default_last_times)
 std_default_last_time = np.std(default_last_times)
-
+ #%%
 for t_idx, trial in enumerate(trial_objs):
     trial.analyze_gammas()
 
     for node in trial.gammas:
 
         neighbors = [n for n in trial.gammas[node] if 's' not in n]
-        node_precision_array = np.zeros((len(neighbors), 100))
-
+        node_precision_array = np.zeros((len(neighbors), 427))
+        maxlen = 0
+        for idx, neighbor_node in enumerate(neighbors):
+            if len(trial.gammas[node][neighbor_node].values()) > maxlen:
+                maxlen = len(trial.gammas[node][neighbor_node].values())
+        node_precision_array = np.zeros((len(neighbors), maxlen))
         for idx, neighbor_node in enumerate(neighbors):
 
-            node_precision_array[idx][:len(trial.gammas[node][neighbor_node])] = [np.sum(p) for p in trial.gammas[node][neighbor_node]]
-            node_precision_array[idx][len(trial.gammas[node][neighbor_node]):] = np.nan
+            node_precision_array[idx][:len(trial.gammas[node][neighbor_node].values())] = [np.sum(p) for p in trial.gammas[node][neighbor_node].values()]
+            node_precision_array[idx][len(trial.gammas[node][neighbor_node].values()):] = np.nan
 
-        fig = plt.figure(figsize = (30,10))
+        fig = plt.figure(figsize = (20,10))
         import matplotlib
-        masked_array = np.ma.array (node_precision_array, mask=np.isnan(node_precision_array))
+
+        array_to_plot = node_precision_array[:, ::5]
+        masked_array = np.ma.array (array_to_plot, mask=np.isnan(array_to_plot))
         cmap = matplotlib.cm.jet
         cmap.set_bad('white',1.)
-        plt.imshow(node_precision_array, cmap = cmap)
+        plt.imshow(masked_array, cmap = cmap)
         plt.colorbar()
         plt.xlabel("Trials")
         plt.ylabel("Neighbor nodes")
         plt.yticks(range(len(neighbors)), labels = neighbors)
-        plt.xticks(range(len(trial.gamma_data.keys())), trial.gamma_data.keys())
+       # plt.xticks(range(len(list(trial.gamma_data.keys())[::10])), list(trial.gamma_data.keys())[::10], rotation = 45)
         plt.title(f"Precision over time for node {node}")
         plt.savefig(f"{default_dir}/{t_idx + 1}/precision_over_time_{node}.png")
-    #%%
+        plt.clf()
+        #%%
 #%%
 sweep_param_dirs = [f'output/{f}' for f in os.listdir('output') if 'param' in f and f != 'param_1']
 times_per_param = {}

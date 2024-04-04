@@ -535,12 +535,13 @@ class System(Network):
     def _reset(self):
         self.t = 0
         for node in self.internal_network.nodes:
-            self.internal_network.nodes[node]["agent"].curr_timestep = 0
+            self.internal_network.nodes[node]["agent"].reset_cell()
+
         for node in self.sensory_network.nodes:
-            self.sensory_network.nodes[node]["agent"].curr_timestep = 0
+            self.sensory_network.nodes[node]["agent"].reset_cell()
 
         for node in self.active_network.nodes:
-            self.active_network.nodes[node]["agent"].curr_timestep = 0
+            self.active_network.nodes[node]["agent"].reset_cell()
         for node in self.external_network.nodes:
             self.external_network.nodes[node]["agent"].agent_location = self.agent_location
             self.external_network.nodes[node]["agent"].reward_location = self.reward_location
@@ -616,45 +617,58 @@ class System(Network):
 
             internal_neighbors = [n for n in neighbors if "i" in n]
 
+            internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
+
             if len(internal_neighbors) == 0:
                 continue
 
-            internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
+            other_neighbors = [n for n in neighbors if "i" not in n]
+
+            other_neighbor_indices = [neighbors.index(n) for n in other_neighbors]
+
+            #internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            #all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
 
             all_precisions = [np.sum(p) for p in agent.gamma_A]
+
+            internal_precisions = [p for idx, p in enumerate(all_precisions) if idx in internal_neighbor_indices]
+
+            #internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            #all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
+
             print(f"all precisions: {all_precisions}")
-            internal_precisions = [all_precisions[idx] for idx in internal_neighbor_indices]
-            # if len(internal_precisions) < 4:
-            #     continue
+            
+            minimum_precision_neighbor = np.argmin(internal_precisions)
+            precision = internal_precisions[minimum_precision_neighbor]
 
-            # log_precisions = np.log(precisions)
+            neighbor = internal_neighbors[minimum_precision_neighbor]
+            assert "i" in neighbor
 
-            # minimum_precision_neighbor_index = np.argmin(internal_precisions)
-            # minimum_precision = internal_precisions[minimum_precision_neighbor_index]
-
-            # maximum_precision_neighbor_index = np.argmax(internal_precisions)
-            # maximum_precision = internal_precisions[maximum_precision_neighbor_index]
-
-
-            # minimum_precision_neighbor = internal_neighbors[minimum_precision_neighbor_index]
-            # maximum_precision_neighbor = internal_neighbors[maximum_precision_neighbor_index]
-            # print(f"minimum_precision: {minimum_precision}")
-            # print(f"maximum_precision: {maximum_precision}")
-
-            all_precisions = np.round(all_precisions,3)
+            print(f"Precision: {precision}")
 
             assert len(all_precisions) == len(neighbors), f"Length of all precisions: {all_precisions} doesn't match length of neighbors: {agent.neighbors}"
-            for neighbor, p in zip(internal_neighbors, internal_precisions):
-                if p < 0.35:
-                    print(f"Pruning edge between {node} and {neighbor}")
-                    agent.disconnect_from(neighbor)
-                    #new_agent.disconnect_from(node)
-                    #node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
-                    if node not in list(networkx.neighbors(self.internal_network.network, neighbor)): #only remove if you aren't their neighbor
-                        print("Removing connection")
-                        self.internal_network.network.remove_edge(node, neighbor)
-                        self.system.remove_edge(node, neighbor)
+
+            #if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
+            if precision < 0.35:
+                print(f"Pruning edge between {node} and {neighbor}")
+                agent.disconnect_from(neighbor)
+                #new_agent.disconnect_from(node)
+                #node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+                if node not in list(networkx.neighbors(self.internal_network.network, neighbor)): #only remove if you aren't their neighbor
+                    print("Removing connection")
+                    self.internal_network.network.remove_edge(node, neighbor)
+                    self.system.remove_edge(node, neighbor)
             
+            #if self.t % 10 == 0:
+            maximum_precision_neighbor = np.argmax(internal_precisions)
+            precision = internal_precisions[maximum_precision_neighbor]
+            neighbor = internal_neighbors[maximum_precision_neighbor]
+            if precision == 1:
+                agent.disconnect_from(neighbor)
+                if node in list(networkx.neighbors(self.internal_network.network, neighbor)):
+                    self.internal_network.network.remove_edge(node, neighbor)
+                    self.system.remove_edge(node, neighbor)
+
 
             # if (maximum_precision ==1):
             #     new_agent = self.internal_network.nodes[maximum_precision_neighbor]["agent"]

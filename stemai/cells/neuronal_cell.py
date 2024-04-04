@@ -151,7 +151,7 @@ class NeuronalCell(Agent):
         self.base_A = new_base_A
         self.gamma_A_prior = new_gamma_A_prior
         self.gamma_A = new_gamma_A
-        self.neighbors.remove(self.neighbors[neighbor_idx])
+        self.neighbors.remove(neighbor_node)
     
         self.A = utils.scale_A_with_gamma(self.base_A, self.gamma_A)
 
@@ -159,6 +159,12 @@ class NeuronalCell(Agent):
         self.rebuild_A_factor_list()
         self.qs_over_time = []
         self.observation_history = []
+
+    def reset_cell(self):
+        self.curr_timestep = 0
+        self.qs = self.D 
+        self.qs_prev = None
+        self.action = None
     
     def check_connect_to(self, neighbor_node):
         if neighbor_node in self.neighbors:

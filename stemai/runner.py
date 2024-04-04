@@ -276,7 +276,7 @@ class Runner:
         self.gammas = {}
         self.distances_over_time[trial] = []
         self.signals_over_time[trial] = []
-        self.connectivities[trial] = []
+        self.connectivities[trial] = {}
 
         #self.precisions[trial] = {}
         self.gammas[trial] = {}
@@ -297,15 +297,10 @@ class Runner:
             self.signals_over_time[trial].append(self.system.external_signal)
 
             self.distances_over_time[trial].append(distance)
-            total_edges = 0
-            for node in self.internal_network.network.nodes:
-                agent = self.internal_network.network.nodes[node]["agent"]
-                total_edges += len(agent.neighbors)
-            self.connectivities[trial].append(total_edges)
+
 
             if self.system.t > 0 and self.system.t % self.precision_update_frequency == 0:
                 self.system.update_gamma_A()
-                self.gamma_update_times.append(self.system.t)
 
                 gamma_dict_per_timestep = self.system.collect_precisions()
                 # self.precisions[trial][self.system.t] = precisions_dict_per_timestep
@@ -319,6 +314,9 @@ class Runner:
                 self.system._reset()
 
                 #self.system.renormalize_precisions()
+                for node in self.internal_network.network.nodes:
+                    agent = self.internal_network.network.nodes[node]["agent"]
+                    self.connectivities[trial][node] = len([n for n in agent.neighbors if 'i' in n])
 
                 if self.system.prune_connections and trial % self.prune_interval == 0 and trial > 0:
 
@@ -329,10 +327,12 @@ class Runner:
                 print(f"Trial: {trial}")
 
                 self.grids_over_time = []
-                self.gamma_update_times = []
                 self.distances_over_time[trial] = []
                 self.signals_over_time[trial] = []
-                self.connectivities[trial] = []
+            
+                self.connectivities[trial] = {}
+
+                
                     # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/grids")
 
