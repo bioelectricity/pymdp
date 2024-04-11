@@ -1,6 +1,11 @@
 #%%
 import os 
-os.chdir('/Users/daphne/Desktop/stemai/pymdp')
+try:
+    from stemai.cells.agent_cell import NeuronalCell
+except:
+    os.chdir('../../')
+    from stemai.cells.agent_cell import NeuronalCell
+
 import numpy as np 
 from pymdp import utils
 import matplotlib.pyplot as plt
@@ -26,7 +31,6 @@ A_factor_list = []
 
 import os
 
-os.chdir("/Users/daphne/Desktop/stemai/pymdp")
 import numpy as np
 from pymdp import utils
 from pymdp.agent import Agent

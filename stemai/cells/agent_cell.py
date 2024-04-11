@@ -8,7 +8,7 @@ import tqdm
 class NeuronalCell(Agent):
     """A class that inherits from pymdp agent that represents an abstract cell in a network"""
 
-    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar=0.01, alpha = 16):
+    def __init__(self, node_idx, neighbors, gamma_A, gamma_B_scalar=0.01, alpha = 16, action_sampling = 'stochastic',inference_algo = "VANILLA", **kwargs):
         """node_idx will be the index of the cell in the overall network"""
 
         self.node_idx = node_idx
@@ -48,13 +48,16 @@ class NeuronalCell(Agent):
         super().__init__(
             A=self.A,
             B=self.B,
-            pA=self.A,
+            #pA=self.A,
             C=C,
             D=D,
-            gamma_A_prior=self.gamma_A,
-            gamma_B_prior=self.gamma_B,
+            #gamma_A_prior=self.gamma_A,
+            #gamma_B_prior=self.gamma_B,
             pB = self.B,
-            alpha = alpha
+            alpha = alpha,
+            action_selection=action_sampling,
+            inference_algo=inference_algo,
+            **kwargs
         )
 
     def setup(self, num_neighbors):
@@ -93,6 +96,7 @@ class NeuronalCell(Agent):
                 )
             B[i] = B_i
         self.B = B
+        self.pB = B
 
     def rebuild_A_factor_list(self):
         self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
@@ -203,8 +207,10 @@ class NeuronalCell(Agent):
         self.observation_history = []
         self.actions_received[neighbor_node] = np.random.choice([0, 1])
 
+    
 
-    def act(self, obs, distance_to_reward=None):
+
+    def act(self, obs, update_B = True):
         """
         For a neuronal cell, the observation is a 0 or 1 signal
         for each neighbor, and then the agent performs state inference
@@ -214,6 +220,7 @@ class NeuronalCell(Agent):
 
         qs = self.infer_states(obs)
         # self.D = self.qs
+        
         self.qs_over_time.append(qs)
 
         self.infer_policies()
@@ -221,8 +228,10 @@ class NeuronalCell(Agent):
         action = self.sample_action()
 
         self.neuronal_action = action[0]
-        if len(self.qs_over_time) > 1:
+        if len(self.qs_over_time) > 1 and update_B:
             self.update_B(self.qs_over_time[-2])
+            if self.lr_pE > 0:
+                self.update_E()
 
         return action[0]
 

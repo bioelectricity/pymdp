@@ -17,7 +17,6 @@ class GridWorldCell(ExternalCell):
 
     def __init__(
         self,
-        node,
         neighbors,
         external_cell_indices,
         active_cell_indices,
