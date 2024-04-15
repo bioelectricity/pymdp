@@ -581,8 +581,6 @@ class Agent(object):
             else:
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
-
-            print(f"Latest observation: {latest_obs}")
             
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
@@ -758,7 +756,7 @@ class Agent(object):
             self.qs_pi_policy_previous = self.qs_pi_policy
 
         if self.inference_algo == "VANILLA":
-            q_pi, G, self.qs_pi_policy = control.update_posterior_policies_factorized(
+            q_pi, G, self.qs_pi_policy, utilities, info_gains = control.update_posterior_policies_factorized(
                 self.qs,
                 self.A,
                 self.B,
@@ -779,7 +777,7 @@ class Agent(object):
 
             future_qs_seq = self.get_future_qs()
 
-            q_pi, G = control.update_posterior_policies_full_factorized(
+            q_pi, G, utilities, info_gains = control.update_posterior_policies_full_factorized(
                 future_qs_seq,
                 self.A,
                 self.B,
@@ -806,6 +804,8 @@ class Agent(object):
 
         self.q_pi = q_pi
         self.G = G
+        self.utilities = utilities 
+        self.info_gains = info_gains
         return q_pi, G
 
     def sample_action(self):
@@ -938,16 +938,37 @@ class Agent(object):
             Posterior Dirichlet parameters over transition model (same shape as ``B``), after having updated it with state beliefs and actions.
         """
 
-        qB = learning.update_state_likelihood_dirichlet_interactions(
+        if self.inference_algo == "MMP":
+
+            if len(self.prev_actions) > self.inference_horizon:
+                latest_actions = self.prev_actions[-(self.inference_horizon-2):]
+            else:
+                latest_actions = self.prev_actions
+
+            qB = learning.update_state_likelihood_dirichlet_MMP(
             self.pB,
             self.B,
-            self.action,
             self.qs,
             qs_prev,
             self.B_factor_list,
+            latest_actions,
+            self.inference_horizon,
             self.lr_pB,
             self.factors_to_learn
         )
+
+        else:
+
+            qB = learning.update_state_likelihood_dirichlet_interactions(
+                self.pB,
+                self.B,
+                self.action,
+                self.qs,
+                qs_prev,
+                self.B_factor_list,
+                self.lr_pB,
+                self.factors_to_learn
+            )
 
         self.pB = qB # set new prior to posterior
         self.B = utils.norm_dist_obj_arr(qB)  # take expected value of posterior Dirichlet parameters to calculate posterior over B array
@@ -957,11 +978,15 @@ class Agent(object):
     def update_gamma_A(self, observation, qs, modalities = None):
 
         #f"Old gamma A :{self.gamma_A}")
-        self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
+        if self.inference_algo == "MMP":
+            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A_MMP(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
+        else:
+            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
 
         self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
         
         return self.gamma_A, self.gamma_A_prior
+    
     
     def update_omega(self):
         self.gamma_B, self.gamma_B_prior = learning.update_gamma_B(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.gamma_B, self.gamma_B_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
@@ -980,6 +1005,8 @@ class Agent(object):
         q_pi = maths.softmax(self.G * self.gamma + maths.spm_log_single(self.E) )
         q_pi_bar = maths.softmax(self.G * self.gamma - self.F + maths.spm_log_single(self.E) )
         self.gamma, self.affective_charge = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
+
+        print(f"New gamma: {self.gamma}")
         return self.gamma
     
     def _update_B_old(self, qs_prev):

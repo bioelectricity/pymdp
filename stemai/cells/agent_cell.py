@@ -51,7 +51,7 @@ class NeuronalCell(Agent):
             #pA=self.A,
             C=C,
             D=D,
-            #gamma_A_prior=self.gamma_A,
+            gamma_A_prior=self.gamma_A,
             #gamma_B_prior=self.gamma_B,
             pB = self.B,
             alpha = alpha,
@@ -220,7 +220,7 @@ class NeuronalCell(Agent):
 
         qs = self.infer_states(obs)
         # self.D = self.qs
-        
+
         self.qs_over_time.append(qs)
 
         self.infer_policies()
@@ -235,16 +235,16 @@ class NeuronalCell(Agent):
 
         return action[0]
 
-    def update_after_trial(self, modalities_to_omit):
+    def update_after_trial(self, modalities_to_omit= None):
         # update gamma_A
         for t in range(len(self.observation_history)):
-            if self.cell_type == "internal":
+            qs = self.qs_over_time[t]
+            if  modalities_to_omit is not None:
                 modalities = list(range(self.num_modalities - modalities_to_omit))
-                self.update_gamma_A(
-                    self.observation_history[t], self.qs_over_time[t], modalities=modalities
-                )
+
             else:
-                self.update_gamma_A(self.observation_history[t], self.qs_over_time[t])
+                modalities = None
+            self.update_gamma_A(self.observation_history[t], qs, modalities = modalities)
             
             # self.update_A(self.observation_history[t])
 

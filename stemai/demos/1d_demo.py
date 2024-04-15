@@ -8,15 +8,9 @@ except:
     from stemai.cells.agent_cell import NeuronalCell
 import copy
 from pymdp import utils
+import matplotlib.pyplot as plt 
+import imageio 
 
-grid_size = (1,31)
-grid = np.zeros(grid_size)
-import time
-reward_location = (0, int(grid_size[1]-1))
-agent_location = (0, int((grid_size[1]-1)/2))
-
-grid[reward_location] = 1
-grid[agent_location] = 2
 
 
 #%%
@@ -53,6 +47,28 @@ def make_B_gif(arrays, fn):
         plt.clf()
     imageio.mimsave(fn, images)
 
+def make_A_gif(arrays, fn):
+    images = []
+    for arr in arrays:
+
+        arr = arr[0]
+        fig = plt.figure()
+
+        plt.imshow(arr, cmap='gray', vmin=0, vmax=1)
+        plt.xticks([0, 1], labels = ['Obs: Fire', 'Obs: Not Fire'])
+       # plt.xticklabels(['Obs: Fire', 'Obs: Not Fire'])
+        plt.xlabel("o_t")
+        plt.yticks([0, 1], labels = ['State: Fire', 'State: Not Fire'])
+       # axs[0].set_yticklabels(['State: Fire', 'State: Not Fire'])
+        plt.ylabel("s_{t}")
+        plt.title('Fire')
+        plt.colorbar()
+
+        plt.savefig("temp_A.png")
+        images.append(imageio.imread("temp_A.png"))
+        #os.remove("temp.png")
+        plt.clf()
+    imageio.mimsave(fn, images)
 
 def make_pB_gif(arrays, fn):
     images = []
@@ -87,7 +103,16 @@ def make_pB_gif(arrays, fn):
         plt.clf()
     imageio.mimsave(fn, images)
 
-def get_grid(reward_location, agent_location, signal):
+def plot_grid(grid_images, grid, trial, t):
+    plt.imshow(grid)
+    fn = f"temp/{trial}_{t}.png"
+    plt.savefig(fn)
+    grid_images.append(imageio.imread(fn))
+    os.remove(fn)
+    #plt.show()
+    plt.clf()
+
+def get_grid(reward_location, agent_location, signal, grid_size):
     grid = np.zeros(grid_size)
     if signal == 0:
         grid[reward_location] = 0.5
@@ -125,7 +150,7 @@ class GridWorldCell:
 
         distance_to_reward_location = np.sqrt((self.agent_location[0] - self.reward_location[0])**2 + (self.agent_location[1] - self.reward_location[1])**2)
         
-        maximum_distance = np.sqrt((self.grid_size[0] - 1)**2 + (self.grid_size[1] - 1)**2)
+        maximum_distance = np.sqrt((self.grid_size[0] - 1)**2 + (self.grid_size[1] - 1)**2) - 3
     
 
         print(f"Agent location: {self.agent_location}")
@@ -134,6 +159,8 @@ class GridWorldCell:
         probabilities = [0.5, 0.5]
         if distance_to_reward_location == 0:  # on the point
             signal = 0
+        elif distance_to_reward_location < 3:
+            signal = 1
         else:
             # sampling randomly from a distance across 0 and 1
             # the probabilities of the reward depend on the distance
@@ -141,8 +168,8 @@ class GridWorldCell:
 
             probabilities = np.array(
                 [
-                    0.5 - ((maximum_distance - distance_to_reward_location) / maximum_distance) / 2,
-                    0.5 + ((maximum_distance - distance_to_reward_location) / maximum_distance) / 2,
+                    0.5 - ((maximum_distance - (distance_to_reward_location -3) ) / maximum_distance) / 2,
+                    0.5 + ((maximum_distance - (distance_to_reward_location-3)) / maximum_distance) / 2,
                 ]
             )
 
@@ -155,6 +182,14 @@ class GridWorldCell:
         return signal
 
 #%%
+grid_size = (1,31)
+grid = np.zeros(grid_size)
+import time
+reward_location = (0, int(grid_size[1]-1))
+agent_location = (0, int((grid_size[1]-1)/2))
+
+grid[reward_location] = 1
+grid[agent_location] = 2
 
 policy_len = 1
 pE = np.array([1]*2*policy_len).astype(float)
@@ -164,132 +199,148 @@ gamma_G = 0.95
 pD = utils.obj_array(1)
 pD[0] =  np.array([0.5, 0.5])
 
-def plot_grid(grid, trial):
-    plt.imshow(grid)
-    fn = f"temp/{trial}_{t}.png"
-    plt.savefig(fn)
-    grid_images.append(imageio.imread(fn))
-    os.remove(fn)
-    #plt.show()
-    plt.clf()
-
 external_cells = []
 
-num_external_cells = 5
+num_external_cells = 1
 
 for e in range(num_external_cells):
     external_cells.append(GridWorldCell(reward_location, grid_size, agent_location))
 
-sensory_cell = NeuronalCell(0, [e.id for e in external_cells], [1.0], alpha = 0.1, action_sampling="deterministic", lr_pE = 0, use_utility = True, inference_algo = "VANILLA", pD = pD, lr_pD = 0.01, lr_pB = 0.5,save_belief_hist = True) #,policy_sep_prior=True ) #, inference_horizon = 2, pD = pD, lr_pD = 0.01,policy_len = policy_len, gamma=gamma_G, pE = pE, lr_pE = lr_pE) #, use_param_info_gain = True)#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
+sensory_cell = NeuronalCell(0, [e.id for e in external_cells], np.array([[0.05,0.05]]*num_external_cells), alpha = 0.1, action_sampling="deterministic", lr_pE = 0, use_utility = True, inference_algo = "VANILLA", pD = pD, lr_pD = 0.01, lr_pB = 0.5,save_belief_hist = True) #,policy_sep_prior=True ) #, inference_horizon = 2, pD = pD, lr_pD = 0.01,policy_len = policy_len, gamma=gamma_G, pE = pE, lr_pE = lr_pE) #, use_param_info_gain = True)#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
 
-sensory_cell = NeuronalCell(0, [e.id for e in external_cells], [1.0], alpha = 16, action_sampling="deterministic",  inference_algo = "MMP", inference_horizon = 2, use_utility = True, lr_pB = 0.5) #, )#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
+sensory_cell = NeuronalCell(0, [e.id for e in external_cells], np.array([[0.05,0.05]]*num_external_cells), alpha = 0.1, action_sampling="stochastic",  inference_algo = "MMP", inference_horizon = 2, use_utility = True, lr_pB = 0.1) #, )#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
 
+sensory_cell.D = np.array([[0.5,0.5]])
 #%%
-import matplotlib.pyplot as plt 
-import imageio 
-grid = get_grid(reward_location, agent_location, 1)
-obs = 1
-
-time_taken_per_trial = []
-grid_images = []
-B_over_time = []
-pB_over_time = []
-q_pi_over_time = []
-actions_over_time = []
-gamma_over_time = [sensory_cell.gamma]
-efe_over_time = []
-qs_over_time = []
-
-observations_over_time = []
-
-num_trials = 20
-
-initial_D = np.copy(sensory_cell.D)
-
-solved = []
-
-utilities = []
-info_gains = []
 
 
-timesteps_per_trial = []
-overall_t = 0
-for i in range(1):
-    if i == 0:
-        REWARD_LOCATION = (0,int(grid_size[1]-1))
-    else:
-        REWARD_LOCATION = (0,0)
 
-    reward_location = REWARD_LOCATION
-    for e in external_cells:
-        e.set_locations(reward_location, agent_location)
-    sensory_cell.build_B()
-    for trial in range(num_trials):
-        timesteps_per_trial.append(overall_t)
-        t = 0
-        sensory_cell.qs = copy.deepcopy(initial_D)
-        sensory_cell.qs_prev = copy.deepcopy(initial_D)
-        sensory_cell.action = None
-        sensory_cell.prev_obs = []
-        sensory_cell.prev_actions = None
-        # if trial > 0:
-        #     sensory_cell.update_D()
+def run(reward_location, agent_location, sensory_cell, external_cells):
+    grid = get_grid(reward_location, agent_location, 1, grid_size)
+    obs = 1
+
+    time_taken_per_trial = []
+    grid_images = []
+    B_over_time = []
+    pB_over_time = []
+    q_pi_over_time = []
+    actions_over_time = []
+    gamma_over_time = [sensory_cell.gamma]
+    efe_over_time = []
+    qs_over_time = []
+    gamma_A_over_trials = []
+
+    observations_over_time = []
+
+    A_over_trials = []
+
+    num_trials = 30
+
+    initial_D = np.copy(sensory_cell.D)
+
+    solved = []
+
+    utilities = []
+    info_gains = []
 
 
-        # if trial > 0 and sensory_cell.inference_algo == "MMP":
-
-        #     sensory_cell.update_gamma()
-        #     gamma_over_time.append(sensory_cell.gamma)
-
-        while external_cells[0].agent_location != external_cells[0].reward_location:
-            plot_grid(grid, trial)
-            
-            observation_signal = []
-
-            for e in external_cells:
-                signal = e.act(obs)
-                observation_signal.append(signal)
-
-            observations_over_time.append(observation_signal)
-            if trial > 1:
-                update_B = True
-            else:
-                update_B = False
-            
-            obs = sensory_cell.act(observation_signal, update_B = update_B)
-            print()
-            print(f"agent signal: {obs}")
-            print(f"Qs: {sensory_cell.qs}")
-            print(f"F: {sensory_cell.F}")
-            print(f"Q pi: {sensory_cell.q_pi}")
-            print(f"B: {sensory_cell.B}")
-            print(f"G: {sensory_cell.G}")
-
-            qs_over_time.append(sensory_cell.qs)
-            
-            B_over_time.append(sensory_cell.B)
-            pB_over_time.append(sensory_cell.pB)
-            q_pi_over_time.append(sensory_cell.q_pi[0]) #0 -> move right, 1-> move left
-            grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, signal)
-            actions_over_time.append(obs)
-            efe_over_time.append(sensory_cell.G)
-            utilities.append(sensory_cell.utilities)
-            info_gains.append(sensory_cell.info_gains)
-            t+=1 
-            overall_t += 1
-            if t == 75:
-                break
-
-        print(f"Trial over, resetting locations")
+    timesteps_per_trial = []
+    overall_t = 0
+    for i in range(1):
+        if i == 0:
+            REWARD_LOCATION = (0,int(grid_size[1]-1))
+        else:
+            REWARD_LOCATION = (0,0)
 
         reward_location = REWARD_LOCATION
-        agent_location = (0, int((grid_size[1]-1)/2))
         for e in external_cells:
             e.set_locations(reward_location, agent_location)
+        sensory_cell.build_B()
+        for trial in range(num_trials):
+            print(f"TRIAL : {trial}")
+            timesteps_per_trial.append(overall_t)
+            t = 0
+            sensory_cell.qs = copy.deepcopy(initial_D)
+            sensory_cell.qs_prev = copy.deepcopy(initial_D)
+            sensory_cell.action = None
+            sensory_cell.prev_obs = []
+            sensory_cell.prev_actions = None
 
-        time_taken_per_trial.append(t)
+            sensory_cell.update_after_trial()
+
+            print(f"A: { sensory_cell.A}")
+            A_over_trials.append(sensory_cell.A)
+            # if trial > 0:
+            #     sensory_cell.update_D()
 
 
+            # if trial > 0 and sensory_cell.inference_algo == "MMP":
+
+            #     sensory_cell.update_gamma()
+            #     gamma_over_time.append(sensory_cell.gamma)
+
+            while external_cells[0].agent_location != external_cells[0].reward_location:
+                plot_grid(grid_images, grid, trial, t)
+                
+                observation_signal = []
+
+                for e in external_cells:
+                    signal = e.act(obs)
+                    observation_signal.append(signal)
+
+                observations_over_time.append(observation_signal)
+                # if trial > 1:
+                #     update_B = True
+                # else:
+                #     update_B = False
+
+                update_B = True
+                
+                obs = sensory_cell.act(observation_signal, update_B = update_B)
+                
+                print()
+                print(f"agent signal: {obs}")
+                print(f"Qs: {sensory_cell.qs}")
+                print(f"F: {sensory_cell.F}")
+                print(f"Q pi: {sensory_cell.q_pi}")
+                print(f"B: {sensory_cell.B}")
+                print(f"G: {sensory_cell.G}")
+                print(f"Gamma A: {sensory_cell.gamma_A}")
+
+                qs_over_time.append(sensory_cell.qs)
+                
+                B_over_time.append(sensory_cell.B)
+                pB_over_time.append(sensory_cell.pB)
+                q_pi_over_time.append(sensory_cell.q_pi[0]) #0 -> move right, 1-> move left
+                grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, signal, grid_size)
+                actions_over_time.append(obs)
+                efe_over_time.append(sensory_cell.G)
+                utilities.append(sensory_cell.utilities)
+                info_gains.append(sensory_cell.info_gains)
+                t+=1 
+                overall_t += 1
+                if t == 100:
+                    solved.append(False)
+                    break
+
+
+            print(f"Trial over, resetting locations")
+
+            reward_location = REWARD_LOCATION
+            agent_location = (0, int((grid_size[1]-1)/2))
+            for e in external_cells:
+                e.set_locations(reward_location, agent_location)
+
+            time_taken_per_trial.append(t)
+            gamma_A_over_trials.append(sensory_cell.gamma_A)
+
+            if t < 100:
+                solved.append(True)
+
+        
+    return solved, time_taken_per_trial, grid_images, B_over_time, pB_over_time, q_pi_over_time, actions_over_time, gamma_over_time, efe_over_time, qs_over_time, gamma_A_over_trials, observations_over_time, A_over_trials, utilities, info_gains, timesteps_per_trial
+
+solved, time_taken_per_trial, grid_images, B_over_time, pB_over_time, q_pi_over_time, actions_over_time, gamma_over_time, efe_over_time, qs_over_time, gamma_A_over_trials, observations_over_time, A_over_trials, utilities, info_gains, timesteps_per_trial = run(reward_location, agent_location, sensory_cell, external_cells)
 print("Plotting time taken")
 
 plt.plot(time_taken_per_trial)
@@ -333,6 +384,16 @@ plt.ylabel("Gamma_G")
 plt.savefig("gamma_over_time.png")
 plt.show()
 plt.clf()
+
+plt.plot([g[0][0] for g in gamma_A_over_trials], label = "gamma_A Fire")
+plt.plot([g[0][1] for g in gamma_A_over_trials], label = "gamma_A No Fire")
+
+plt.xlabel("Trials")
+plt.ylabel("Gamma_A")
+plt.savefig("gamma_A_over_time.png")
+plt.show()
+plt.clf()
+
 
 print("Plotting EFE")
 
@@ -385,8 +446,8 @@ imageio.mimsave(gif_path, grid_images, fps=5)
 print("Making B GIF")
 
 make_B_gif(B_over_time[::10], "B_over_time.gif")
-make_pB_gif(pB_over_time[::10], "pB_over_time.gif")
-
+#make_pB_gif(pB_over_time[::10], "pB_over_time.gif")
+make_A_gif(A_over_trials, "A_over_trials.gif")
 
 """
 What it learns in B is what to do in response to the environmental signal

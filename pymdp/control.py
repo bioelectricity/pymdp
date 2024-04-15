@@ -108,6 +108,8 @@ def update_posterior_policies_full(
         init_qs_all_pi = [qs_seq_pi[p][0] for p in range(num_policies)]
         qs_bma = inference.average_states_over_policies(init_qs_all_pi, softmax(E))
 
+    
+
     for p_idx, policy in enumerate(policies):
 
         qo_seq_pi[p_idx] = get_expected_obs(qs_seq_pi[p_idx], A)
@@ -128,6 +130,7 @@ def update_posterior_policies_full(
             G[p_idx] += calc_inductive_cost(qs_bma, qs_seq_pi[p_idx], I)
 
     q_pi = softmax(G * gamma - F + lnE)
+    self.q_pi = q_pi
     
     return q_pi, G
 
@@ -224,8 +227,12 @@ def update_posterior_policies_full_factorized(
     # initialise expected observations
     qo_seq_pi = utils.obj_array(num_policies)
 
+    print(f"Expected states: {qs_seq_pi}")
+
     # initialize (negative) expected free energies for all policies
     G = np.zeros(num_policies)
+    utilities = np.zeros(num_policies)
+    info_gains = np.zeros(num_policies)
 
     if F is None:
         F = spm_log_single(np.ones(num_policies) / num_policies)
@@ -244,10 +251,17 @@ def update_posterior_policies_full_factorized(
         qo_seq_pi[p_idx] = get_expected_obs_factorized(qs_seq_pi[p_idx], A, A_factor_list)
 
         if use_utility:
-            G[p_idx] += calc_expected_utility(qo_seq_pi[p_idx], C)
+            utility = calc_expected_utility(qo_seq_pi[p_idx], C)
+            G[p_idx] += utility
+            utilities[p_idx] += utility
+
+        
         
         if use_states_info_gain:
-            G[p_idx] += calc_states_info_gain_factorized(A, qs_seq_pi[p_idx], A_factor_list)
+
+            info_gain = calc_states_info_gain_factorized(A, qs_seq_pi[p_idx], A_factor_list)
+            G[p_idx] += info_gain
+            info_gains[p_idx] += info_gain
         
         if use_param_info_gain:
             if pA is not None:
@@ -257,17 +271,14 @@ def update_posterior_policies_full_factorized(
         
         if I is not None:
             G[p_idx] += calc_inductive_cost(qs_bma, qs_seq_pi[p_idx], I)
+    #print(f"Expected observations: {qo_seq_pi}")
 
-    # print(f"G: {G}")
-    # print(f"lnE: {lnE}")
-    # print(f"F: {F}")
-    # print(f"gamma: {gamma}")
 
     G = G * gamma - F + lnE
             
     q_pi = softmax(G)
     
-    return q_pi, G
+    return q_pi, G, utilities, info_gains
 
 
 def update_posterior_policies(
@@ -452,33 +463,55 @@ def update_posterior_policies_factorized(
     else:
         lnE = spm_log_single(E) 
 
-    qs_pi_policy = utils.obj_array(len(policies))
+    qs_pi_policy = utils.obj_array(len(policies))   
+
+    utilities = np.zeros((n_policies, 1))
+    info_gains = np.zeros((n_policies, 1))
+
 
     for idx, policy in enumerate(policies):
+
+        print(f"Policy: {policy}")
+
+        #TODO: go through each of these and see the different components of expected free energy 
         qs_pi = get_expected_states_interactions(qs, B, B_factor_list, policy)
         qs_pi_policy[idx] = qs_pi
         qo_pi = get_expected_obs_factorized(qs_pi, A, A_factor_list)
 
+        print(f"Expected states: {qs_pi}")
+        print(f"Expected observations: {qo_pi}")
+
         if use_utility:
-            G[idx] += calc_expected_utility(qo_pi, C)
+            utility = calc_expected_utility(qo_pi, C)
+            G[idx] += utility
+            utilities[idx] += utility
+
 
         if use_states_info_gain:
-            G[idx] += calc_states_info_gain_factorized(A, qs_pi, A_factor_list)
+            info_gain = calc_states_info_gain_factorized(A, qs_pi, A_factor_list)
+            print(f"Information gain: {info_gain}")
+            G[idx] += info_gain
+            info_gains[idx] += info_gain
+
 
         if use_param_info_gain:
             if pA is not None:
                 G[idx] += calc_pA_info_gain_factorized(pA, qo_pi, qs_pi, A_factor_list)
+                
+                
             if pB is not None:
-                G[idx] += calc_pB_info_gain_interactions(pB, qs_pi, qs, B_factor_list, policy)
+                pB_info_gain = calc_pB_info_gain_interactions(pB, qs_pi, qs, B_factor_list, policy)
+                G[idx] += pB_info_gain
         
         if I is not None:
             G[idx] += calc_inductive_cost(qs, qs_pi, I)
 
-        
+    
+    q_pi = softmax(G * gamma + lnE)   
 
-    q_pi = softmax(G * gamma + lnE)    
+    print(f"Qs pi policy: {qs_pi_policy}") 
 
-    return q_pi, G, qs_pi_policy
+    return q_pi, G, qs_pi_policy, utilities, info_gains
 
 def get_expected_states(qs, B, policy):
     """

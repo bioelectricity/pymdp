@@ -58,6 +58,7 @@ class NeuronalCell(Agent):
         self.build_A()
         self.build_B()
         self.D = self.build_uniform_D()
+        
         self.C = self.build_uniform_C()
 
     def build_A(self):

@@ -525,6 +525,7 @@ def spm_MDP_G(A, x):
     G = 0
     qo = 0
     idx = np.array(np.where(qx > np.exp(-16))).T
+    print(f"Idx: {idx}")
 
     if utils.is_obj_array(A):
         # Accumulate expectation of entropy: i.e., E_{Q(o, x)}[lnP(o|x)] = E_{P(o|x)Q(x)}[lnP(o|x)] = E_{Q(x)}[P(o|x)lnP(o|x)] = E_{Q(x)}[H[P(o|x)]]
@@ -537,6 +538,7 @@ def spm_MDP_G(A, x):
 
             po = po.ravel()
             qo += qx[tuple(i)] * po
+
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
     else:
         for i in idx:
@@ -544,11 +546,17 @@ def spm_MDP_G(A, x):
             index_vector = [slice(0, A.shape[0])] + list(i)
             po = spm_cross(po, A[tuple(index_vector)])
             po = po.ravel()
+
             qo += qx[tuple(i)] * po
+
+
             G += qx[tuple(i)] * po.dot(np.log(po + np.exp(-16)))
-   
+
+        
+    print(f"Expected qs: {qx}")
+    print(f"Qo : {qo}")
     # Subtract negative entropy of expectations: i.e., E_{Q(o)}[lnQ(o)]
     G = G - qo.dot(spm_log_single(qo))  # type: ignore
-
+    
     return G
 
