@@ -183,7 +183,6 @@ class GridWorldCell:
 
             # TODO can be a new parameter to make this a non-linear probability distribution
 
-            print(f"Probabilities for external agent action sampling: {probabilities}")
             signal = np.random.choice([0,1], p=probabilities)
 
 
@@ -211,7 +210,7 @@ pD[0] =  np.array([0.5, 0.5])
 pC = utils.obj_array(1)
 pC[0] =  np.array([0.5, 0.5])
 
-distr_obs = True
+distr_obs = False
 
 #sensory_cell = NeuronalCell(0, [e.id for e in external_cell s], np.array([[0.05,0.05]]*num_external_cells + [[0.05,0.05]]), alpha = 0.1, action_sampling="deterministic", lr_pE = 0, use_utility = True, inference_algo = "VANILLA", pD = pD, lr_pD = 0.01, lr_pB = 0.5,save_belief_hist = True) #,policy_sep_prior=True ) #, inference_horizon = 2, pD = pD, lr_pD = 0.01,policy_len = policy_len, gamma=gamma_G, pE = pE, lr_pE = lr_pE) #, use_param_info_gain = True)#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
 
@@ -232,7 +231,7 @@ def run(num_trials, reward_location, agent_location):
     sensory_cell = NeuronalCell(0, [e.id for e in external_cells], np.array([[0.05,0.05]]*num_external_cells), alpha = 0.1,action_sampling="deterministic",  inference_algo = "MMP",  lr_pE = 0, inference_horizon = 2, use_utility = True, pD = pD, pC=pC, lr_pD = 0.01,lr_pC = 0.1, lr_pB = 0.01, distr_obs = distr_obs) #, )#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
 
     grid = get_grid(reward_location, agent_location, 1, grid_size)
-    obs = 1
+    sensory_action = 1
 
     time_taken_per_trial = []
     grid_images = []
@@ -305,7 +304,7 @@ def run(num_trials, reward_location, agent_location):
                 observation_distribution = []
 
                 for e in external_cells:
-                    probabilities, signal = e.act(obs)
+                    probabilities, signal = e.act(sensory_action)
                     observation_distribution.append(probabilities)
                     observation_signal.append(signal)
 
@@ -325,11 +324,11 @@ def run(num_trials, reward_location, agent_location):
                 modality_precisions.append(A_modality_precision)
 
                 if distr_obs:
-                    obs = sensory_cell.act(np.array(observation_distribution), update_B = update_B)
+                    sensory_action = sensory_cell.act(np.array(observation_distribution), update_B = update_B)
                 else:
-                    obs = sensory_cell.act(np.array(observation_signal), update_B = update_B)
+                    sensory_action = sensory_cell.act(np.array(observation_signal), update_B = update_B)
                 print()
-                print(f"agent signal: {obs}")
+                print(f"agent signal action: {sensory_action}")
                 print(f"Qs: {sensory_cell.qs}")
                 print(f"F: {sensory_cell.F}")
                 print(f"Q pi: {sensory_cell.q_pi}")
@@ -342,8 +341,8 @@ def run(num_trials, reward_location, agent_location):
                 B_over_time.append(sensory_cell.B)
                 pB_over_time.append(sensory_cell.pB)
                 q_pi_over_time.append(sensory_cell.q_pi[0]) #0 -> move right, 1-> move left
-                grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, obs, grid_size)
-                actions_over_time.append(obs)
+                grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, sensory_action, grid_size)
+                actions_over_time.append(sensory_action)
                 efe_over_time.append(sensory_cell.G)
                 utilities.append(sensory_cell.utilities)
                 info_gains.append(sensory_cell.info_gains)

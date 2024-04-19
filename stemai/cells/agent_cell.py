@@ -60,6 +60,7 @@ class NeuronalCell(Agent):
             distr_obs=distr_obs,
             **kwargs
         )
+        self.precision_policies = self.policies
 
     def setup(self, num_neighbors):
 
@@ -219,8 +220,6 @@ class NeuronalCell(Agent):
 
         self.observation_history.append(obs)
 
-        print(f"obs: {obs}")
-
         qs = self.infer_states(obs)
         # self.D = self.qs
 
@@ -249,7 +248,8 @@ class NeuronalCell(Agent):
             else:
                 modalities = None
             self.update_gamma_A(self.observation_history[t], qs, modalities = modalities)
-            self.update_C([self.observation_history[t]])
+            #if self.distr_obs:
+            self.update_C(self.observation_history[t])
             
             # self.update_A(self.observation_history[t])
 
