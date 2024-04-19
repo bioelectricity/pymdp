@@ -497,12 +497,19 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
     return reduced_B
 
 
-def update_preferences(pC, observation, lr, modalities = "all"):
+def update_preferences(pC, observation, lr, modalities = "all", distr_obs = False):
     num_modalities = len(pC)
     num_observations = [pC[modality].shape[0] for modality in range(num_modalities)]
+    print(observation)
+    observation = observation[0]
 
-    obs_processed = utils.process_observation(observation, num_modalities, num_observations)
-    obs = utils.to_obj_array(obs_processed)
+    if not distr_obs:
+        
+        obs_processed = utils.process_observation(observation, num_modalities, num_observations)
+        obs = utils.to_obj_array(obs_processed)
+    else:
+        obs = utils.to_obj_array(observation[0])
+
 
     #TODO
     #we might want to be updating C based on         
@@ -532,7 +539,9 @@ def update_policies(pE, q_pi, lr):
     return qE
 
 
-def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None):
+def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None, distr_obs = False):
+
+
     if update_prior:
         new_gamma_A_prior = gamma_A
     else:
@@ -547,13 +556,25 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
 
         qs_relevant = np.array([get_factors(qs_policy, factor_list) for factor_list in A_factor_list], dtype = 'object')
 
-        qs_relevant = np.mean(qs_relevant, axis = 0)
-        print(f"Qs relevant: {qs_relevant}")
+        #qs_relevant = np.mean(qs_relevant, axis = 0)
+        #print(f"Qs relevant: {qs_relevant}")
+        # print(len(qs_relevant))
+        # print(qs_relevant[0])
+        # print(len(qs_relevant[0]))
+        # if len(base_A) > 1:
+        #     qs_relevant = qs_relevant[0][0]
+        # else:
+        #     qs_relevant = np.mean(qs_relevant, axis = 0)
+     #   print(f"Qs relevant: {qs_relevant}")
+
         bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
 
         print(f"Bold o: {bold_o_per_modality}")
 
-        observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
+        if distr_obs:
+            observation_array = utils.obj_array_from_list([observation[m] for m in range(len(base_A))])
+        else:
+            observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
 
         print(f"Observation array: {observation_array}")
         prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
@@ -604,7 +625,7 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
         gamma_A_posterior = np.array([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
     else:
         gamma_A_posterior = gamma_A_full
-
+    
     return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)
 
 

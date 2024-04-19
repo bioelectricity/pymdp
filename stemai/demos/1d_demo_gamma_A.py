@@ -2,10 +2,10 @@
 import numpy as np
 import os 
 try:
-    from stemai.cells.agent_cell import NeuronalCell
+    from stemai.cells.agent_cell_gamma import NeuronalCell
 except:
     os.chdir('../../')
-    from stemai.cells.agent_cell import NeuronalCell
+    from stemai.cells.agent_cell_gamma import NeuronalCell
 import copy
 from pymdp import utils
 import matplotlib.pyplot as plt 
@@ -21,30 +21,53 @@ import imageio
 #%%
 def make_B_gif(arrays, fn):
     images = []
-    for arr in arrays:
+    for Barr in arrays:
 
-        arr = arr[0]
-        fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+        fig, axs = plt.subplots(2, 2, figsize=(20, 15))
+        arr = Barr[0]
 
-        cax0 = axs[0].imshow(arr[:,:,0], cmap='gray', vmin=0, vmax=1)
-        axs[0].set_xticks([0, 1])
-        axs[0].set_xticklabels(['Fire', 'Not Fire'])
-        axs[0].set_xlabel("s_t")
-        axs[0].set_yticks([0, 1])
-        axs[0].set_yticklabels(['Fire', 'Not Fire'])
-        axs[0].set_ylabel("s_{t+1}")
-        axs[0].set_title('Fire')
-        fig.colorbar(cax0, ax=axs[0], fraction=0.046, pad=0.04)
+        cax0 = axs[0,0].imshow(arr[:,:,0], cmap='gray', vmin=0, vmax=1)
+        axs[0,0].set_xticks([0, 1])
+        axs[0,0].set_xticklabels(['Fire', 'Not Fire'])
+        axs[0,0].set_xlabel("s_t")
+        axs[0,0].set_yticks([0, 1])
+        axs[0,0].set_yticklabels(['Fire', 'Not Fire'])
+        axs[0,0].set_ylabel("s_{t+1}")
+        axs[0,0].set_title('Fire')
+        fig.colorbar(cax0, ax=axs[0,0], fraction=0.046, pad=0.04)
 
-        cax1 = axs[1].imshow(arr[:,:,1], cmap='gray', vmin=0, vmax=1)
-        axs[1].set_title('No Fire')
-        axs[1].set_xticks([0, 1])
-        axs[1].set_xticklabels(['Fire', 'Not Fire'])
-        axs[1].set_xlabel("s_t")
-        axs[1].set_yticks([0, 1])
-        axs[1].set_yticklabels(['Fire', 'Not Fire'])
-        axs[1].set_ylabel("s_{t+1}")
-        fig.colorbar(cax1, ax=axs[1], fraction=0.046, pad=0.04)
+        cax1 = axs[0,1].imshow(arr[:,:,1], cmap='gray', vmin=0, vmax=1)
+        axs[0,1].set_title('No Fire')
+        axs[0,1].set_xticks([0, 1])
+        axs[0,1].set_xticklabels(['Fire', 'Not Fire'])
+        axs[0,1].set_xlabel("s_t")
+        axs[0,1].set_yticks([0, 1])
+        axs[0,1].set_yticklabels(['Fire', 'Not Fire'])
+        axs[0,1].set_ylabel("s_{t+1}")
+        fig.colorbar(cax1, ax=axs[0,1], fraction=0.046, pad=0.04)
+
+
+        arr = Barr[1]
+
+        cax0 = axs[1,0].imshow(arr[:,:,0], cmap='gray', vmin=0, vmax=1)
+        axs[1,0].set_xticks([0, 1])
+        axs[1,0].set_xticklabels(['Gamma_A High', 'Gamma_A Low'])
+        axs[1,0].set_xlabel("s_t")
+        axs[1,0].set_yticks([0, 1])
+        axs[1,0].set_yticklabels(['Gamma_A High', 'Gamma_A Low'])
+        axs[1,0].set_ylabel("s_{t+1}")
+        axs[1,0].set_title('Fire')
+        fig.colorbar(cax0, ax=axs[1,0], fraction=0.046, pad=0.04)
+
+        cax1 = axs[1,1].imshow(arr[:,:,1], cmap='gray', vmin=0, vmax=1)
+        axs[1,1].set_title('No Fire')
+        axs[1,1].set_xticks([0, 1])
+        axs[1,1].set_xticklabels(['Gamma_A High', 'Gamma_A Low'])
+        axs[1,1].set_xlabel("s_t")
+        axs[1,1].set_yticks([0, 1])
+        axs[1,1].set_yticklabels(['Gamma_A High', 'Gamma_A Low'])
+        axs[1,1].set_ylabel("s_{t+1}")
+        fig.colorbar(cax1, ax=axs[1,1], fraction=0.046, pad=0.04)
 
         plt.savefig("temp_B.png")
         images.append(imageio.imread("temp_B.png"))
@@ -54,21 +77,36 @@ def make_B_gif(arrays, fn):
 
 def make_A_gif(arrays, fn):
     images = []
-    for arr in arrays:
+    for A_arr in arrays:
+        fig, axs = plt.subplots(1,2 ,figsize=(15, 5))
 
-        arr = arr[0]
-        fig = plt.figure()
+        arr = A_arr[0]
 
-        plt.imshow(arr, cmap='gray', vmin=0, vmax=1)
-        plt.xticks([0, 1], labels = ['Obs: Fire', 'Obs: Not Fire'])
+        cax0 = axs[0].imshow(arr, cmap='gray', vmin=0, vmax=1)
+        axs[0].set_xticks([0, 1])
+        axs[0].set_yticks([0, 1])
+        axs[0].set_xticklabels(['Obs: Fire', 'Obs: Not Fire'])
        # plt.xticklabels(['Obs: Fire', 'Obs: Not Fire'])
-        plt.xlabel("o_t")
-        plt.yticks([0, 1], labels = ['State: Fire', 'State: Not Fire'])
-       # axs[0].set_yticklabels(['State: Fire', 'State: Not Fire'])
-        plt.ylabel("s_{t}")
-        plt.title('Fire')
-        plt.colorbar()
+        axs[0].set_xlabel("o_t")
+        axs[0].set_yticklabels(['State: Fire', 'State: Not Fire'])
+        axs[0].set_ylabel("s_{t}")
+        axs[0].set_title('Fire')
+        fig.colorbar(cax0, ax=axs[0], fraction=0.046, pad=0.04)
 
+
+        arr = A_arr[1]
+
+        cax1 = axs[1].imshow(arr, cmap='gray', vmin=0, vmax=1)
+        axs[1].set_xticks([0, 1])
+        axs[1].set_yticks([0, 1])
+
+        axs[1].set_xticklabels(['Obs: High gamma_A', 'Obs: Low gamma_A'])
+       # plt.xticklabels(['Obs: Fire', 'Obs: Not Fire'])
+        axs[1].set_xlabel("o_t")
+        axs[1].set_yticklabels(['State: Fire', 'State: Not Fire'])
+        axs[1].set_ylabel("s_{t}")
+        axs[1].set_title('Fire')
+        fig.colorbar(cax1, ax=axs[1], fraction=0.046, pad=0.04)
         plt.savefig("temp_A.png")
         images.append(imageio.imread("temp_A.png"))
         #os.remove("temp.png")
@@ -229,10 +267,9 @@ def run(num_trials, reward_location, agent_location):
         external_cells.append(GridWorldCell(reward_location, grid_size, agent_location))
 
 
-    sensory_cell = NeuronalCell(0, [e.id for e in external_cells], np.array([[0.05,0.05]]*num_external_cells), alpha = 0.1,action_sampling="deterministic",  inference_algo = "MMP",  lr_pE = 0, inference_horizon = 2, use_utility = True, pD = pD, pC=pC, lr_pD = 0.01,lr_pC = 0.1, lr_pB = 0.01, distr_obs = distr_obs) #, )#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
-
+    sensory_cell = NeuronalCell(0, [e.id for e in external_cells], np.array([[0.05,0.05]]*num_external_cells + [[0.1,0.1]]), pE=pE, alpha = 0.1, action_sampling="deterministic",  inference_algo = "MMP",  lr_pE = 0, inference_horizon = 2, use_utility = True, pD = pD, pC=pC, lr_pD = 0.01,lr_pC = 0.1, lr_pB = 0.05, distr_obs = distr_obs) #, )#, alpha = 0.5)#, inference_algo = "VANILLA")#,  gamma = gamma_G)
     grid = get_grid(reward_location, agent_location, 1, grid_size)
-    obs = 1
+    sensory_action = [1,1]
 
     time_taken_per_trial = []
     grid_images = []
@@ -303,17 +340,33 @@ def run(num_trials, reward_location, agent_location):
                 
                 observation_signal = []
                 observation_distribution = []
+                observation = []
 
                 for e in external_cells:
-                    probabilities, signal = e.act(obs)
+                    probabilities, signal = e.act(sensory_action[0])
                     observation_distribution.append(probabilities)
                     observation_signal.append(signal)
 
                 print(f"External signal: {observation_signal}")
                 print(f"External distribution: {observation_distribution}")
                 print(f"Distr obs: {sensory_cell.distr_obs}")
+                A_modality_precision =  sensory_cell.gamma_A[0][0] + sensory_cell.gamma_A[0][1]
+                A_modality_precision_prior = sensory_cell.gamma_A_prior[0][0] + sensory_cell.gamma_A_prior[0][1]
+                modality_precisions.append(A_modality_precision)
 
-                observations_over_time.append(np.array(observation_signal))
+                print(f"modality precision: {A_modality_precision}")
+
+                if A_modality_precision > A_modality_precision_prior:
+                    precision_obs = [A_modality_precision_prior-A_modality_precision,1-(A_modality_precision_prior-A_modality_precision)]
+                else:
+                    precision_obs = [A_modality_precision-A_modality_precision_prior,1-(A_modality_precision-A_modality_precision_prior)]
+
+                print(f"Precision obs: {precision_obs}")
+                
+                
+                observation = np.array([np.array(observation_distribution[0]), np.array(precision_obs)], dtype = object)
+
+                observations_over_time.append(observation)
                 # if trial > 1:
                 #     update_B = True
                 # else:
@@ -321,15 +374,13 @@ def run(num_trials, reward_location, agent_location):
 
                 update_B = True
 
-                A_modality_precision =  sensory_cell.gamma_A[0][0] + sensory_cell.gamma_A[0][1]
-                modality_precisions.append(A_modality_precision)
 
                 if distr_obs:
-                    obs = sensory_cell.act(np.array(observation_distribution), update_B = update_B)
+                    sensory_action = sensory_cell.act(observation, update_B = update_B)
                 else:
-                    obs = sensory_cell.act(np.array(observation_signal), update_B = update_B)
+                    sensory_action = sensory_cell.act(np.array(observation_signal), update_B = update_B)
                 print()
-                print(f"agent signal: {obs}")
+                print(f"agent signal: {sensory_action}")
                 print(f"Qs: {sensory_cell.qs}")
                 print(f"F: {sensory_cell.F}")
                 print(f"Q pi: {sensory_cell.q_pi}")
@@ -342,8 +393,8 @@ def run(num_trials, reward_location, agent_location):
                 B_over_time.append(sensory_cell.B)
                 pB_over_time.append(sensory_cell.pB)
                 q_pi_over_time.append(sensory_cell.q_pi[0]) #0 -> move right, 1-> move left
-                grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, obs, grid_size)
-                actions_over_time.append(obs)
+                grid = get_grid(external_cells[0].reward_location, external_cells[0].agent_location, sensory_action[0], grid_size)
+                actions_over_time.append(sensory_action)
                 efe_over_time.append(sensory_cell.G)
                 utilities.append(sensory_cell.utilities)
                 info_gains.append(sensory_cell.info_gains)
@@ -396,7 +447,7 @@ def plot(dir):
     plt.clf()
 
     print("Plotting actions over time")
-
+           
     plt.plot(actions_over_time)
     for t in timesteps_per_trial:
         plt.axvline(x=t, color='black', linestyle='--', alpha = 0.5)

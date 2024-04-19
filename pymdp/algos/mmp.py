@@ -215,13 +215,14 @@ def run_mmp_factorized(
 
     joint_lh_seq = obj_array(len(lh_seq))
     num_modalities = len(A_factor_list)
+
     for t in range(len(lh_seq)):
         joint_loglikelihood = np.zeros(tuple(num_states))
         for m in range(num_modalities):
             reshape_dims = num_factors*[1]
             for _f_id in A_factor_list[m]:
                 reshape_dims[_f_id] = num_states[_f_id]
-            joint_loglikelihood += lh_seq[t][m].reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
+            joint_loglikelihood += np.array(lh_seq[t][m],dtype=np.float64).reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
         joint_lh_seq[t] = joint_loglikelihood
 
     for itr in range(num_iter):
@@ -232,7 +233,7 @@ def run_mmp_factorized(
                 lnA = np.zeros(num_states[f])
                 if t < past_len:
                     for m in A_modality_list[f]:
-                        lnA += spm_log_single(spm_dot(lh_seq[t][m], qs_seq[t][A_factor_list[m]], [A_factor_list[m].index(f)]))  
+                        lnA += spm_log_single(spm_dot(np.array(lh_seq[t][m],dtype=np.float64), qs_seq[t][A_factor_list[m]], [A_factor_list[m].index(f)]))  
                     #print(f'Factorized version: lnA at time {t}: {lnA}')                
                 
                 # past message

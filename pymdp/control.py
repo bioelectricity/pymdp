@@ -137,6 +137,7 @@ def update_posterior_policies_full(
 def update_posterior_policies_full_factorized(
     qs_seq_pi,
     A,
+    base_A,
     B,
     C,
     A_factor_list,
@@ -218,7 +219,7 @@ def update_posterior_policies_full_factorized(
 
     num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
     horizon = len(qs_seq_pi[0])
-    num_policies = len(qs_seq_pi)
+    num_policies = len(policies)
 
     qo_seq = utils.obj_array(horizon)
     for t in range(horizon):
@@ -226,8 +227,6 @@ def update_posterior_policies_full_factorized(
 
     # initialise expected observations
     qo_seq_pi = utils.obj_array(num_policies)
-
-    print(f"Expected states: {qs_seq_pi}")
 
     # initialize (negative) expected free energies for all policies
     G = np.zeros(num_policies)
@@ -246,17 +245,68 @@ def update_posterior_policies_full_factorized(
         init_qs_all_pi = [qs_seq_pi[p][0] for p in range(num_policies)]
         qs_bma = inference.average_states_over_policies(init_qs_all_pi, softmax(E))
 
+
     for p_idx, policy in enumerate(policies):
 
-        qo_seq_pi[p_idx] = get_expected_obs_factorized(qs_seq_pi[p_idx], A, A_factor_list)
+        #in the next time step i expect to see (fire, not fire) and (high precision, low precision)
+
+        #TODO get the high precision low precision observation first 
+        #use that to scale the A 
+        #then do for the fire / not fire
+
+    
+
+        print(len(qs_seq_pi))
+
+        expected_precision_observation = get_expected_obs_factorized(qs_seq_pi[p_idx], A, A_factor_list, modalities = [1])
+
+        print(f"Expected precision observation: {expected_precision_observation}") #[0.7,0.3] 1.7
+        #[0.4,0.6]
+
+
+        if expected_precision_observation[0][0][0] > 0.4:
+            gamma_A = np.array([0.1,0.1])
+        else:
+            gamma_A = np.array([0.01,0.01])
+
+        print(f"Scaling A with {gamma_A}")
+
+        A_scaled = utils.scale_A_with_gamma(copy.deepcopy(base_A), [gamma_A], modalities = [0])
+
+        print(f"Scaled A { A_scaled}")
+        
+
+        expected_state_observation = get_expected_obs_factorized(qs_seq_pi[p_idx], A_scaled, A_factor_list, modalities = [0])
+        print(f"Expected state observation: {expected_state_observation}") #[0.7,0.3] 1.7
+
+        qo_pi = []
+
+        for t in range(len(qs_seq_pi[p_idx])):
+            qo_pi_t = utils.obj_array(1)
+            qo_pi.append(qo_pi_t)   
+            qo_pi[t][0] = expected_state_observation[t][0]
+            #qo_pi[t][1] = expected_precision_observation[t][0]
+
+        qo_seq_pi[p_idx] = qo_pi
+
+        print(f"Qo Seq pi: {qo_seq_pi[p_idx]}")
+        print(f"C : {C}")
+        print(f"C[0]: {C[0]}")
+
+        #TEST = get_expected_obs_factorized(qs_seq_pi[p_idx], A, A_factor_list)
+        #print(f"old Qo Seq pi: {TEST}")
+
+
+        #qo_seq_pi[p_idx] = get_expected_obs_factorized(qs_seq_pi[p_idx], A, A_factor_list)
 
         if use_utility:
-            utility = calc_expected_utility(qo_seq_pi[p_idx], C)
+            utility = calc_expected_utility(qo_seq_pi[p_idx], [C[0]])
             G[p_idx] += utility
             utilities[p_idx] += utility
 
-        
-        
+        print(f"Utilies: {utilities}")
+
+    
         if use_states_info_gain:
 
             info_gain = calc_states_info_gain_factorized(A, qs_seq_pi[p_idx], A_factor_list)
@@ -274,7 +324,7 @@ def update_posterior_policies_full_factorized(
     #print(f"Expected observations: {qo_seq_pi}")
 
 
-    G = G * gamma - F + lnE
+    G = G * gamma - F[:num_policies] + lnE[:num_policies] 
             
     q_pi = softmax(G)
     
@@ -471,15 +521,10 @@ def update_posterior_policies_factorized(
 
     for idx, policy in enumerate(policies):
 
-        print(f"Policy: {policy}")
-
         #TODO: go through each of these and see the different components of expected free energy 
         qs_pi = get_expected_states_interactions(qs, B, B_factor_list, policy)
         qs_pi_policy[idx] = qs_pi
         qo_pi = get_expected_obs_factorized(qs_pi, A, A_factor_list)
-
-        print(f"Expected states: {qs_pi}")
-        print(f"Expected observations: {qo_pi}")
 
         if use_utility:
             utility = calc_expected_utility(qo_pi, C)
@@ -623,7 +668,7 @@ def get_expected_obs(qs_pi, A):
 
     return qo_pi
 
-def get_expected_obs_factorized(qs_pi, A, A_factor_list):
+def get_expected_obs_factorized(qs_pi, A, A_factor_list, modalities = None ):
     """
     Compute the expected observations under a policy, also known as the posterior predictive density over observations
 
@@ -645,20 +690,29 @@ def get_expected_obs_factorized(qs_pi, A, A_factor_list):
         observations expected under the policy at time ``t``
     """
 
+    """
+    This will only return the expected observations for the specified modality 
+    
+    
+    """
+
+    if modalities is None:
+        modalities = list(range(len(A)))
     n_steps = len(qs_pi) # each element of the list is the PPD at a different timestep
 
     # initialise expected observations
     qo_pi = []
 
     for t in range(n_steps):
-        qo_pi_t = utils.obj_array(len(A))
+        qo_pi_t = utils.obj_array(len(modalities))
         qo_pi.append(qo_pi_t)
 
     # compute expected observations over time
     for t in range(n_steps):
-        for modality, A_m in enumerate(A):
+        for idx_m, modality in enumerate(modalities):
+            A_m = A[modality]
             factor_idx = A_factor_list[modality] # list of the hidden state factor indices that observation modality with the index `modality` depends on
-            qo_pi[t][modality] = spm_dot(A_m, qs_pi[t][factor_idx])
+            qo_pi[t][idx_m] = spm_dot(A_m, qs_pi[t][factor_idx])
 
     return qo_pi
 
@@ -1089,11 +1143,27 @@ def sample_action(q_pi, policies, num_controls, action_selection="deterministic"
 
     num_factors = len(num_controls)
 
+    print(f"policies: {policies}")
+
+    print(f"num controls: {num_controls}")
+    print(f"num factors: {num_factors}")
+    
+
     action_marginals = utils.obj_array_zeros(num_controls)
+
+    print(f"Aciton marginals: {action_marginals}")
+    print(f"Q pi: {q_pi}")
 
     # weight each action according to its integrated posterior probability under all policies at the current timestep
     for pol_idx, policy in enumerate(policies):
+        print(f"policy: {policy}")
+        print(policy[0,:])
+
         for factor_i, action_i in enumerate(policy[0, :]):
+            print(f"FACTOR")
+            print(factor_i)
+            print(action_marginals[factor_i])
+            print(q_pi[pol_idx])
             action_marginals[factor_i][action_i] += q_pi[pol_idx]
     
     action_marginals = utils.norm_dist_obj_arr(action_marginals)

@@ -75,6 +75,7 @@ class Agent(object):
         B_factor_list=None,
         update_gamma_prior = True, 
         update_omega_prior=False,
+        distr_obs= False
     ):
 
         ### Constant parameters ###
@@ -88,6 +89,7 @@ class Agent(object):
         self.use_utility = use_utility
         self.use_states_info_gain = use_states_info_gain
         self.use_param_info_gain = use_param_info_gain
+        self.distr_obs = distr_obs
 
         # learning parameters
         self.modalities_to_learn = modalities_to_learn
@@ -229,7 +231,7 @@ class Agent(object):
             policies = self._construct_policies()
         self.policies = policies
 
-        assert all([len(self.num_controls) == policy.shape[1] for policy in self.policies]), "Number of control states is not consistent with policy dimensionalities"
+       # assert all([len(self.num_controls) == policy.shape[1] for policy in self.policies]), "Number of control states is not consistent with policy dimensionalities"
         
         all_policies = np.vstack(self.policies)
 
@@ -525,7 +527,7 @@ class Agent(object):
         return future_qs_seq
 
 
-    def infer_states(self, observation, distr_obs=False):
+    def infer_states(self, observation):
         """
         Update approximate posterior over hidden states by solving variational inference problem, given an observation.
 
@@ -547,7 +549,9 @@ class Agent(object):
             at timepoint ``t_idx``.
         """
 
-        observation = tuple(observation) if not distr_obs else observation
+        observation = tuple(observation) if not self.distr_obs else observation
+
+        print(f"observation: {observation}")        
 
         if not hasattr(self, "qs"):
             self.reset()
@@ -592,10 +596,11 @@ class Agent(object):
                 latest_actions, 
                 prior = self.latest_belief, 
                 policy_sep_prior = self.edge_handling_params['policy_sep_prior'],
+                distr_obs = self.distr_obs,
                 **self.inference_params
             )
 
-            self.F = F # variational free energy of each policy  
+            self.F = [F[0],F[-1]]# variational free energy of each policy  
 
         if hasattr(self, "qs_hist"):
             self.qs_hist.append(qs)
@@ -603,12 +608,12 @@ class Agent(object):
 
         return qs
 
-    def _infer_states_test(self, observation, distr_obs=False):
+    def _infer_states_test(self, observation,):
         """
         Test version of ``infer_states()`` that additionally returns intermediate variables of MMP, such as
         the prediction errors and intermediate beliefs from the optimization. Used for benchmarking against SPM outputs.
         """
-        observation = tuple(observation) if not distr_obs else observation
+        observation = tuple(observation) if not self.distr_obs else observation
 
         if not hasattr(self, "qs"):
             self.reset()
@@ -780,11 +785,13 @@ class Agent(object):
             q_pi, G, utilities, info_gains = control.update_posterior_policies_full_factorized(
                 future_qs_seq,
                 self.A,
+                self.base_A,
                 self.B,
                 self.C,
                 self.A_factor_list,
                 self.B_factor_list,
-                self.policies,
+                self.precision_policies,
+                #self.policies,
                 self.use_utility,
                 self.use_states_info_gain,
                 self.use_param_info_gain,
@@ -824,13 +831,15 @@ class Agent(object):
 
         if self.sampling_mode == "marginal":
             action = control.sample_action(
-                self.q_pi, self.policies, self.num_controls, action_selection = self.action_selection, alpha = self.alpha
+                self.q_pi, 
+                self.precision_policies,
+                [self.num_controls[0]], action_selection = self.action_selection, alpha = self.alpha
             )
         elif self.sampling_mode == "full":
             action = control.sample_policy(self.q_pi, self.policies, self.num_controls,
                                            action_selection=self.action_selection, alpha=self.alpha)
 
-        self.action = action
+        self.action = [action[0], action[0]]
 
         self.step_time()
 
@@ -979,7 +988,8 @@ class Agent(object):
 
         #f"Old gamma A :{self.gamma_A}")
         if self.inference_algo == "MMP":
-            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A_MMP(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
+            qs = qs[0]
+            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A_MMP(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities, distr_obs = self.distr_obs)
         else:
             self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
 
@@ -1110,9 +1120,14 @@ class Agent(object):
             Posterior Dirichlet parameters over observation likelihood (same shape as ``C``), after having updated it with observations.
         """
 
-        qC = learning.update_preferences(self.pC, observation, self.lr_pC, modalities = self.modalities_to_learn)
+        print(f"observation: {observation}")
+        observation = np.array(observation, dtype = np.float64)
+
+        qC = learning.update_preferences(self.pC, observation, self.lr_pC, modalities = [0], distr_obs= self.distr_obs)
 
         self.pC = qC
+
+        self.C = self.pC
 
         return qC
     

@@ -664,7 +664,7 @@ def softmax_dim2(X):
     Y = (np.exp(X) + 10**-5) / norm
     return Y
 
-def scale_A_with_gamma(A, gamma_A):
+def scale_A_with_gamma(A, gamma_A, modalities = None):
     """
     Utility function for scaling the A matrix (likelihood) with a precision parameter
     gamma can be:
@@ -673,17 +673,20 @@ def scale_A_with_gamma(A, gamma_A):
     - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
       m, n, k are the indices of the state factors that modality [m] depends on
     """
+
+    if modalities is None:
+        modalities = range(len(A))
     lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
     
     if np.isscalar(gamma_A):
-        for m in range(len(A)):
+        for m in modalities:
            A[m] = maths.softmax(gamma_A[m]*lnA[m] )
 
     elif np.isscalar(gamma_A[0]): #one value per modality 
-        for m in range(len(A)):
+        for m in modalities:
             A[m] = maths.softmax(gamma_A[m]*lnA[m])
     else: 
-        for m in range(len(A)): 
+        for m in modalities: 
             dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
             A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
 
