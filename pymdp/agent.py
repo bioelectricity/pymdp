@@ -585,7 +585,10 @@ class Agent(object):
             else:
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
-            
+
+            print(f"Previous actions: {self.prev_actions}")
+            print(f"Latest actions: {latest_actions}")
+
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
                 self.mb_dict,
@@ -600,7 +603,8 @@ class Agent(object):
                 **self.inference_params
             )
 
-            self.F = [F[0],F[-1]]# variational free energy of each policy  
+            #self.F = [F[0],F[-1]]# variational free energy of each policy 
+            self.F = F 
 
         if hasattr(self, "qs_hist"):
             self.qs_hist.append(qs)
@@ -761,7 +765,7 @@ class Agent(object):
             self.qs_pi_policy_previous = self.qs_pi_policy
 
         if self.inference_algo == "VANILLA":
-            q_pi, G, self.qs_pi_policy, utilities, info_gains = control.update_posterior_policies_factorized(
+            q_pi, G, self.qs_pi_policy, utilities, info_gains, param_info_gains = control.update_posterior_policies_factorized(
                 self.qs,
                 self.A,
                 self.B,
@@ -782,7 +786,7 @@ class Agent(object):
 
             future_qs_seq = self.get_future_qs()
 
-            q_pi, G, utilities, info_gains = control.update_posterior_policies_full_factorized(
+            q_pi, G, utilities, info_gains,param_info_gains = control.update_posterior_policies_full_factorized(
                 future_qs_seq,
                 self.A,
                 self.base_A,
@@ -790,7 +794,7 @@ class Agent(object):
                 self.C,
                 self.A_factor_list,
                 self.B_factor_list,
-                self.precision_policies,
+                self.policies,
                 #self.policies,
                 self.use_utility,
                 self.use_states_info_gain,
@@ -813,6 +817,7 @@ class Agent(object):
         self.G = G
         self.utilities = utilities 
         self.info_gains = info_gains
+        self.param_info_gains = param_info_gains
         return q_pi, G
 
     def sample_action(self):
@@ -839,7 +844,8 @@ class Agent(object):
             action = control.sample_policy(self.q_pi, self.policies, self.num_controls,
                                            action_selection=self.action_selection, alpha=self.alpha)
 
-        self.action = [action[0], action[0]]
+       # self.action = [action[0], action[0]]
+        self.action = action
 
         self.step_time()
 
@@ -1119,9 +1125,7 @@ class Agent(object):
         qC: ``numpy.ndarray`` of dtype object
             Posterior Dirichlet parameters over observation likelihood (same shape as ``C``), after having updated it with observations.
         """
-
-        print(f"observation: {observation}")
-        observation = np.array(observation, dtype = np.float64)
+        #observation = np.array(observation, dtype = np.float64)
 
         qC = learning.update_preferences(self.pC, observation, self.lr_pC, modalities = [0], distr_obs= self.distr_obs)
 

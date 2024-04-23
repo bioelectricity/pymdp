@@ -234,12 +234,13 @@ class NeuronalCell(Agent):
             self.update_B(self.qs_over_time[-2])
             if self.lr_pE > 0:
                 self.update_E()
+            if self.lr_pC > 0:
+                self.update_C(obs)
 
         return action[0]
 
-    def update_after_trial(self, modalities_to_omit= None):
+    def update_after_trial(self, modalities_to_omit= None, gamma_A_update = True):
         # update gamma_A
-        print(self.observation_history)
         for t in range(len(self.observation_history)):
             qs = self.qs_over_time[t]
             if  modalities_to_omit is not None:
@@ -247,11 +248,12 @@ class NeuronalCell(Agent):
 
             else:
                 modalities = None
-            self.update_gamma_A(self.observation_history[t], qs, modalities = modalities)
-            #if self.distr_obs:
-            self.update_C(self.observation_history[t])
+            if gamma_A_update:
+                self.update_gamma_A(self.observation_history[t], qs, modalities = modalities)
+            # #if self.distr_obs:
+            # if self.lr_pC > 0:
+            #     self.update_C(self.observation_history[t])
             
-            # self.update_A(self.observation_history[t])
 
         # overwrite the sensory ones
         self.observation_history = []

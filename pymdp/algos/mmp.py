@@ -208,8 +208,14 @@ def run_mmp_factorized(
     for f in range(num_factors):
         trans_B[f] = spm_norm(np.swapaxes(B[f],0,1))
 
+    print(f"Policy: {policy}")
+    print(f"Prev actions: {prev_actions}")
+
     if prev_actions is not None:
         policy = np.vstack((prev_actions, policy))
+    print(f"Policy now: {policy}")
+
+    
 
     A_factor_list, A_modality_list = mb_dict['A_factor_list'], mb_dict['A_modality_list']
 

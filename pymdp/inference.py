@@ -145,17 +145,17 @@ def update_posterior_states_full_factorized(
 
     num_obs, num_states, num_modalities, num_factors = utils.get_model_dimensions(A, B)
 
-    if not distr_obs:
-        prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
-    print(f"Previous observations: {prev_obs}")
+    # if not distr_obs:
+    #     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
+
+    print(f"Prev obs: {prev_obs}")
+    print(f"Policies: {policies}")
     
     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
 
-    print(f"Previous observations processed: {prev_obs}")
+    print(f"Processed obs: {prev_obs}")
 
     lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
-
-    print(f"LH seq:{lh_seq}")
     
     if prev_actions is not None:
         prev_actions = np.stack(prev_actions,0)
@@ -165,7 +165,7 @@ def update_posterior_states_full_factorized(
 
     for p_idx, policy in enumerate(policies):
         # get sequence and the free energy for policy
-        
+
         qs_seq_pi[p_idx], F[p_idx] = run_mmp_factorized(
             lh_seq,
             mb_dict,

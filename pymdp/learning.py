@@ -500,21 +500,14 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
 def update_preferences(pC, observation, lr, modalities = "all", distr_obs = False):
     num_modalities = len(pC)
     num_observations = [pC[modality].shape[0] for modality in range(num_modalities)]
-    print(observation)
-    observation = observation[0]
 
     if not distr_obs:
         
-        obs_processed = utils.process_observation(observation, num_modalities, num_observations)
+        obs_processed = utils.process_observation([observation], num_modalities, num_observations)
         obs = utils.to_obj_array(obs_processed)
     else:
-        obs = utils.to_obj_array(observation[0])
+        obs = utils.to_obj_array(observation)
 
-
-    #TODO
-    #we might want to be updating C based on         
-    # qo_seq_pi[p_idx] = get_expected_obs(qs_seq_pi[p_idx], A)
-    #rather than the actual observation
 
     if modalities == "all":
         modalities = list(range(num_modalities))
@@ -606,14 +599,14 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
             for policy_idx, prediction_errors in enumerate(prediction_errors_policy):
                 beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-                print(f"beta_A_full : {beta_A_full}")
-                print(f"beta update term: {beta_update_term}")
+                # print(f"beta_A_full : {beta_A_full}")
+                # print(f"beta update term: {beta_update_term}")
 
                 beta_A_full += np.array(beta_update_term, dtype = 'float64')
 
             for idx, s in enumerate(beta_A_full):
-                if s < 1:
-                    beta_A_full[idx] = 1 - 10**-5 #set this as a parameter
+                if s < 0.5:
+                    beta_A_full[idx] = 0.5 - 10**-5 #set this as a parameter
                 if s > 100:
                     beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
 
@@ -679,14 +672,14 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             beta_A_prior = 1/ gamma_A_prior[m]
             beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-            beta_A_full = beta_A_prior  + beta_update_term
+            beta_A_full = beta_A_prior  + 0.3*beta_update_term
             
 
             for idx, s in enumerate(beta_A_full):
                 if s < 1:
                     beta_A_full[idx] = 1 - 10**-5 #set this as a parameter
-                if s > 100:
-                    beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
+                if s > 200:
+                    beta_A_full[idx] = 200  - 10**-5 #set this as a parameter
 
             gamma_A_full[m] = 1 / np.array(beta_A_full) 
 
