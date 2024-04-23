@@ -208,20 +208,27 @@ def run_mmp_factorized(
     for f in range(num_factors):
         trans_B[f] = spm_norm(np.swapaxes(B[f],0,1))
 
+    print(f"Policy: {policy}")
+    print(f"Prev actions: {prev_actions}")
+
     if prev_actions is not None:
         policy = np.vstack((prev_actions, policy))
+    print(f"Policy now: {policy}")
+
+    
 
     A_factor_list, A_modality_list = mb_dict['A_factor_list'], mb_dict['A_modality_list']
 
     joint_lh_seq = obj_array(len(lh_seq))
     num_modalities = len(A_factor_list)
+
     for t in range(len(lh_seq)):
         joint_loglikelihood = np.zeros(tuple(num_states))
         for m in range(num_modalities):
             reshape_dims = num_factors*[1]
             for _f_id in A_factor_list[m]:
                 reshape_dims[_f_id] = num_states[_f_id]
-            joint_loglikelihood += lh_seq[t][m].reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
+            joint_loglikelihood += np.array(lh_seq[t][m],dtype=np.float64).reshape(reshape_dims) # add up all the log-likelihoods after reshaping them to the global common dimensions of all hidden state factors
         joint_lh_seq[t] = joint_loglikelihood
 
     for itr in range(num_iter):
@@ -232,8 +239,8 @@ def run_mmp_factorized(
                 lnA = np.zeros(num_states[f])
                 if t < past_len:
                     for m in A_modality_list[f]:
-                        lnA += spm_log_single(spm_dot(lh_seq[t][m], qs_seq[t][A_factor_list[m]], [A_factor_list[m].index(f)]))  
-                    print(f'Factorized version: lnA at time {t}: {lnA}')                
+                        lnA += spm_log_single(spm_dot(np.array(lh_seq[t][m],dtype=np.float64), qs_seq[t][A_factor_list[m]], [A_factor_list[m].index(f)]))  
+                    #print(f'Factorized version: lnA at time {t}: {lnA}')                
                 
                 # past message
                 if t == 0:
@@ -246,21 +253,27 @@ def run_mmp_factorized(
                 if t >= future_cutoff:
                     lnB_future = qs_T[f]
                 else:
+                        # print(f"trans_B[f]: {np.round(trans_B[f],2)}")
+                    
                     future_msg = spm_dot(trans_B[f][...,int(policy[t, f])], qs_seq[t+1][B_factor_list[f]])
+
                     lnB_future = spm_log_single(future_msg)
                 
                 # inference
                 if grad_descent:
-                    sx = qs_seq[t][f] # save this as a separate variable so that it can be used in VFE computation
+                    sx = np.copy(qs_seq[t][f]) # save this as a separate variable so that it can be used in VFE computation
                     lnqs = spm_log_single(sx)
                     coeff = 1 if (t >= future_cutoff) else 2
                     err = (coeff * lnA + lnB_past + lnB_future) - coeff * lnqs
                     lnqs = lnqs + tau * (err - err.mean())
                     qs_seq[t][f] = softmax(lnqs)
+                    prev_F = F
                     if (t == 0) or (t == (infer_len-1)):
                         F += sx.dot(0.5*err)
                     else:
                         F += sx.dot(0.5*(err - (num_factors - 1)*lnA/num_factors)) # @NOTE: not sure why Karl does this in SPM_MDP_VB_X, we should look into this
+                   # print(f"F: {F}")
+                    #assert F <= prev_F, f"{F} is not less than {prev_F}" #gradient descent
                 else:
                     qs_seq[t][f] = softmax(lnA + lnB_past + lnB_future)
             
@@ -270,7 +283,8 @@ def run_mmp_factorized(
                     F += calc_free_energy(qs_seq[t], prior, num_factors, likelihood = spm_log_single(joint_lh_seq[t]) )
                 else:
                     F += calc_free_energy(qs_seq[t], prior, num_factors)
-
+    if grad_descent:
+        F*= -1
     return qs_seq, F
 
 def _run_mmp_testing(

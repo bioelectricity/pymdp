@@ -67,6 +67,7 @@ def draw_network(
     save=False,
     show=False,
     temp_file_name=None,
+    edge_colors = None
 ):
     """
     Draw a network using networkx and matplotlib.
@@ -82,10 +83,7 @@ def draw_network(
     GS_labels = {}
     node_colors = {}
     for node in network.nodes:
-        if hasattr(network.nodes[node]["agent"], "G"):
-            G = network.nodes[node]["agent"].G.sum().round(2) * -1
-            S = stemness(network.nodes[node]["agent"].B).round(2)
-            GS_labels[node] = f"G: {G}, S: {S}"
+ 
         if 'i' in node:
             node_colors[node] = 'mediumseagreen'
         elif 'e' in node:
@@ -94,7 +92,6 @@ def draw_network(
             node_colors[node] = 'indianred'
         elif 's' in node:
             node_colors[node] = 'lightgrey'
-    print(f"Node colors: {node_colors}")
     node_colors = [node_colors[node] for node in network.nodes]
     if _draw_neighboring_pairs:
 
@@ -117,6 +114,16 @@ def draw_network(
             network, with_labels=True, node_color=node_colors, pos=pos, font_weight="bold"
         )
 
+    if edge_colors is not None:
+        networkx.draw_networkx_edges(
+            network,
+            pos,
+            edgelist=network.edges(),
+            edge_color=edge_colors,
+            arrows=True,
+            arrowstyle="-|>",
+        )
+
     if title is not None:
         plt.title(title)
 
@@ -126,6 +133,7 @@ def draw_network(
         plt.savefig(temp_file_name)
     if show:
         plt.show()
+    plt.clf()
     return temp_file_name
 
 

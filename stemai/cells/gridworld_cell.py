@@ -17,7 +17,6 @@ class GridWorldCell(ExternalCell):
 
     def __init__(
         self,
-        node,
         neighbors,
         external_cell_indices,
         active_cell_indices,
@@ -127,9 +126,9 @@ class GridWorldCell(ExternalCell):
 
         self.observation_history.append(obs)
 
-        # print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
-
-        obs = int(stats.mode(self.observation_history[-self.action_time_horizon :])[0])
+        print(f"History: {self.observation_history[-self.action_time_horizon:]} ")
+        
+        obs = int(stats.mode(self.observation_history[-self.action_time_horizon:])[0])
 
         # print(f"Averaged observation: {obs}")
 
@@ -164,10 +163,11 @@ class GridWorldCell(ExternalCell):
         else:
             # sampling randomly from a distance across 0 and 1
             # the probabilities of the reward depend on the distance
+            steepness = 1 / (distance_to_reward_location + 1)  # Adjust the steepness based on the distance
             probabilities = np.array(
                 [
-                    0.5 - ((20 - distance_to_reward_location) / 20) / 2,
-                    0.5 + ((20 - distance_to_reward_location) / 20) / 2,
+                    0.5 - steepness / 2,
+                    0.5 + steepness / 2,
                 ]
             )
 

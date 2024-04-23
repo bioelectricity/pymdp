@@ -14,11 +14,11 @@ from stemai.cells.external_cell import ExternalCell
 class ExternalNetwork(Network):
     """A network object representing a network of external cells"""
 
-    def __init__(self, num_external_cells, connectivity, cells, celltype):
+    def __init__(self, num_external_cells, connectivity, cells, celltype, file):
 
         self.color = "lightblue"
 
-        super().__init__(num_external_cells, connectivity, cells, celltype)
+        super().__init__(num_external_cells, connectivity, cells, celltype, file)
 
     def create_agent(self, node, active_cell_indices, sensory_cell_indices, states) -> ExternalCell:
         """Creates an active inference agent for a given node in the network"""

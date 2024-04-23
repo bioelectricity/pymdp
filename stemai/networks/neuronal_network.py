@@ -2,6 +2,7 @@
 import pathlib
 import sys
 import os
+import pickle
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -22,9 +23,10 @@ class NeuronalNetwork:
         connectivity,
         node_labels,
         celltype=NeuronalCell,
-        gamma_A=1.0,
-        gamma_B=1.0,
+        gamma_A=0.1,
+        gamma_B=0.1,
         color=None,
+        file = None
     ):
         """
         num_cells: number of cells in the network
@@ -34,8 +36,10 @@ class NeuronalNetwork:
 
         self.num_cells = num_cells
         self.connectivity = connectivity
-
-        self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+        if file is not None:
+            self.network = pickle.load(open(file, "rb"))
+        else:
+            self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
         for node in self.network.nodes:
             if len(list(networkx.neighbors(self.network, node))) == 0:
                 random_node = np.random.choice(list(self.network.nodes))
@@ -43,7 +47,7 @@ class NeuronalNetwork:
 
         self.network = networkx.relabel_nodes(
             self.network, dict(zip(self.network.nodes, node_labels))
-        )
+        ) 
         self.nodes = self.network.nodes
         self.color = color
         self.actions = {n: np.random.choice([0, 1]) for n in node_labels}
@@ -70,16 +74,18 @@ class NeuronalNetwork:
             if cell_type == "internal":
                 for m in range(len(neighbors)):
                     if m >= len(neighbors) - len(incoming_cells[node]):
-                        gamma_A[m] = 10
+                        gamma_A[m] = np.array([10,10])
                     else:
-                        gamma_A[m] = 1.0
+                        gamma_A[m] = np.array([0.08,0.08])
+                alpha = 0.5
             else:
                 for m in range(len(neighbors)):
-                    gamma_A[m] = 1.0
+                    gamma_A[m] = np.array([0.1,0.1])
+                alpha = 16
 
             print(f"Celltype: {cell_type}, gamma_A: {gamma_A}")
 
-            agent = self.celltype(idx, neighbors, gamma_A, self.gamma_B)
+            agent = self.celltype(idx, neighbors, gamma_A, self.gamma_B, alpha = alpha)
             networkx.set_node_attributes(self.network, {node: agent}, "agent")
 
             print("CREATING AGENT ")

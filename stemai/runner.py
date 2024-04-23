@@ -33,9 +33,16 @@ class Runner:
         precision_threshold,
         precision_update_frequency,
         prune_connections, 
+<<<<<<< HEAD
+        prune_interval,
+        logging=False,
+        dir="out",
+        default = False
+=======
         add_connections,
         logging=False,
         dir="out"
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
     ):
 
 
@@ -59,7 +66,11 @@ class Runner:
         self.logging = logging
 
         self.prune_connections = prune_connections
+<<<<<<< HEAD
+        self.prune_interval = prune_interval
+=======
         self.add_connections = add_connections
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
 
         self.dir = dir
 
@@ -83,17 +94,37 @@ class Runner:
             "precision_threshold": self.precision_threshold,
             "precision_update_frequency": self.precision_update_frequency,
             "prune_connections": self.prune_connections,
+<<<<<<< HEAD
+            "prune_interval": self.prune_interval,
+=======
             "add_connections": self.add_connections,
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
             "logging": self.logging,
         }
         if not os.path.exists(f"{self.dir}/params.yaml"):
             with open(f"{self.dir}/params.yaml", "w") as file:
                 yaml.dump(params, file)
 
+<<<<<<< HEAD
+        self.construct_system(default = default)
+        self.set_locations()
+
+    def construct_system(self, default = False):
+
+        internal_file = active_file = sensory_file = external_file = None
+
+
+        if default and os.path.exists("internal_network.pickle"):
+            internal_file = "internal_network.pickle"
+            active_file = "active_network.pickle"
+            sensory_file = "sensory_network.pickle"
+            external_file = "external_network.pickle"
+=======
         self.construct_system()
         self.set_locations()
 
     def construct_system(self):
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
 
         internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
 
@@ -107,6 +138,10 @@ class Runner:
             self.internal_connectivity,
             node_labels=internal_node_labels,
             color="mediumseagreen",
+<<<<<<< HEAD
+            file = internal_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         if self.logging: print("Created internal network")
@@ -116,6 +151,10 @@ class Runner:
             self.active_connectivity,
             node_labels=active_node_labels,
             color="indianred",
+<<<<<<< HEAD
+            file = active_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         self.sensory_network = NeuronalNetwork(
@@ -123,6 +162,10 @@ class Runner:
             self.sensory_connectivity,
             node_labels=sensory_node_labels,
             color="lightgrey",
+<<<<<<< HEAD
+            file = sensory_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         self.external_network = ExternalNetwork(
@@ -130,7 +173,14 @@ class Runner:
             self.external_connectivity,
             external_node_labels,
             celltype=GridWorldCell,
+<<<<<<< HEAD
+            file = external_file
         )
+
+
+=======
+        )
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         # now connect them together
         # compose all the networks into one system network
         self.system = System(
@@ -143,7 +193,11 @@ class Runner:
             action_time_horizon=self.action_time_threshold,
             precision_threshold=self.precision_threshold,
             prune_connections=self.prune_connections,
+<<<<<<< HEAD
+            default = default
+=======
             add_connections=self.add_connections,
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         # set the reward states of external cells
@@ -187,6 +241,8 @@ class Runner:
         self.system.update_grid_locations(self.all_reward_locations[0], self.all_agent_locations[0])
 
     def save_network(self, trial, t):
+        if not os.path.exists(f"{self.dir}/{trial}/networks"):
+            os.makedirs(f"{self.dir}/{trial}/networks")
         pickle.dump(self.system.system, open(f"{self.dir}/{trial}/networks/{t}.pickle", "wb"))
 
     def draw(self, trial, t):
@@ -224,7 +280,7 @@ class Runner:
         self.grids_over_time = []
         self.gamma_update_times = []
 
-    def write_data(self):
+    def write_data(self, trial):
         with open(f"{self.dir}/time_to_reward.txt", "w") as file:
             for time in self.time_to_reward_per_trial:
                 file.write(f"{time}\n")
@@ -237,63 +293,35 @@ class Runner:
             for trial, connectivity in self.connectivities.items():
                 file.write(f"{trial}: {connectivity}\n")
 
-    def generate_gifs(self):
-        network_images = []
-        grid_images = []
-        for i in range(self.num_trials):
-            network_fns = [
-                f"{self.dir}/{i}/networks/{j}.png"
-                for j in range(
-                    1,
-                    len(
-                        [
-                            x
-                            for x in os.listdir(f"{self.dir}/{i}/networks/")
-                            if x.endswith(".png")
-                        ]
-                    ),
-                )
-            ]
-            network_images += [imageio.imread(f) for f in network_fns]
-            grid_fns = [
-                f"{self.dir}/{i}/grids/{j}.png"
-                for j in range(
-                    1,
-                    len(
-                        [
-                            x
-                            for x in os.listdir(f"{self.dir}/{i}/grids/")
-                            if x.endswith(".png")
-                        ]
-                    ),
-                )
-            ]
-            grid_images += [imageio.imread(f) for f in grid_fns]
-        gif_path = f"{self.dir}/network-simulation.gif"
-        imageio.mimsave(gif_path, network_images, fps=5)
-        # for temp_file in network_fns:
-        #     os.remove(temp_file)
-        gif_path = f"{self.dir}/grid-simulation.gif"
-        imageio.mimsave(gif_path, grid_images, fps=5)
-        # for temp_file in grid_fns:
-        #     os.remove(temp_file)
 
-    def run(self):
+        # with open(f"{self.dir}/precisions/{trial}.pickle", "wb") as file:
+        #     pickle.dump(self.precisions, file)
+        with open(f"{self.dir}/gammas/{trial}.pickle", "wb") as file:
+            pickle.dump(self.gammas, file)
+
+
+    def run(self, save_grids = False, save_networks = False):
         agent_location = self.system.agent_location
         trial = 0
 
         self.distances_over_time = {}
         self.signals_over_time = {}
+        self.precisions = {}
         self.time_to_reward_per_trial = []
         self.connectivities = {}
         self.grids_over_time = []
         self.gamma_update_times = []
+        self.gammas = {}
+        self.distances_over_time[trial] = []
+        self.connectivities[trial] = {}
+
+        #self.precisions[trial] = {}
+        self.gammas[trial] = {}
+
+       # precisions_dict_per_timestep = {}
+        gamma_dict_per_timestep = {}
         self.distances_over_time[trial] = []
         self.signals_over_time[trial] = []
-        self.connectivities[trial] = []
-
-
-        while agent_location != self.system.reward_location and trial < self.num_trials:
             
 
             if self.logging:
@@ -305,22 +333,29 @@ class Runner:
             self.signals_over_time[trial].append(self.system.external_signal)
 
             self.distances_over_time[trial].append(distance)
-            total_edges = self.system.system.number_of_edges()
-            self.connectivities[trial].append(total_edges)
+
 
             if self.system.t > 0 and self.system.t % self.precision_update_frequency == 0:
                 self.system.update_gamma_A()
-                self.gamma_update_times.append(self.system.t)
 
-            if agent_location == self.system.reward_location or self.system.t > 2000:
+                gamma_dict_per_timestep = self.system.collect_precisions()
+                # self.precisions[trial][self.system.t] = precisions_dict_per_timestep
+                self.gammas[trial][self.system.t] = gamma_dict_per_timestep
+            if agent_location == self.system.reward_location or self.system.t > 500:
                 self.time_to_reward_per_trial.append(self.system.t)
-               # self.save_grids_for_trial(trial)
+
+                if save_grids:
+                    self.save_grids_for_trial(trial)
 
                 self.system._reset()
 
-                self.system.renormalize_precisions()
+                #self.system.renormalize_precisions()
+                for node in self.internal_network.network.nodes:
+                    agent = self.internal_network.network.nodes[node]["agent"]
+                    self.connectivities[trial][node] = len([n for n in agent.neighbors if 'i' in n])
 
-                if self.system.prune_connections:
+                if self.system.prune_connections and trial % self.prune_interval == 0 and trial > 0:
+
                     self.system.prune()
                 if self.system.add_connections:
                     self.system.add_new_connections()
@@ -328,17 +363,39 @@ class Runner:
                 print(f"Trial: {trial}")
 
                 self.grids_over_time = []
+<<<<<<< HEAD
+                self.distances_over_time[trial] = []
+                self.signals_over_time[trial] = []
+            
+                self.connectivities[trial] = {}
+
+                
+                    # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
+=======
                 self.gamma_update_times = []
                 self.distances_over_time[trial] = []
                 self.signals_over_time[trial] = []
                 self.connectivities[trial] = []
 
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/grids")
 
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
+<<<<<<< HEAD
+
+                self.write_data(trial)
+                #self.precisions = {trial: {}}
+                self.gammas= {trial: {}}
+
+            if save_networks:
+                self.save_network(trial, self.system.t) 
+
+            if trial == self.num_trials - 1:
+
+=======
                 
             #self.save_network(trial, self.system.t)
             self.write_data()
@@ -348,4 +405,5 @@ class Runner:
                 # self.plot_time_to_reward()
                 # self.plot_distances_over_time()
                 # self.generate_gifs()
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
                 return

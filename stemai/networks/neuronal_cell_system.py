@@ -4,6 +4,7 @@ import sys
 import os
 from stemai.networks.network import Network
 import time
+import pdb
 
 path = pathlib.Path(os.getcwd())
 module_path = str(path.parent) + "/"
@@ -32,7 +33,8 @@ class System(Network):
         prune_connections = True,
         new_connection_node_percentage = 0.1, 
         new_connection_probability = 0.1,
-        logging = False
+        logging = False,
+        default = False
     ):
         """
         internal_network: a Network of internal cells
@@ -67,6 +69,7 @@ class System(Network):
         )
 
         self.action_names = ["RIGHT", "LEFT", "DOWN", "UP"]
+        self.action_time_horizon = action_time_horizon
 
         self.num_cells = (
             self.num_internal_cells
@@ -102,7 +105,7 @@ class System(Network):
         self.new_connection_probability = new_connection_probability
         self.logging = logging
 
-        self.compose()
+        self.compose(default = default)
 
         self.configure()
 
@@ -112,11 +115,18 @@ class System(Network):
 
         # also need to add edges between sensory and active nodes
 
-    def compose(self):
+    def compose(self, default = False):
         # compose all the networks into one system network
         system = networkx.compose(self.internal_network.network, self.sensory_network.network)
         system = networkx.compose(system, self.active_network.network)
         self.system = networkx.compose(system, self.external_network.network)
+        if default and not os.path.exists("internal_network.pickle"):
+            import pickle
+            pickle.dump(self.internal_network.network, open("internal_network.pickle", "wb"))
+            pickle.dump(self.sensory_network.network, open("sensory_network.pickle", "wb"))
+            pickle.dump(self.active_network.network, open("active_network.pickle", "wb"))
+            pickle.dump(self.external_network.network, open("external_network.pickle", "wb"))
+
 
     def set_agents_in_system(self):
         for node in self.internal_network.nodes:
@@ -127,16 +137,17 @@ class System(Network):
             self.system.nodes[node]["agent"] = self.active_network.nodes[node]["agent"]
         for node in self.external_network.nodes:
             self.system.nodes[node]["agent"] = self.external_network.nodes[node]["agent"]
+            self.system.nodes[node]["agent"].action_time_horizon = self.action_time_horizon
 
             self.system.nodes[node]["agent"].action_time_horizon = self.action_time_horizon
         # different subsets of internal and active cells
 
     def configure(self):
         first_half_of_internal = list(self.internal_network.network.nodes)[
-            : int(len(self.internal_cells) / 2)
+            : int(len(self.internal_cells) / 3)
         ]
         second_half_of_internal = list(self.internal_network.network.nodes)[
-            int(len(self.internal_cells) / 2) :
+            int(len(self.internal_cells) / 3) :
         ]
 
         self.internal_network.incoming_nodes = {
@@ -308,23 +319,13 @@ class System(Network):
 
         self.update_observations(node, action, outgoing_nodes)
 
-    def internal_act(self, node, update=True, accumulate=True, logging=False):
-        if logging: print(f"INTERNAL ACT FOR NODE {node}")
-        if logging: print(f"gamma_A: {self.internal_network.network.nodes[node]['agent'].beta_zeta}")
+    
+    def internal_act(self, node, update=True, accumulate = True, logging=False):
         internal_agent = self.internal_network.network.nodes[node]["agent"]
-
-        internal_neighbors = list(networkx.neighbors(self.internal_network.network, node))
-
+        internal_neighbors = [n for n in internal_agent.neighbors if 'i' in n]
         # nodes that send signals to the internal cells
         incoming_nodes = internal_neighbors + self.internal_network.incoming_nodes[node]
 
-        if len(incoming_nodes) != internal_agent.num_modalities:
-            print(f"Node: {node}")
-            print("incoming nodes not equal to num modalities")
-            print(f"Non internal incoming nodes: {self.internal_network.incoming_nodes[node]}")
-            print(f"Internal neighbors: {internal_neighbors}")
-            print(f"Num modalities: {internal_agent.num_modalities}")
-            raise
         # nodes that receive signals from the internal cells
 
         if logging: print(f"Incoming nodes for internal agent: {incoming_nodes}")
@@ -432,47 +433,76 @@ class System(Network):
             if self.logging: print(f"Node incoming: {self.internal_network.incoming_nodes[node]}")
             if self.logging: print(f"Modalities to omit: {modalities_to_omit}")
 
-            if len(self.internal_network.nodes[node]["agent"].beta_zeta) > modalities_to_omit + 1:
-                if self.logging:print(self.internal_network.nodes[node]["agent"].beta_zeta)
+            if len(self.internal_network.nodes[node]["agent"].gamma_A) > modalities_to_omit + 1:
+                print(self.internal_network.nodes[node]["agent"].gamma_A)
 
-                if self.logging:print(self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit])
+                print(self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit])
 
                 if modalities_to_omit > 0:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit]
+                    gamma = self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit]
                 else:
-                    bz = self.internal_network.nodes[node]["agent"].beta_zeta
-                max_distance = max(bz)
-                min_distance = min(bz)
+                    gamma = self.internal_network.nodes[node]["agent"].gamma_A
+                
+                #old_beta_zeta = np.copy(self.internal_network.nodes[node]["agent"].gamma_A)
 
-                spread = max_distance - min_distance
+                #print(f"old gamma A: {old_beta_zeta}")
 
-                if spread == 0:
-                    continue
+                normalized_beta_zeta = np.zeros((len(gamma), 2))
 
-                old_beta_zeta = np.copy(self.internal_network.nodes[node]["agent"].beta_zeta)
+                for state in range(2):
+                    gamma_per_state = np.array([g[state] for g in gamma])
 
-                normalized_beta_zeta = (
-                    (old_beta_zeta - min_distance) / (spread * 10)
-                ) + min_distance
+                    #print(f"To normalize: {gamma_per_state}")
+                    
+                    max_distance = max(gamma_per_state)
+                    min_distance = min(gamma_per_state)
+
+                    spread = max_distance - min_distance
+
+                    #print(f"Spread: {spread}")
+
+                    if spread == 0:
+                        continue
+
+
+                    normalized_beta_zeta_state = (
+                        (gamma_per_state - min_distance) / (spread * 10)
+                    ) + min_distance
+
+
+                    #print(f"normalized gamma a state {state}:   {normalized_beta_zeta_state}")
+
+                    normalized_beta_zeta[:,state] = normalized_beta_zeta_state             
+                
+                #print(f"normalized gamma a: {normalized_beta_zeta}")
+                
+                
                 if np.nan in normalized_beta_zeta:
                     normalized_beta_zeta = np.nan_to_num(normalized_beta_zeta) + 0.0001
 
+                normalized_beta_zeta = [x for x in normalized_beta_zeta]
+
+                #print(f"OLD GAMMA A : {self.internal_network.nodes[node]['agent'].gamma_A}")
+
                 if modalities_to_omit > 0:
-                    self.internal_network.nodes[node]["agent"].beta_zeta[:-modalities_to_omit] = (
-                        normalized_beta_zeta[:-modalities_to_omit]
+                    self.internal_network.nodes[node]["agent"].gamma_A[:-modalities_to_omit] = (
+                        normalized_beta_zeta
                     )
-                    self.internal_network.nodes[node]["agent"].beta_zeta_prior[
+                    self.internal_network.nodes[node]["agent"].gamma_A_prior[
                         :-modalities_to_omit
-                    ] = normalized_beta_zeta[:-modalities_to_omit]
+                    ] = normalized_beta_zeta
 
                 else:
-                    self.internal_network.nodes[node]["agent"].beta_zeta = normalized_beta_zeta
+                    self.internal_network.nodes[node]["agent"].gamma_A = normalized_beta_zeta
                     self.internal_network.nodes[node][
                         "agent"
-                    ].beta_zeta_prior = normalized_beta_zeta
-                self.internal_network.nodes[node]["agent"].A = utils.scale_A_with_zeta(
+                    ].gamma_A_prior = normalized_beta_zeta
+
+                #print(f"NEW GAMMA A : {self.internal_network.nodes[node]['agent'].gamma_A}")
+
+                self.internal_network.nodes[node]["agent"].A = utils.scale_A_with_gamma(
                     np.copy(self.internal_network.nodes[node]["agent"].base_A),
-                    self.internal_network.nodes[node]["agent"].beta_zeta,
+                    self.internal_network.nodes[node]["agent"].gamma_A,
                 )
 
     def step(self, logging=False):
@@ -505,22 +535,22 @@ class System(Network):
     def _reset(self):
         self.t = 0
         for node in self.internal_network.nodes:
-            self.internal_network.nodes[node]["agent"].curr_timestep = 0
+            self.internal_network.nodes[node]["agent"].reset_cell()
+
         for node in self.sensory_network.nodes:
-            self.sensory_network.nodes[node]["agent"].curr_timestep = 0
+            self.sensory_network.nodes[node]["agent"].reset_cell()
 
         for node in self.active_network.nodes:
-            self.active_network.nodes[node]["agent"].curr_timestep = 0
+            self.active_network.nodes[node]["agent"].reset_cell()
         for node in self.external_network.nodes:
             self.external_network.nodes[node]["agent"].agent_location = self.agent_location
             self.external_network.nodes[node]["agent"].reward_location = self.reward_location
 
     def update_gamma_A(self):
         for node in self.internal_network.nodes:
-            if len(self.internal_network.nodes[node]["agent"].beta_zeta) > 2:
-                self.internal_network.nodes[node]["agent"].update_after_trial(
-                    len(self.internal_network.incoming_nodes[node])
-                )
+            if len(self.internal_network.nodes[node]["agent"].gamma_A) > 2:
+
+                self.internal_network.nodes[node]["agent"].update_after_trial(len(self.internal_network.incoming_nodes[node]))
             self.internal_network.nodes[node]["agent"].curr_timestep = 0
         # for node in self.sensory_network.nodes:
         #     if len(self.sensory_network.nodes[node]["agent"].beta_zeta) > 2:
@@ -560,6 +590,19 @@ class System(Network):
                 assert node in list(networkx.neighbors(self.internal_network.network, new_node))
                 assert new_node in list(networkx.neighbors(self.internal_network.network, node))
 
+    def collect_precisions(self):
+        nodes = list(self.internal_network.nodes)
+        gamma_dict = {}
+
+        for node_idx in range(len(nodes)):
+            node = nodes[node_idx]
+
+            agent = self.internal_network.nodes[node]["agent"]
+            neighbors = agent.neighbors
+
+            gamma_dict[node] = {n: (g[0],g[1]) for n, g in zip(neighbors, agent.gamma_A)}
+        return gamma_dict
+
 
     def prune(self):
         node_idx = 0
@@ -570,39 +613,73 @@ class System(Network):
 
             agent = self.internal_network.nodes[node]["agent"]
 
-            neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            neighbors = agent.neighbors
 
             internal_neighbors = [n for n in neighbors if "i" in n]
 
             internal_neighbor_indices = [neighbors.index(n) for n in internal_neighbors]
 
-            precisions = [
-                agent.beta_zeta[neighbor_idx] for neighbor_idx in internal_neighbor_indices
-            ]
-
-            if np.nan in precisions:
-                raise
-
-            if len(precisions) < 2:
+            if len(internal_neighbors) == 0:
                 continue
 
-            minimum_precision_neighbor = np.argmin(precisions)
+            other_neighbors = [n for n in neighbors if "i" not in n]
+
+            other_neighbor_indices = [neighbors.index(n) for n in other_neighbors]
+
+            #internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            #all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
+
+            all_precisions = [np.sum(p) for p in agent.gamma_A]
+
+            internal_precisions = [p for idx, p in enumerate(all_precisions) if idx in internal_neighbor_indices]
+
+            #internal_precisions = [np.max(agent.A[neighbor_idx]) for neighbor_idx in internal_neighbor_indices]
+            #all_precisions = internal_precisions + [np.max(agent.A[neighbor_idx]) for neighbor_idx in other_neighbor_indices]
+
+            print(f"all precisions: {all_precisions}")
+            
+            minimum_precision_neighbor = np.argmin(internal_precisions)
+            precision = internal_precisions[minimum_precision_neighbor]
 
             neighbor = internal_neighbors[minimum_precision_neighbor]
             assert "i" in neighbor
 
-            if precisions[minimum_precision_neighbor] * 10 < self.precision_threshold:
+            print(f"Precision: {precision}")
 
-                # print(
-                #     f"PRUNING CONNECTION for node {node} and neighbor {neighbor} with precision {precisions[minimum_precision_neighbor]} and A value {agent.A[neighbor_idx]}"
-                # )
-                # prune this connection
-                new_agent = self.internal_network.nodes[neighbor]["agent"]
-                if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(neighbor):
-                    continue
+            assert len(all_precisions) == len(neighbors), f"Length of all precisions: {all_precisions} doesn't match length of neighbors: {agent.neighbors}"
+
+            #if precision < 0.5 + self.precision_threshold and precision > 0.5 - self.precision_threshold:
+            if precision < 0.35:
+                print(f"Pruning edge between {node} and {neighbor}")
                 agent.disconnect_from(neighbor)
-                new_agent.disconnect_from(node)
-                node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
-                if neighbor in node_neighbors:
+                #new_agent.disconnect_from(node)
+                #node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+                if node not in list(networkx.neighbors(self.internal_network.network, neighbor)): #only remove if you aren't their neighbor
+                    print("Removing connection")
                     self.internal_network.network.remove_edge(node, neighbor)
                     self.system.remove_edge(node, neighbor)
+            
+            #if self.t % 10 == 0:
+            maximum_precision_neighbor = np.argmax(internal_precisions)
+            precision = internal_precisions[maximum_precision_neighbor]
+            neighbor = internal_neighbors[maximum_precision_neighbor]
+            if precision == 1:
+                agent.disconnect_from(neighbor)
+                if node in list(networkx.neighbors(self.internal_network.network, neighbor)):
+                    self.internal_network.network.remove_edge(node, neighbor)
+                    self.system.remove_edge(node, neighbor)
+
+
+            # if (maximum_precision ==1):
+            #     new_agent = self.internal_network.nodes[maximum_precision_neighbor]["agent"]
+            #     if not new_agent.check_disconnect_from(node) or not agent.check_disconnect_from(maximum_precision_neighbor):
+            #         pdb.set_trace()
+            #         continue
+            #     agent.disconnect_from(maximum_precision_neighbor)
+            #     new_agent.disconnect_from(node)
+            #     node_neighbors = list(networkx.neighbors(self.internal_network.network, node))
+            #     if maximum_precision_neighbor in node_neighbors:
+            #         self.internal_network.network.remove_edge(node, maximum_precision_neighbor)
+            #         self.system.remove_edge(node, maximum_precision_neighbor)   
+
+             

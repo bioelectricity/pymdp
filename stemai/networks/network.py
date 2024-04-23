@@ -8,13 +8,14 @@ module_path = str(path.parent) + "/"
 sys.path.append(module_path)
 import networkx
 import numpy as np
+import pickle
 from stemai.utils import generate_binary_numbers
 
 
 class Network:
     """Abstract Network class that will be inherited by GenerativeModel and GenerativeProcess"""
 
-    def __init__(self, num_cells, connectivity, node_labels, celltype):
+    def __init__(self, num_cells, connectivity, node_labels, celltype, file):
         """
         num_cells: number of cells in the network
         connectivity: float between 0 and 1, probability of connection between any two cells
@@ -24,11 +25,15 @@ class Network:
         self.num_cells = num_cells
         self.connectivity = connectivity
 
-        self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+        if file is not None:
+            self.network = pickle.load(open(file, "rb"))
+        else:
 
-        self.network = networkx.relabel_nodes(
-            self.network, dict(zip(self.network.nodes, node_labels))
-        )
+            self.network = networkx.fast_gnp_random_graph(num_cells, connectivity)
+
+            self.network = networkx.relabel_nodes(
+                self.network, dict(zip(self.network.nodes, node_labels))
+            )
         self.nodes = self.network.nodes
         self.celltype = celltype
 

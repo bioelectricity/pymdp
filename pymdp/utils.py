@@ -658,32 +658,60 @@ def plot_likelihood(A, title=""):
     plt.title(title)
     plt.show()
 
-def scale_A_with_zeta(A, beta_zeta):
+
+def softmax_dim2(X):
+    norm = np.sum(np.exp(X) + 10**-5, axis=0)
+    Y = (np.exp(X) + 10**-5) / norm
+    return Y
+
+def scale_A_with_gamma(A, gamma_A, modalities = None):
     """
     Utility function for scaling the A matrix (likelihood) with a precision parameter
-    zeta can be:
+    gamma can be:
     - a scalar 
     - a vector of length num_modalities 
     - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
       m, n, k are the indices of the state factors that modality [m] depends on
     """
 
-    #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
+    if modalities is None:
+        modalities = range(len(A))
     lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
     
-    if np.isscalar(beta_zeta):
-        for m in range(len(A)):
-           A[m] = maths.softmax(beta_zeta[m]*lnA[m] )
+    if np.isscalar(gamma_A):
+        for m in modalities:
+           A[m] = maths.softmax(gamma_A[m]*lnA[m] )
 
-    elif np.isscalar(beta_zeta[0]): #one value per modality 
-        for m in range(len(A)):
-            A[m] = maths.softmax(beta_zeta[m]*lnA[m])
+    elif np.isscalar(gamma_A[0]): #one value per modality 
+        for m in modalities:
+            A[m] = maths.softmax(gamma_A[m]*lnA[m])
     else: 
-        for m in range(len(A)): 
-            dist = np.array(beta_zeta[m][None,...]*lnA[m], dtype = np.float64)
+        for m in modalities: 
+            dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
             A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
 
     return A
+
+    # print(f"Gamma A: {gamma_A}")
+
+    # #expectation_of_log_dir = scipy.special.digamma(pA) - scipy.special.digamma(pA.sum(axis=0))
+    # #lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+    
+    # if np.isscalar(gamma_A):
+    #     for m in range(len(A)):
+    #        A[m] =softmax_dim2(A[m]**gamma_A)
+
+    # elif np.isscalar(gamma_A[0]): #one precision per modality 
+    #     for m in range(len(A)):
+    #         A[m] = softmax_dim2(A[m]**gamma_A[m])
+    # else:  #one precision per modality and state
+    #     for m in range(len(A)): 
+
+    #         A[m] = softmax_dim2(np.array(A[m]**gamma_A[m]).astype(float))#[None,...])
+    #         # print(f"Scaled A: {A[m]}")
+    #         # A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+
+    # return A
 
 def scale_B_with_omega(B, beta_omega):
     """
