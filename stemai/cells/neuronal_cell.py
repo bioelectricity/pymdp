@@ -99,6 +99,8 @@ class NeuronalCell(Agent):
             D[f] /= D[0].sum()
         return D
 
+    def rebuild_A_factor_list(self):
+        self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors
 
     def rebuild_A_factor_list(self):
         self.A_factor_list = self.num_modalities * [list(range(self.num_factors))] # defaults to having all modalities depend on all factors

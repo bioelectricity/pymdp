@@ -145,18 +145,21 @@ class GridWorldCell(ExternalCell):
             if self.agent_location[0] < self.grid_size - 1:
                 self.agent_location = (self.agent_location[0] + 1, self.agent_location[1])
 
-        #manhattan distance
-        distance_to_reward_location = abs(self.agent_location[0] - self.reward_location[0]) + abs(self.agent_location[1] - self.reward_location[1])
+        # manhattan distance
+        distance_to_reward_location = abs(self.agent_location[0] - self.reward_location[0]) + abs(
+            self.agent_location[1] - self.reward_location[1]
+        )
 
-        print(f"Agent location: {self.agent_location}")
-        print(f"Distance to reward location: {distance_to_reward_location}")
-        probabilities = [0.5,0.5]
+        # print(f"Agent location: {self.agent_location}")
+        # print(f"Distance to reward location: {distance_to_reward_location}")
+        probabilities = [0.5, 0.5]
 
-        if distance_to_reward_location == 0: #on the point
-            signal = 1
-        elif distance_to_reward_location == self.grid_size*2:
-            #completely rnadom 
-            signal = np.random.choice([0,1], p=[0.5, 0.5])
+        if distance_to_reward_location == 0:  # on the point
+            probabilities = [0, 1]
+        elif distance_to_reward_location == self.grid_size * 2:
+            # completely rnadom
+            probabilities = [0.5, 0.5]
+        # signal = np.random.choice([0,1], p=[0.5, 0.5])
         else:
             # sampling randomly from a distance across 0 and 1
             # the probabilities of the reward depend on the distance

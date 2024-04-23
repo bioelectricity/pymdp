@@ -33,10 +33,16 @@ class Runner:
         precision_threshold,
         precision_update_frequency,
         prune_connections, 
+<<<<<<< HEAD
         prune_interval,
         logging=False,
         dir="out",
         default = False
+=======
+        add_connections,
+        logging=False,
+        dir="out"
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
     ):
 
 
@@ -60,7 +66,11 @@ class Runner:
         self.logging = logging
 
         self.prune_connections = prune_connections
+<<<<<<< HEAD
         self.prune_interval = prune_interval
+=======
+        self.add_connections = add_connections
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
 
         self.dir = dir
 
@@ -84,13 +94,18 @@ class Runner:
             "precision_threshold": self.precision_threshold,
             "precision_update_frequency": self.precision_update_frequency,
             "prune_connections": self.prune_connections,
+<<<<<<< HEAD
             "prune_interval": self.prune_interval,
+=======
+            "add_connections": self.add_connections,
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
             "logging": self.logging,
         }
         if not os.path.exists(f"{self.dir}/params.yaml"):
             with open(f"{self.dir}/params.yaml", "w") as file:
                 yaml.dump(params, file)
 
+<<<<<<< HEAD
         self.construct_system(default = default)
         self.set_locations()
 
@@ -104,6 +119,12 @@ class Runner:
             active_file = "active_network.pickle"
             sensory_file = "sensory_network.pickle"
             external_file = "external_network.pickle"
+=======
+        self.construct_system()
+        self.set_locations()
+
+    def construct_system(self):
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
 
         internal_node_labels = [f"i{i}" for i in range(self.num_internal_cells)]
 
@@ -117,7 +138,10 @@ class Runner:
             self.internal_connectivity,
             node_labels=internal_node_labels,
             color="mediumseagreen",
+<<<<<<< HEAD
             file = internal_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         if self.logging: print("Created internal network")
@@ -127,7 +151,10 @@ class Runner:
             self.active_connectivity,
             node_labels=active_node_labels,
             color="indianred",
+<<<<<<< HEAD
             file = active_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         self.sensory_network = NeuronalNetwork(
@@ -135,7 +162,10 @@ class Runner:
             self.sensory_connectivity,
             node_labels=sensory_node_labels,
             color="lightgrey",
+<<<<<<< HEAD
             file = sensory_file
+=======
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         self.external_network = ExternalNetwork(
@@ -143,10 +173,14 @@ class Runner:
             self.external_connectivity,
             external_node_labels,
             celltype=GridWorldCell,
+<<<<<<< HEAD
             file = external_file
         )
 
 
+=======
+        )
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         # now connect them together
         # compose all the networks into one system network
         self.system = System(
@@ -159,7 +193,11 @@ class Runner:
             action_time_horizon=self.action_time_threshold,
             precision_threshold=self.precision_threshold,
             prune_connections=self.prune_connections,
+<<<<<<< HEAD
             default = default
+=======
+            add_connections=self.add_connections,
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
         )
 
         # set the reward states of external cells
@@ -275,7 +313,6 @@ class Runner:
         self.gamma_update_times = []
         self.gammas = {}
         self.distances_over_time[trial] = []
-        self.signals_over_time[trial] = []
         self.connectivities[trial] = {}
 
         #self.precisions[trial] = {}
@@ -283,9 +320,8 @@ class Runner:
 
        # precisions_dict_per_timestep = {}
         gamma_dict_per_timestep = {}
-
-
-        while agent_location != self.system.reward_location and trial < self.num_trials:
+        self.distances_over_time[trial] = []
+        self.signals_over_time[trial] = []
             
 
             if self.logging:
@@ -327,6 +363,7 @@ class Runner:
                 print(f"Trial: {trial}")
 
                 self.grids_over_time = []
+<<<<<<< HEAD
                 self.distances_over_time[trial] = []
                 self.signals_over_time[trial] = []
             
@@ -334,11 +371,20 @@ class Runner:
 
                 
                     # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
+=======
+                self.gamma_update_times = []
+                self.distances_over_time[trial] = []
+                self.signals_over_time[trial] = []
+                self.connectivities[trial] = []
+
+                # os.makedirs(f"{self.dir}/{self.index}/{trial}/networks")
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
                 # os.makedirs(f"{self.dir}/{self.index}/{trial}/grids")
 
                 reward_location = self.all_reward_locations[trial]
                 agent_location = self.all_agent_locations[trial]
                 self.system.update_grid_locations(reward_location, agent_location)
+<<<<<<< HEAD
 
                 self.write_data(trial)
                 #self.precisions = {trial: {}}
@@ -349,4 +395,15 @@ class Runner:
 
             if trial == self.num_trials - 1:
 
+=======
+                
+            #self.save_network(trial, self.system.t)
+            self.write_data()
+            if trial == self.num_trials - 1:
+                #self.write_data()
+
+                # self.plot_time_to_reward()
+                # self.plot_distances_over_time()
+                # self.generate_gifs()
+>>>>>>> 8188d5581b557d5995f45caaf938d6c97c8b0116
                 return
