@@ -14,6 +14,9 @@ import matplotlib.pyplot as plt
 import warnings
 import itertools
 
+from pymdp import maths 
+
+
 EPS_VAL = 1e-16 # global constant for use in norm_dist()
 
 class Dimensions(object):
@@ -677,6 +680,54 @@ def plot_likelihood(A, title=""):
     plt.show()
 
 
-    
+def scale_A_with_gamma(A, gamma_A, modalities = None):
+    """
+    Utility function for scaling the A matrix (likelihood) with a precision parameter
+    gamma can be:
+    - a scalar 
+    - a vector of length num_modalities 
+    - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
+        m, n, k are the indices of the state factors that modality [m] depends on
+    """
+
+    if modalities is None:
+        modalities = range(len(A))
+    lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
+
+    if np.isscalar(gamma_A):
+        for m in modalities:
+            A[m] = maths.softmax(gamma_A[m]*lnA[m] )
+
+    elif np.isscalar(gamma_A[0]): #one value per modality 
+        for m in modalities:
+            A[m] = maths.softmax(gamma_A[m]*lnA[m])
+    else: 
+        for m in modalities: 
+            dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
+            A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
+
+    return A   
    
 
+def scale_B_with_omega(B, beta_omega):
+    """
+    Utility function for scaling the B matrix (transition likelihood) with a precision parameter
+    omega can be:
+    - a scalar
+    - a vector of length num_factors
+    - a list/collection of np.ndarray of len num_factors, where the f-th elemnt will have shape (num_states[m], num_states[n], num_states[k], num_actions[f]) aka B.shape[1:], where
+      m, n, k are the indices of the state factors that factor [f] depends on
+    """
+
+    lnB = maths.spm_log_obj_array(B)
+    if np.isscalar(beta_omega):
+        for f in range(len(B)):
+            B[f] = maths.softmax(beta_omega*lnB[f])
+    
+    elif np.isscalar(beta_omega[0]): #one scalar per state factor
+        for f in range(len(B)):
+            B[f] = maths.softmax(beta_omega[f]*lnB[f])
+    else:
+        for f in range(len(B)):
+            B[f] = maths.softmax(beta_omega[f][None,...]*lnB[f])
+    return B

@@ -353,3 +353,201 @@ def _prune_B(B, state_levels_to_prune, action_levels_to_prune, dirichlet = False
             raise(NotImplementedError("Need to figure out how to re-distribute concentration parameters from pruned rows/columns, across remaining rows/columns"))
 
     return reduced_B
+
+
+
+def update_preferences(pC, observation, lr, modalities = "all", distr_obs = False):
+    num_modalities = len(pC)
+    num_observations = [pC[modality].shape[0] for modality in range(num_modalities)]
+
+    if not distr_obs:
+        
+        obs_processed = utils.process_observation([observation], num_modalities, num_observations)
+        obs = utils.to_obj_array(obs_processed)
+    else:
+        obs = utils.to_obj_array(observation)
+
+
+    if modalities == "all":
+        modalities = list(range(num_modalities))
+    
+    qC = copy.deepcopy(pC)
+
+    for modality in modalities:
+        idx = pC[modality] > 0
+        qC[modality][idx] += (lr * obs[modality][idx])
+
+    return qC
+
+def update_policies(pE, q_pi, lr):
+    num_policies = len(pE)
+
+    qE = copy.deepcopy(pE)
+
+    for idx in range(num_policies):
+        idx = pE[idx] > 0
+        qE[idx] += (lr * q_pi[idx])
+
+    return qE
+
+
+def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None, distr_obs = False):
+
+
+    if update_prior:
+        new_gamma_A_prior = gamma_A
+    else:
+        new_gamma_A_prior = gamma_A_prior
+    
+    expected_A = utils.scale_A_with_gamma(base_A, gamma_A)
+
+
+    get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+    prediction_errors_policy = utils.obj_array(len(qs))
+    for policy, qs_policy in enumerate(qs):
+
+        qs_relevant = np.array([get_factors(qs_policy, factor_list) for factor_list in A_factor_list], dtype = 'object')
+
+        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
+
+        print(f"Bold o: {bold_o_per_modality}")
+
+        if distr_obs:
+            observation_array = utils.obj_array_from_list([observation[m] for m in range(len(base_A))])
+        else:
+            observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
+
+        print(f"Observation array: {observation_array}")
+        prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
+        prediction_errors_policy[policy] = prediction_errors
+
+    print(f"Prediction errors per policy: {prediction_errors_policy}")
+
+    lnA = maths.spm_log_obj_array(base_A)
+
+    # do checking here to make sure pzeta is broadcast-consistent
+    
+    if modalities is None:
+        modalities = range(len(base_A))
+    
+    if np.isscalar(gamma_A_prior):
+        gamma_A_prior = np.array([gamma_A_prior] * len(base_A))
+    
+    gamma_A_full = utils.obj_array(len(base_A))
+    
+    for m in range(len(base_A)):
+        beta_A_prior = 1/ gamma_A_prior[m]
+
+        beta_A_full = copy.deepcopy(beta_A_prior)
+
+        if m not in modalities:
+
+            gamma_A_full[m] =gamma_A_prior[m]
+        else:
+            for policy_idx, prediction_errors in enumerate(prediction_errors_policy):
+                beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
+
+                # print(f"beta_A_full : {beta_A_full}")
+                # print(f"beta update term: {beta_update_term}")
+
+                beta_A_full += np.array(beta_update_term, dtype = 'float64')
+
+            for idx, s in enumerate(beta_A_full):
+                if s < 0.5:
+                    beta_A_full[idx] = 0.5 - 10**-5 #set this as a parameter
+                if s > 100:
+                    beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
+
+            gamma_A_full[m] = 1 / np.array(beta_A_full) 
+
+    if np.isscalar(gamma_A):
+        gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    elif np.isscalar(gamma_A[0]):
+        gamma_A_posterior = np.array([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    else:
+        gamma_A_posterior = gamma_A_full
+    
+    return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)
+
+
+
+
+def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None):
+
+    """
+    gamma_A can be:
+    - a scalar 
+    - a vector of length num_modalities 
+    - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
+    m, n, k are the indices of the state factors that modality [m] depends on
+    """
+
+    if update_prior:
+        new_gamma_A_prior = gamma_A
+    else:
+        new_gamma_A_prior = gamma_A_prior
+    
+    expected_A = utils.scale_A_with_gamma(base_A, gamma_A)
+
+
+    get_factors = lambda q, factor_list: [q[f_idx] for f_idx in factor_list]
+    qs_relevant = np.array([get_factors(qs, factor_list) for factor_list in A_factor_list], dtype = 'object')
+
+    bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
+
+    observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
+
+    prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
+
+    lnA = maths.spm_log_obj_array(base_A)
+
+    # do checking here to make sure pzeta is broadcast-consistent
+    
+    if modalities is None:
+        modalities = range(len(base_A))
+
+    gamma_A_full = utils.obj_array(len(base_A))
+    
+    if np.isscalar(gamma_A_prior):
+        gamma_A_prior = np.array([gamma_A_prior] * len(base_A))
+
+    for m in range(len(base_A)):
+        if m not in modalities:
+
+            gamma_A_full[m] =gamma_A_prior[m]
+        else:
+
+            beta_A_prior = 1/ gamma_A_prior[m]
+            beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
+
+            beta_A_full = beta_A_prior  + 0.3*beta_update_term
+            
+
+            for idx, s in enumerate(beta_A_full):
+                if s < 1:
+                    beta_A_full[idx] = 1 - 10**-5 #set this as a parameter
+                if s > 200:
+                    beta_A_full[idx] = 200  - 10**-5 #set this as a parameter
+
+            gamma_A_full[m] = 1 / np.array(beta_A_full) 
+
+    if np.isscalar(gamma_A):
+        gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    elif np.isscalar(gamma_A[0]):
+        gamma_A_posterior = np.array([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
+    else:
+        gamma_A_posterior = gamma_A_full
+
+    return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)
+
+
+def update_gamma_G(G, gamma, q_pi, q_pi_bar, policies):
+    """Update the model precision parameter of the generative model"""
+
+    affective_charge = 0
+
+    affective_charge = (q_pi - q_pi_bar).dot(G)
+
+    new_beta = (1/gamma) - 10*affective_charge
+
+    return 1 / new_beta, affective_charge
