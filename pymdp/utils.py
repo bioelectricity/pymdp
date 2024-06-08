@@ -16,7 +16,6 @@ import itertools
 
 from pymdp import maths 
 
-
 EPS_VAL = 1e-16 # global constant for use in norm_dist()
 
 class Dimensions(object):
@@ -595,35 +594,6 @@ def convert_B_stubs_to_ndarray(B_stubs, model_labels):
 
     return B
 
-# def build_belief_array(qx):
-
-#     """
-#     This function constructs array-ified (not nested) versions
-#     of the posterior belief arrays, that are separated 
-#     by policy, timepoint, and hidden state factor
-#     """
-
-#     num_policies = len(qx)
-#     num_timesteps = len(qx[0])
-#     num_factors = len(qx[0][0])
-
-#     if num_factors > 1:
-#         belief_array = obj_array(num_factors)
-#         for factor in range(num_factors):
-#             belief_array[factor] = np.zeros( (num_policies, qx[0][0][factor].shape[0], num_timesteps) )
-#         for policy_i in range(num_policies):
-#             for timestep in range(num_timesteps):
-#                 for factor in range(num_factors):
-#                     belief_array[factor][policy_i, :, timestep] = qx[policy_i][timestep][factor]
-#     else:
-#         num_states = qx[0][0][0].shape[0]
-#         belief_array = np.zeros( (num_policies, num_states, num_timesteps) )
-#         for policy_i in range(num_policies):
-#             for timestep in range(num_timesteps):
-#                 belief_array[policy_i, :, timestep] = qx[policy_i][timestep][0]
-    
-#     return belief_array
-
 def build_xn_vn_array(xn):
 
     """
@@ -687,16 +657,16 @@ def scale_A_with_gamma(A, gamma_A, modalities = None):
     - a scalar 
     - a vector of length num_modalities 
     - a list/collection of np.ndarray of len num_modalities, where the m-th element will have shape (num_states[m], num_states[n], num_states[k]) aka A.shape[1:], where
-        m, n, k are the indices of the state factors that modality [m] depends on
+      m, n, k are the indices of the state factors that modality [m] depends on
     """
 
     if modalities is None:
         modalities = range(len(A))
     lnA = maths.spm_log_obj_array(A) #TODO: look into whether bold lnA here is the expectation of the log of Dir(A), or the log of the expectation of Dir(A)
-
+    
     if np.isscalar(gamma_A):
         for m in modalities:
-            A[m] = maths.softmax(gamma_A[m]*lnA[m] )
+           A[m] = maths.softmax(gamma_A*lnA[m] )
 
     elif np.isscalar(gamma_A[0]): #one value per modality 
         for m in modalities:
@@ -706,10 +676,10 @@ def scale_A_with_gamma(A, gamma_A, modalities = None):
             dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
             A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
 
-    return A   
-   
+    return A
 
-def scale_B_with_omega(B, beta_omega):
+
+def scale_B_with_gamma(B, gamma_B):
     """
     Utility function for scaling the B matrix (transition likelihood) with a precision parameter
     omega can be:
@@ -720,14 +690,15 @@ def scale_B_with_omega(B, beta_omega):
     """
 
     lnB = maths.spm_log_obj_array(B)
-    if np.isscalar(beta_omega):
+    if np.isscalar(gamma_B):
         for f in range(len(B)):
-            B[f] = maths.softmax(beta_omega*lnB[f])
+            B[f] = maths.softmax(gamma_B*lnB[f])
     
-    elif np.isscalar(beta_omega[0]): #one scalar per state factor
+    elif np.isscalar(gamma_B[0]): #one scalar per state factor
         for f in range(len(B)):
-            B[f] = maths.softmax(beta_omega[f]*lnB[f])
+            B[f] = maths.softmax(gamma_B[f]*lnB[f])
     else:
         for f in range(len(B)):
-            B[f] = maths.softmax(beta_omega[f][None,...]*lnB[f])
+            dist = np.array(gamma_B[f][None,...]*lnB[f], dtype = np.float64)
+            B[f] = maths.softmax(dist)
     return B
