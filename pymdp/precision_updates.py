@@ -50,7 +50,7 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
     gamma_A_full = utils.obj_array(len(base_A))
     
     for m in range(len(base_A)):
-        beta_A_prior = 1/ gamma_A_prior[m]
+        beta_A_prior = gamma_A_prior[m]
 
         beta_A_full = copy.deepcopy(beta_A_prior)
 
@@ -69,7 +69,7 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
                 if s > 100:
                     beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
 
-            gamma_A_full[m] = 1 / np.array(beta_A_full) 
+            gamma_A_full[m] = np.array(beta_A_full) 
 
     if np.isscalar(gamma_A):
         gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
@@ -128,9 +128,11 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             gamma_A_full[m] =gamma_A_prior[m]
         else:
 
-            beta_A_prior = 1/ gamma_A_prior[m]
+            beta_A_prior = gamma_A_prior[m]
             beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
+            print(f"Beta A prior :{beta_A_prior}")
+            print(beta_update_term)
             beta_A_full = beta_A_prior  + 0.3*beta_update_term  
 
             for idx, s in enumerate(beta_A_full):
@@ -139,16 +141,17 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
                 if s > 100:
                     beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
 
-            gamma_A_full[m] = 1 / np.array(beta_A_full) 
+            gamma_A_full[m] = np.array(beta_A_full) 
+    print(f"Gamma A full :{gamma_A_full}")
 
     if np.isscalar(gamma_A):
         gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
     elif np.isscalar(gamma_A[0]):
         gamma_A_posterior = np.array([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
     else:
-        gamma_A_posterior = gamma_A_full
+        gamma_A_posterior = np.array(gamma_A_full)
 
-    return np.array(gamma_A_posterior), np.array(new_gamma_A_prior)
+    return gamma_A_posterior, new_gamma_A_prior
 
 
 # E_{Q(s_{t-1, m, n, k}}[P(s_{t,f}|s_{t-1, m}, s_{t-1, n}, ... s_{t-1, k})] # this is what's computed by get_expected_states_with_interactions

@@ -666,7 +666,10 @@ def scale_A_with_gamma(A, gamma_A, modalities = None):
     
     if np.isscalar(gamma_A):
         for m in modalities:
-           A[m] = maths.softmax(gamma_A*lnA[m] )
+            A[m] = maths.softmax(gamma_A*lnA[m])
+    elif len(gamma_A) == 0 and np.isscalar(gamma_A[0]):
+        for m in modalities:
+           A[m] = maths.softmax(gamma_A[0]*lnA[m] )
 
     elif np.isscalar(gamma_A[0]): #one value per modality 
         for m in modalities:
