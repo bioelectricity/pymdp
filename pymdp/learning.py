@@ -103,7 +103,7 @@ def update_obs_likelihood_dirichlet_factorized(pA, A, obs, qs, A_factor_list, lr
 
     qA = copy.deepcopy(pA)
 
-    qs = qs.mean(axis=0)[-1]
+    #qs = qs.mean(axis=0)[-1]
         
     for modality in modalities:
         

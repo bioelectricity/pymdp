@@ -678,7 +678,7 @@ def scale_A_with_gamma(A, gamma_A, modalities = None):
         for m in modalities: 
             dist = np.array(gamma_A[m][None,...]*lnA[m], dtype = np.float64)
             A[m] = maths.softmax(dist) # (1, num_states[0], ..., num_states[f]) * (num_obs[m], num_states[0], ..., num_states[f])
-
+    
     return A
 
 

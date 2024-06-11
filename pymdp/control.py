@@ -655,6 +655,8 @@ def update_posterior_policies_factorized(
     utilities = np.zeros((n_policies, 1))
     info_gains = np.zeros((n_policies, 1))
 
+    pB_info_gain = None
+
 
     for idx, policy in enumerate(policies):
 
@@ -671,7 +673,7 @@ def update_posterior_policies_factorized(
 
         if use_states_info_gain:
             info_gain = calc_states_info_gain_factorized(A, qs_pi, A_factor_list)
-            print(f"Information gain: {info_gain}")
+            #print(f"Information gain: {info_gain}")
             G[idx] += info_gain
             info_gains[idx] += info_gain
 
@@ -691,9 +693,7 @@ def update_posterior_policies_factorized(
     
     q_pi = softmax(G * gamma + lnE)   
 
-    print(f"Qs pi policy: {qs_pi_policy}") 
-
-    return q_pi, G, qs_pi_policy, utilities, info_gains
+    return q_pi, G, qs_pi_policy, utilities, info_gains, pB_info_gain
 
 def get_expected_states(qs, B, policy):
     """
@@ -1283,27 +1283,12 @@ def sample_action(q_pi, policies, num_controls, action_selection="deterministic"
 
     num_factors = len(num_controls)
 
-    print(f"policies: {policies}")
-
-    print(f"num controls: {num_controls}")
-    print(f"num factors: {num_factors}")
-    
-
     action_marginals = utils.obj_array_zeros(num_controls)
-
-    print(f"Aciton marginals: {action_marginals}")
-    print(f"Q pi: {q_pi}")
 
     # weight each action according to its integrated posterior probability under all policies at the current timestep
     for pol_idx, policy in enumerate(policies):
-        print(f"policy: {policy}")
-        print(policy[0,:])
 
         for factor_i, action_i in enumerate(policy[0, :]):
-            print(f"FACTOR")
-            print(factor_i)
-            print(action_marginals[factor_i])
-            print(q_pi[pol_idx])
             action_marginals[factor_i][action_i] += q_pi[pol_idx]
     
     action_marginals = utils.norm_dist_obj_arr(action_marginals)

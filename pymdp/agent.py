@@ -90,6 +90,8 @@ class Agent(object):
         self.use_states_info_gain = use_states_info_gain
         self.use_param_info_gain = use_param_info_gain
         self.distr_obs = distr_obs
+        
+        #self.precision_policies = self.policies
 
         # learning parameters
         self.modalities_to_learn = modalities_to_learn
@@ -108,7 +110,7 @@ class Agent(object):
                 'A matrix must be a numpy array'
             )
 
-        self.A = utils.to_obj_array(A)
+        self.A = A
 
         if gamma_A is None and gamma_A_prior is not None:
             gamma_A = np.copy(gamma_A_prior)
@@ -551,8 +553,6 @@ class Agent(object):
 
         observation = tuple(observation) if not self.distr_obs else observation
 
-        print(f"observation: {observation}")        
-
         if not hasattr(self, "qs"):
             self.reset()
 
@@ -834,11 +834,12 @@ class Agent(object):
             Vector containing the indices of the actions for each control factor
         """
 
+
         if self.sampling_mode == "marginal":
             action = control.sample_action(
                 self.q_pi, 
-                self.precision_policies,
-                [self.num_controls[0]], action_selection = self.action_selection, alpha = self.alpha
+                self.policies,
+                self.num_controls, action_selection = self.action_selection, alpha = self.alpha
             )
         elif self.sampling_mode == "full":
             action = control.sample_policy(self.q_pi, self.policies, self.num_controls,
@@ -903,7 +904,11 @@ class Agent(object):
             self.modalities_to_learn
         )
 
+        
+
         self.pA = qA # set new prior to posterior
+
+        
         self.A = utils.norm_dist_obj_arr(qA) # take expected value of posterior Dirichlet parameters to calculate posterior over A array
 
         return qA
