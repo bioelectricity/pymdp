@@ -53,10 +53,6 @@ def precision_learning(gamma_value):
 
         gamma_A_posterior, new_gamma_A_prior = update_gamma_A(observation, copy.deepcopy(A), gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None)
 
-        # print(f"Previous gamma_A: {gamma_A}")
-        # print(f"Previous A: {scaled_A}")
-        # print("New gamma_A: ", gamma_A_posterior)
-
         new_A = utils.scale_A_with_gamma(copy.deepcopy(A), gamma_A_posterior)
         p = measure_one_hotness(new_A)
         all_ps.append(p)
@@ -115,8 +111,76 @@ for idx, (a, q) in enumerate(zip(all_As, qs_values)):
 # plt.savefig('precision_demo/A_matrices_array_gamma_2.png')
 
 
+
+
 # %%
 
 #TODO 
 #test update_gamma_A_MMP
 #test all of the above given the agent class and make sure its working
+
+def precision_learning_MMP(gamma_value):
+
+    gamma_A = np.ones((1,2))
+    gamma_A[:] = gamma_value
+    gamma_A_prior = copy.deepcopy(gamma_A)
+
+    observation = [1]
+
+    A_for_observation = A[0][0]
+
+    current_s_for_observation = np.argmax(A_for_observation)
+
+
+    A_factor_list = [[0]]
+    qs = utils.obj_array(len(num_states))
+
+    qs_values = np.linspace(0,1.0,9)
+
+    all_As = [A]
+    all_ps = []
+    all_gammas = []
+    all_qs = []
+    for qs_v in qs_values:
+        qs[0] = np.array([0.0,0.0])
+        qs[0][current_s_for_observation] = qs_v
+        qs[0][np.abs(1-current_s_for_observation)] = 1 - qs_v
+        all_qs.append(qs[0])
+
+
+        gamma_A_posterior, new_gamma_A_prior = update_gamma_A(observation, copy.deepcopy(A), gamma_A, qs, gamma_A_prior, A_factor_list, update_prior = False, modalities = None)
+
+        new_A = utils.scale_A_with_gamma(copy.deepcopy(A), gamma_A_posterior)
+        p = measure_one_hotness(new_A)
+        all_ps.append(p)
+        all_gammas.append(gamma_A_posterior)
+
+        #print(f"New A: {new_A}")
+
+        all_As.append(new_A)
+    return all_As, all_ps, all_gammas, all_qs, qs_values, current_s_for_observation
+
+#%%
+
+observation = [1]
+gamma_A = np.ones((1,2))
+gamma_A[:] = gamma_value
+gamma_A_prior = copy.deepcopy(gamma_A)
+
+
+# %%
+
+vanilla_agent = Agent(A,B, inference_algo="VANILLA",gamma_A=gamma_A, gamma_A_prior = gamma_A_prior)
+#under MMP, the shape of qs is 
+agent = Agent(A,B, inference_algo="MMP",gamma_A=gamma_A, gamma_A_prior = gamma_A_prior)
+
+qs = agent.infer_states(observation)
+
+qs_vanilla = vanilla_agent.infer_states(observation)
+
+
+
+agent.update_gamma_A(observation, qs)
+
+vanilla_agent.update_gamma_A(observation, qs_vanilla)
+# %%

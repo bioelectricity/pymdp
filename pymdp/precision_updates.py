@@ -7,7 +7,8 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
     """
     When using the marginal message passing scheme, the posterior over states is expanded over policies
     and future time steps. 
-    So to perform the update, we have to perform the update for each policy separately, 
+    So to perform the update, we have to perform the update for each policy separately, and each time point
+    and then sum over policies and time points within policies to recover the right form of gamma_A
     
     
     """
@@ -25,17 +26,28 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
     #have to iterate over policies in order to calculate the prediction errors 
     for policy, qs_policy in enumerate(qs):
 
-        qs_relevant = np.array([get_factors(qs_policy, factor_list) for factor_list in A_factor_list], dtype = 'object')
+        prediction_errors_policy_t = utils.obj_array(len(qs_policy))
 
-        bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
+        for timepoint in range(len(qs_policy)):
 
-        if distr_obs:
-            observation_array = utils.obj_array_from_list([observation[m] for m in range(len(base_A))])
-        else:
-            observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
+            qs_relevant = np.array([get_factors(qs_policy[timepoint], factor_list) for factor_list in A_factor_list], dtype = 'object')
 
-        prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
-        prediction_errors_policy[policy] = prediction_errors
+            bold_o_per_modality = utils.obj_array_from_list([maths.spm_dot(expected_A[m], qs_relevant[m]) for m in range(len(base_A))])
+
+            if distr_obs:
+                observation_array = utils.obj_array_from_list([observation[m] for m in range(len(base_A))])
+            else:
+                observation_array = utils.obj_array_from_list([utils.onehot(observation[m], base_A[m].shape[0]) for m in range(len(base_A))])
+
+            prediction_errors = np.array(observation_array) - np.array(bold_o_per_modality)
+
+
+            prediction_errors_policy_t[timepoint] = prediction_errors
+        
+        prediction_errors_policy[policy] = np.sum(prediction_errors_policy_t,axis =0)
+        
+    
+    prediction_errors = np.sum(prediction_errors_policy, axis = 0)
 
     lnA = maths.spm_log_obj_array(base_A)
 
@@ -58,10 +70,11 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
 
             gamma_A_full[m] =gamma_A_prior[m]
         else:
-            for policy_idx, prediction_errors in enumerate(prediction_errors_policy):
-                beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
+            #for policy_idx, prediction_errors in enumerate(prediction_errors_policy):
+            beta_A_prior = gamma_A_prior[m]
+            beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-                beta_A_full += np.array(beta_update_term, dtype = 'float64')
+            beta_A_full = beta_A_prior  + 0.3*beta_update_term  
 
             for idx, s in enumerate(beta_A_full):
                 if s < 0.5:
@@ -70,6 +83,7 @@ def update_gamma_A_MMP(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor
                     beta_A_full[idx] = 100  - 10**-5 #set this as a parameter
 
             gamma_A_full[m] = np.array(beta_A_full) 
+      
 
     if np.isscalar(gamma_A):
         gamma_A_posterior = sum([gamma_A_m.sum() for gamma_A_m in gamma_A_full])
@@ -131,8 +145,6 @@ def update_gamma_A(observation, base_A, gamma_A, qs, gamma_A_prior, A_factor_lis
             beta_A_prior = gamma_A_prior[m]
             beta_update_term = (prediction_errors[m] * lnA[m]).sum(axis=0) 
 
-            print(f"Beta A prior :{beta_A_prior}")
-            print(beta_update_term)
             beta_A_full = beta_A_prior  + 0.3*beta_update_term  
 
             for idx, s in enumerate(beta_A_full):

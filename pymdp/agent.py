@@ -9,7 +9,7 @@ __author__: Conor Heins, Alexander Tschantz, Daphne Demekas, Brennan Klein
 
 import warnings
 import numpy as np
-from pymdp import inference, control, learning
+from pymdp import inference, control, learning, precision_updates
 from pymdp import utils, maths
 import copy
 
@@ -119,9 +119,7 @@ class Agent(object):
         self.gamma_A_prior = gamma_A_prior
 
         if self.gamma_A is not None:
-            print(f"Scaling base A {A} with gamma_A: {self.gamma_A}")
             self.base_A = np.copy(A)
-            print(f"Base A: {self.base_A}")
             self.A = utils.scale_A_with_gamma(self.base_A, self.gamma_A)
 
 
@@ -586,9 +584,6 @@ class Agent(object):
                 latest_obs = self.prev_obs
                 latest_actions = self.prev_actions
 
-            print(f"Previous actions: {self.prev_actions}")
-            print(f"Latest actions: {latest_actions}")
-
             qs, F = inference.update_posterior_states_full_factorized(
                 self.A,
                 self.mb_dict,
@@ -999,10 +994,9 @@ class Agent(object):
 
         #f"Old gamma A :{self.gamma_A}")
         if self.inference_algo == "MMP":
-            qs = qs[0]
-            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A_MMP(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities, distr_obs = self.distr_obs)
+            self.gamma_A, self.gamma_A_prior = precision_updates.update_gamma_A_MMP(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities, distr_obs = self.distr_obs)
         else:
-            self.gamma_A, self.gamma_A_prior = learning.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
+            self.gamma_A, self.gamma_A_prior = precision_updates.update_gamma_A(observation, np.copy(self.base_A), self.gamma_A, qs, self.gamma_A_prior, self.A_factor_list, update_prior = self.update_gamma_prior, modalities = modalities)
 
         self.A = utils.scale_A_with_gamma(np.copy(self.base_A), self.gamma_A)
         
@@ -1010,7 +1004,7 @@ class Agent(object):
     
     
     def update_omega(self):
-        self.gamma_B, self.gamma_B_prior = learning.update_gamma_B(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.gamma_B, self.gamma_B_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
+        self.gamma_B, self.gamma_B_prior = precision_updates.update_gamma_B(self.q_pi, self.qs_pi_policy, self.qs_pi_policy_previous, self.B, self.gamma_B, self.gamma_B_prior, self.policies, self.B_factor_list, update_prior = self.update_omega_prior)
         self.B = utils.scale_B_with_omega(self.base_B, self.gamma_B)
         return self.gamma_B, self.gamma_B_prior
 
@@ -1025,7 +1019,7 @@ class Agent(object):
 
         q_pi = maths.softmax(self.G * self.gamma + maths.spm_log_single(self.E) )
         q_pi_bar = maths.softmax(self.G * self.gamma - self.F + maths.spm_log_single(self.E) )
-        self.gamma, self.affective_charge = learning.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
+        self.gamma, self.affective_charge = precision_updates.update_gamma_G(self.G, self.gamma, q_pi, q_pi_bar, self.policies)
 
         print(f"New gamma: {self.gamma}")
         return self.gamma

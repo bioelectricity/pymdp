@@ -147,13 +147,7 @@ def update_posterior_states_full_factorized(
 
     # if not distr_obs:
     #     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
-
-    print(f"Prev obs: {prev_obs}")
-    print(f"Policies: {policies}")
-    
     prev_obs = utils.process_observation_seq(prev_obs, num_modalities, num_obs)
-
-    print(f"Processed obs: {prev_obs}")
 
     lh_seq = get_joint_likelihood_seq_by_modality(A, prev_obs, num_states)
     
